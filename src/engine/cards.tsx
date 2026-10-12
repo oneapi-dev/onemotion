@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Glow } from "./glow";
 import { useLook, type Look } from "./looks";
-import { clamp, easeInOut, easeOut } from "./motion";
+import { REVEAL_MASK_PAD, REVEAL_TILT, clamp, easeInOut, easeOut, revealDrop } from "./motion";
 import type { PlanScene, VideoInput } from "./plan";
 import { countAt, fit, numberIn } from "./text";
 import { chatTimes, checkTimes, kineticTimes, tokens } from "./timing";
@@ -94,11 +94,11 @@ export const Reveal: React.FC<{
         const last = accentLast && i === words.length - 1 && words.length > 1;
         const fill: CSSProperties = last ? { color: look.accentA } : {};
         return (
-          <span key={i} style={{ display: "inline-block", overflow: "hidden", paddingBottom: size * 0.12, marginBottom: -size * 0.12, verticalAlign: "top" }}>
+          <span key={i} style={{ display: "inline-block", overflow: "hidden", paddingBottom: size * REVEAL_MASK_PAD, marginBottom: -size * REVEAL_MASK_PAD, verticalAlign: "top" }}>
             <span
               style={{
                 display: "inline-block",
-                transform: `translateY(${interpolate(p, [0, 1], [105, 0])}%) rotate(${interpolate(p, [0, 1], [4, 0])}deg)`,
+                transform: `translateY(${interpolate(p, [0, 1], [revealDrop(size, lineHeight), 0])}px) rotate(${interpolate(p, [0, 1], [REVEAL_TILT, 0])}deg)`,
                 transformOrigin: "0 100%",
                 ...fill,
               }}
