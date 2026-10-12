@@ -6,6 +6,7 @@ import { findUrl, mentions } from "@/director/facts";
 import type { CatalogModel, DirectInput, Recent, SiteInfo } from "@/director/input";
 import type { MotionFormat, Plan, Tone, VideoInput } from "@/engine/plan";
 import { SAMPLE_INPUT } from "@/engine/sample";
+import { scoreOf } from "@/music/score";
 import { planTiming } from "@/engine/rig";
 import { Editor } from "./Editor";
 import { SettingsDialog } from "./Settings";
@@ -325,7 +326,7 @@ export function Studio() {
                 {current.brief ? <p className="brief">{current.brief}</p> : null}
                 <p className="angle">{plan.angle}</p>
                 <p className="facts">
-                  {[ARCHETYPE[plan.archetype], `${plan.look} room`, `${plan.path} camera`, `${plan.music} music`, `${length}s`].join("  ·  ")}
+                  {[ARCHETYPE[plan.archetype], `${plan.look} room`, `${plan.path} camera`, `${scoreOf(plan).genre} music`, `${length}s`].join("  ·  ")}
                 </p>
               </div>
               {plan.caption ? (

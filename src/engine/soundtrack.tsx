@@ -1,8 +1,10 @@
 import { Audio } from "@remotion/media";
+import { useMemo } from "react";
 import { Sequence, staticFile } from "remotion";
-import { renderProbe } from "../music/probe";
+import { composeTrack } from "../music/render";
+import { hashOf } from "../music/rng";
+import { scoreOf } from "../music/score";
 import { useTrack } from "../music/useTrack";
-import { encodeWav } from "../music/wav";
 import { AUDIO_EXT } from "./music";
 import type { Plan } from "./plan";
 import { moveWindow, type Timing } from "./rig";
@@ -13,23 +15,21 @@ const file = (name: string) => staticFile(`audio/${name}.${AUDIO_EXT}`);
 type Hit = { name: string; at: number; volume: number; frames?: number };
 
 /**
- * The score: the bed from the bar that lines its breakdown up with the
- * close, a riser into the close and the track's own ending hit on it; under
- * the picture, a whoosh on every camera move and the cues each card plays
- * (ticks, typing, a ding when a number lands). Effects start two frames
- * early: sound that leads the picture reads as in sync.
+ * The soundtrack: music composed for this video from its score (hits on
+ * every card landing, build-ups, the close), rendered in the page; over it,
+ * a whoosh on every camera move and the cues each card plays (typing, pops,
+ * a ding when a number lands). Effects start two frames early: sound that
+ * leads the picture reads as in sync.
  */
 export const Soundtrack: React.FC<{ plan: Plan; timing: Timing }> = ({ plan, timing }) => {
   const t = timing;
-  // Spike: a probe in place of the bed, beeping at 0.5 s and on every card landing.
-  const beeps = [0.5, ...plan.scenes.map((_, i) => moveWindow(i, t)[1] / 30)];
-  const key = `probe:${t.total}:${beeps.join(",")}`;
-  const track = useTrack(key, async () => encodeWav(await renderProbe(t.total / 30, beeps)));
-  const hits: Hit[] = [{ name: "impact", at: 0, volume: 0.55 }];
+  const score = useMemo(() => scoreOf(plan), [plan]);
+  const key = `${hashOf(JSON.stringify(score))}:${t.total}:${t.startBeats.join(",")}`;
+  const track = useTrack(key, () => composeTrack(score, t));
+  const hits: Hit[] = [];
   plan.scenes.forEach((scene, i) => {
-    const [leave, land] = moveWindow(i, t);
-    if (i > 0) hits.push({ name: t.move < 18 ? "swoosh" : "whoosh", at: leave - 2, volume: 0.42 });
-    if (i > 0 && i < plan.scenes.length - 1) hits.push({ name: "tick", at: land - 2, volume: 0.35 });
+    const [leave] = moveWindow(i, t);
+    if (i > 0) hits.push({ name: t.move < 18 ? "swoosh" : "whoosh", at: leave - 2, volume: 0.36 });
     const s = t.starts[i];
     const items = scene.items ?? [];
     switch (scene.type) {
@@ -56,12 +56,10 @@ export const Soundtrack: React.FC<{ plan: Plan; timing: Timing }> = ({ plan, tim
         break;
     }
   });
-  const riserFrames = 66;
-  if (t.closeAt > riserFrames + 30) hits.push({ name: "riser", at: t.closeAt - riserFrames, volume: 0.42, frames: riserFrames + 4 });
 
   return (
     <>
-      {track ? <Audio src={track} /> : null}
+      {track ? <Audio src={track} volume={0.9} /> : null}
       {hits.map((h, i) => (
         <Sequence key={i} from={Math.max(0, h.at)} durationInFrames={h.frames ?? 90}>
           <Audio src={file(h.name)} volume={h.volume} />
