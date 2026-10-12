@@ -1,0 +1,288 @@
+{
+  "source": {
+    "name": "VCSL, Versilian Community Sample Library",
+    "url": "https://github.com/sgossner/VCSL",
+    "ref": "master",
+    "license": "CC0-1.0"
+  },
+  "samples": [
+    {
+      "instrument": "piano",
+      "name": "C1",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_C1_vl3_rr1.wav",
+      "sha": "91a41fd5d5468e9b962d212c005f76424dd2a185",
+      "seconds": 3.2,
+      "note": "C1"
+    },
+    {
+      "instrument": "piano",
+      "name": "E1",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_E1_vl3_rr1.wav",
+      "sha": "b46e33dac163b8c1566e0db930634a60c0e705a0",
+      "seconds": 3.2,
+      "note": "E1"
+    },
+    {
+      "instrument": "piano",
+      "name": "Gs1",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_G#1_vl3_rr1.wav",
+      "sha": "ecf6ddd37318e343de25220496cadd5c7dc66546",
+      "seconds": 3.2,
+      "note": "G#1"
+    },
+    {
+      "instrument": "piano",
+      "name": "C2",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_C2_vl3_rr1.wav",
+      "sha": "16f98223b4fd59606d8cc712b0238f922a88ae8a",
+      "seconds": 3.2,
+      "note": "C2"
+    },
+    {
+      "instrument": "piano",
+      "name": "E2",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_E2_vl3_rr1.wav",
+      "sha": "8d91efa375ab738e803a18dc94b6b1d366185ae0",
+      "seconds": 3.2,
+      "note": "E2"
+    },
+    {
+      "instrument": "piano",
+      "name": "Gs2",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_G#2_vl3_rr1.wav",
+      "sha": "4bffe50db1aa62643aaf7f107e3122ce467d3bc4",
+      "seconds": 3.2,
+      "note": "G#2"
+    },
+    {
+      "instrument": "piano",
+      "name": "C3",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_C3_vl3_rr1.wav",
+      "sha": "07e5ead535a3a348d33e4100228e0109033eff20",
+      "seconds": 3.2,
+      "note": "C3"
+    },
+    {
+      "instrument": "piano",
+      "name": "E3",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_E3_vl3_rr1.wav",
+      "sha": "be766954a602f29fdc30b58b027676e1cffda358",
+      "seconds": 3.2,
+      "note": "E3"
+    },
+    {
+      "instrument": "piano",
+      "name": "Gs3",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_G#3_vl3_rr1.wav",
+      "sha": "bd1f9506ef8ab9778b7c0978d2b63c3733eea7d3",
+      "seconds": 3.2,
+      "note": "G#3"
+    },
+    {
+      "instrument": "piano",
+      "name": "C4",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_C4_vl3_rr1.wav",
+      "sha": "6042681e62e98fe2c0af4a491151d05ddf584669",
+      "seconds": 3.2,
+      "note": "C4"
+    },
+    {
+      "instrument": "piano",
+      "name": "E4",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_E4_vl3_rr1.wav",
+      "sha": "a19bc018a487c432c55510d7c87aaa8c7c0bb2b5",
+      "seconds": 3.2,
+      "note": "E4"
+    },
+    {
+      "instrument": "piano",
+      "name": "Gs4",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_G#4_vl3_rr1.wav",
+      "sha": "313c0d6a12153821c6051fca91d5b4b76d71f6aa",
+      "seconds": 3.2,
+      "note": "G#4"
+    },
+    {
+      "instrument": "piano",
+      "name": "C5",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_C5_vl3_rr1.wav",
+      "sha": "5ad9b67ecb4890f19ccc5dc8a9f688fd27d36087",
+      "seconds": 3.2,
+      "note": "C5"
+    },
+    {
+      "instrument": "piano",
+      "name": "E5",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_E5_vl3_rr1.wav",
+      "sha": "a4a9b978a2d17ef97e3b270e24dd47db1a9919ad",
+      "seconds": 3.2,
+      "note": "E5"
+    },
+    {
+      "instrument": "piano",
+      "name": "Gs5",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_G#5_vl3_rr1.wav",
+      "sha": "214fdf013b112a2215c34b2067c6333f6b2eed95",
+      "seconds": 3.2,
+      "note": "G#5"
+    },
+    {
+      "instrument": "piano",
+      "name": "C6",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_C6_vl3_rr1.wav",
+      "sha": "f0e2c1298e9c52bbb965f57ad46347e7ca8bc947",
+      "seconds": 3.2,
+      "note": "C6"
+    },
+    {
+      "instrument": "piano",
+      "name": "E6",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_E6_vl3_rr1.wav",
+      "sha": "f35105f1c44136c9a020284e6e7c204f1ecb545e",
+      "seconds": 3.2,
+      "note": "E6"
+    },
+    {
+      "instrument": "piano",
+      "name": "Gs6",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_G#6_vl3_rr1.wav",
+      "sha": "2c4b80498eb9f6c41c4c0344ec822d3bbf75c6ca",
+      "seconds": 3.2,
+      "note": "G#6"
+    },
+    {
+      "instrument": "piano",
+      "name": "C7",
+      "source": "Chordophones/Zithers/Grand Piano, Steinway B/NoSus/JHPiano_NoSus_Close_C7_vl3_rr1.wav",
+      "sha": "3affb85d3d22007132a67d891e3ec919253e1ff4",
+      "seconds": 3.2,
+      "note": "C7"
+    },
+    {
+      "instrument": "clap",
+      "name": "1",
+      "source": "Idiophones/Struck Idiophones/Claps/Clap_rr1.wav",
+      "sha": "e033dc2c58e13d3edcb7a61bd6f1bc90310562ae",
+      "seconds": 0.6
+    },
+    {
+      "instrument": "clap",
+      "name": "2",
+      "source": "Idiophones/Struck Idiophones/Claps/Clap_rr2.wav",
+      "sha": "74d14ae56377ebe03606b810a70250809a1c1e19",
+      "seconds": 0.6
+    },
+    {
+      "instrument": "clap",
+      "name": "3",
+      "source": "Idiophones/Struck Idiophones/Claps/Clap_rr3.wav",
+      "sha": "045be34ec05a829f38d42cb643c4d1cda70e9cd0",
+      "seconds": 0.6
+    },
+    {
+      "instrument": "hat",
+      "name": "closed1",
+      "source": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v3_rr1_Mid.wav",
+      "sha": "01ede5c05d228875c65e1542972f077df5ab2e2a",
+      "seconds": 0.5
+    },
+    {
+      "instrument": "hat",
+      "name": "closed2",
+      "source": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav",
+      "sha": "7c01881e59793e38511450ff217fb7eee60809fa",
+      "seconds": 0.5
+    },
+    {
+      "instrument": "hat",
+      "name": "open",
+      "source": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitO_rr1_Mid.wav",
+      "sha": "e55c1c8af186f34aee593b05f621aed9b11915b9",
+      "seconds": 1.4
+    },
+    {
+      "instrument": "crash",
+      "name": "1",
+      "source": "Idiophones/Struck Idiophones/Suspended Cymbal 1/susCymb1_hit_fff1.wav",
+      "sha": "b073dd7e3a6f871e0d550fc55d829a7158570a45",
+      "seconds": 3.5
+    },
+    {
+      "instrument": "crash",
+      "name": "2",
+      "source": "Idiophones/Struck Idiophones/Clash Cymbals 1/cymbal_crash1_ff2.wav",
+      "sha": "00eecfab16c3bab05a5b84b8671316b76013da0a",
+      "seconds": 3.5
+    },
+    {
+      "instrument": "swell",
+      "name": "2s",
+      "source": "Idiophones/Struck Idiophones/Suspended Cymbal 1/susCymb1_cresc_2s.wav",
+      "sha": "5375b5cb5abde0aecdeceb07411468fedaa06238",
+      "seconds": 2.6
+    },
+    {
+      "instrument": "swell",
+      "name": "4s",
+      "source": "Idiophones/Struck Idiophones/Suspended Cymbal 1/susCymb1_cresc_4s.wav",
+      "sha": "0e1de2b7a87d8873f177e123c6bb74436a236c0c",
+      "seconds": 4.6
+    },
+    {
+      "instrument": "boom",
+      "name": "ff",
+      "source": "Membranophones/Struck Membranophones/Bass Drum 2/bassdrum_hit_ff.wav",
+      "sha": "1df2aa8cb2775318920eb35e6dd6b67d096be9da",
+      "seconds": 4.0
+    },
+    {
+      "instrument": "boom",
+      "name": "f",
+      "source": "Membranophones/Struck Membranophones/Bass Drum 2/bassdrum_hit_f.wav",
+      "sha": "5f6b56f8c90ea38c32b54b510931c1fe6d5aa79a",
+      "seconds": 3.5
+    },
+    {
+      "instrument": "boom",
+      "name": "roll",
+      "source": "Membranophones/Struck Membranophones/Bass Drum 2/bassdrum_roll_ff.wav",
+      "sha": "fc9ac720e638bfc0f72b31c99e5d0590e6aec24e",
+      "seconds": 4.0
+    },
+    {
+      "instrument": "tom",
+      "name": "low",
+      "source": "Membranophones/Struck Membranophones/Tom 2/Mallet/TomL_HitM_v4_rr1_Mid.wav",
+      "sha": "4d85c70ce5f7f019ac0472a6ada15296915f80a2",
+      "seconds": 1.6
+    },
+    {
+      "instrument": "tom",
+      "name": "high",
+      "source": "Membranophones/Struck Membranophones/Tom 1/Mallet/TomH_HitM_v4_rr1_Mid.wav",
+      "sha": "fcb80debfe600dfe528d63da5200d473b8eaf0b5",
+      "seconds": 1.4
+    },
+    {
+      "instrument": "snare",
+      "name": "rope",
+      "source": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/Hi/RopeSnare_hi_sn_Main_vl4_rr1.wav",
+      "sha": "636face9d16c505ef6038bf42035f4cfb57ffe3b",
+      "seconds": 1.0
+    },
+    {
+      "instrument": "snare",
+      "name": "tight",
+      "source": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v7_rr1_Mid.wav",
+      "sha": "9ee81272009a67d695836c1bd701c4e876fe1102",
+      "seconds": 0.8
+    },
+    {
+      "instrument": "snare",
+      "name": "roll",
+      "source": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_rollSN_v4_rr1_Mid.wav",
+      "sha": "7b030cce4330c19a2505807d2bdc08b1853abc69",
+      "seconds": 3.0
+    }
+  ]
+}
