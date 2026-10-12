@@ -4,7 +4,7 @@ import { CARDS } from "./cards";
 import { Glow } from "./glow";
 import { LookContext, makeLook, type Look } from "./looks";
 import type { VideoInput } from "./plan";
-import { cameraAt, moveWindow, planTiming, stations, type Camera, type Station } from "./rig";
+import { PERSPECTIVE, cameraAt, moveWindow, planTiming, projector, stations, type Camera, type Projector, type Station } from "./rig";
 import { Soundtrack } from "./soundtrack";
 import { Stage3D, type Mote } from "./stage3d";
 
@@ -54,30 +54,6 @@ const Room: React.FC<{ look: Look; cam: Camera }> = ({ look, cam }) => {
   );
 };
 
-/**
- * Projects a room point to the screen the way the CSS camera does:
- * translate by -camera, rotateY(-yaw), rotateX(-pitch), rotateZ(roll), then
- * perspective onto the plane at z = 0 seen from z = perspective.
- */
-type Projector = ReturnType<typeof projector>;
-
-function projector(cam: Camera, width: number, height: number, perspective: number) {
-  const rad = Math.PI / 180;
-  const [cy, sy] = [Math.cos(-cam.yaw * rad), Math.sin(-cam.yaw * rad)];
-  const [cx, sx] = [Math.cos(-cam.pitch * rad), Math.sin(-cam.pitch * rad)];
-  const [cz, sz] = [Math.cos(cam.roll * rad), Math.sin(cam.roll * rad)];
-  return (x: number, y: number, z: number) => {
-    let px = x - cam.x;
-    let py = y - cam.y;
-    let pz = z - cam.z;
-    [px, pz] = [px * cy + pz * sy, -px * sy + pz * cy];
-    [py, pz] = [py * cx - pz * sx, py * sx + pz * cx];
-    [px, py] = [px * cz - py * sz, px * sz + py * cz];
-    const k = perspective / (perspective - pz);
-    return { x: px, y: py, z: pz, k, sx: width / 2 + px * k, sy: height / 2 + py * k };
-  };
-}
-
 export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots }) => {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
@@ -87,7 +63,7 @@ export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots }
   const route = useMemo(() => stations(plan.scenes.length, plan.path ?? "dolly", width, height, u), [plan.scenes.length, plan.path, width, height, u]);
   const brand = useMemo(() => ({ ...site, name: site.name || plan.brand || "" }), [site, plan.brand]);
   const cam = cameraAt(frame, timing, route, u);
-  const perspective = 1500 * u;
+  const perspective = PERSPECTIVE * u;
   const Z = 2300 * u;
 
   const floorY = Math.max(...route.map((s) => s.pos.y)) + height * 0.62;

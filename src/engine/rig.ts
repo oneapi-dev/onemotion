@@ -118,6 +118,34 @@ function rest(st: Station): Vec & { yaw: number; pitch: number } {
   return { ...st.pos, yaw: st.rotY, pitch: st.rotX };
 }
 
+/** A vector in the axes of a camera turned by yaw and pitch, in room axes: the inverse of projector's turn. */
+function toRoom(v: Vec, yaw: number, pitch: number): Vec {
+  const rad = Math.PI / 180;
+  const [cx, sx] = [Math.cos(pitch * rad), Math.sin(pitch * rad)];
+  const [cy, sy] = [Math.cos(yaw * rad), Math.sin(yaw * rad)];
+  const y = v.y * cx - v.z * sx;
+  const z = v.y * sx + v.z * cx;
+  return { x: v.x * cy + z * sy, y, z: -v.x * sy + z * cy };
+}
+
+/** The camera's distance from the plane in focus, per unit u. */
+export const PERSPECTIVE = 1500;
+/** How far a hold pushes in, per unit u. */
+const HOLD_PUSH = 190;
+/** How much bigger a held card is drawn by the end of its hold: cards must fit the frame at this size. */
+export const HOLD_ZOOM = PERSPECTIVE / (PERSPECTIVE - HOLD_PUSH);
+
+/**
+ * Where a hold has taken the camera from its station, `hold` from 0 to 1: a
+ * slow push in, a little lift and a sway that eases in, all along the
+ * camera's own axes. Pushed down the room's z instead, a turned or tilted
+ * station would slide its card off center as the camera closes in.
+ */
+function push(hold: number, u: number, at: { yaw: number; pitch: number }): Vec {
+  const sway = Math.sin(hold * Math.PI) * 30 * u * Math.min(1, hold * 4);
+  return toRoom({ x: sway, y: -hold * 12 * u, z: -hold * HOLD_PUSH * u }, at.yaw, at.pitch);
+}
+
 /** The camera at a frame: holding on a card with a slow push, or travelling. */
 export function cameraAt(frame: number, t: Timing, st: Station[], u: number): Camera {
   const at = (f: number): Omit<Camera, "speed"> => {
@@ -128,19 +156,21 @@ export function cameraAt(frame: number, t: Timing, st: Station[], u: number): Ca
     // While holding, a slow push and sway keep the shot alive.
     const nextLeave = i < st.length - 1 ? moveWindow(i + 1, t)[0] : t.total;
     const hold = interpolate(f, [to, Math.max(to + 1, nextLeave)], [0, 1], clamp);
-    const drift = { x: Math.sin(hold * Math.PI) * 30 * u, y: -hold * 12 * u, z: -hold * 190 * u };
+    const drift = push(hold, u, target);
+    // A move starts where the last hold ended.
     const prev =
       i === 0
         ? { x: target.x + 90 * u, y: target.y + 70 * u, z: target.z + 1100 * u, yaw: -6, pitch: -3 }
         : (() => {
             const p = rest(st[i - 1]);
-            return { ...p, z: p.z - 190 * u, y: p.y - 12 * u };
+            const end = push(1, u, p);
+            return { ...p, x: p.x + end.x, y: p.y + end.y, z: p.z + end.z };
           })();
     const k = whip(interpolate(f, [from, to], [0, 1], clamp));
     const arc = Math.sin(k * Math.PI);
     const dx = target.x - prev.x;
     return {
-      x: prev.x + (target.x - prev.x) * k + drift.x * Math.min(1, hold * 4),
+      x: prev.x + (target.x - prev.x) * k + drift.x,
       y: prev.y + (target.y - prev.y) * k + drift.y + arc * -80 * u,
       z: prev.z + (target.z - prev.z) * k + drift.z,
       yaw: prev.yaw + (target.yaw - prev.yaw) * k + arc * Math.sign(dx || 1) * 9,
@@ -152,4 +182,28 @@ export function cameraAt(frame: number, t: Timing, st: Station[], u: number): Ca
   const p = at(frame - 1);
   const speed = Math.hypot(c.x - p.x, c.y - p.y, c.z - p.z) / u;
   return { ...c, speed };
+}
+
+/**
+ * Projects a room point to the screen the way the CSS camera does:
+ * translate by -camera, rotateY(-yaw), rotateX(-pitch), rotateZ(roll), then
+ * perspective onto the plane at z = 0 seen from z = perspective.
+ */
+export type Projector = ReturnType<typeof projector>;
+
+export function projector(cam: Camera, width: number, height: number, perspective: number) {
+  const rad = Math.PI / 180;
+  const [cy, sy] = [Math.cos(-cam.yaw * rad), Math.sin(-cam.yaw * rad)];
+  const [cx, sx] = [Math.cos(-cam.pitch * rad), Math.sin(-cam.pitch * rad)];
+  const [cz, sz] = [Math.cos(cam.roll * rad), Math.sin(cam.roll * rad)];
+  return (x: number, y: number, z: number) => {
+    let px = x - cam.x;
+    let py = y - cam.y;
+    let pz = z - cam.z;
+    [px, pz] = [px * cy + pz * sy, -px * sy + pz * cy];
+    [py, pz] = [py * cx - pz * sx, py * sx + pz * cx];
+    [px, py] = [px * cz - py * sz, px * sz + py * cz];
+    const k = perspective / (perspective - pz);
+    return { x: px, y: py, z: pz, k, sx: width / 2 + px * k, sy: height / 2 + py * k };
+  };
 }

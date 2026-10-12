@@ -12,7 +12,7 @@ import type { Camera, Station } from "./rig";
  * distance, so the floor melts into them instead of ending on a line.
  *
  * Room space is the engine's: px, y down, the camera at `cam` with the eye
- * `perspective` behind it (projector in Video.tsx). Three.js is y up, so a
+ * `perspective` behind it (projector in rig.ts). Three.js is y up, so a
  * room point goes in as (x, -y, z) and the view matrix is the engine's
  * rotation conjugated by that flip; the floor under a card's HTML position
  * then agrees with it to the pixel. @remotion/web-renderer copies the

@@ -24,12 +24,16 @@ export type CardProps = {
   shots: VideoInput["shots"];
 };
 
-/** Size a card is drawn at, by layout. Headlines and the close have none. */
-export function cardSize(look: Look, type: PlanScene["type"]): { w: number; h: number } {
+/**
+ * Size a card is drawn at, by layout. Headlines and the close have none.
+ * A held card grows by HOLD_ZOOM as the camera pushes in; on a 1080 px wide
+ * frame 860 still leaves it a margin at the end of the push.
+ */
+export function cardSize(look: Pick<Look, "u" | "layout">, type: PlanScene["type"]): { w: number; h: number } {
   const u = look.u;
   const tall = look.layout === "tall";
   const square = look.layout === "square";
-  const base = tall ? { w: 920, h: 1160 } : square ? { w: 920, h: 820 } : { w: 1260, h: 720 };
+  const base = tall ? { w: 860, h: 1160 } : square ? { w: 860, h: 820 } : { w: 1260, h: 720 };
   switch (type) {
     case "chat":
     case "code":
@@ -322,7 +326,8 @@ export const KineticCard: React.FC<CardProps> = ({ scene, at, frames }) => {
   const word = items[idx]?.title ?? "";
   const local = f - starts[idx];
   const p = spring({ frame: local, fps, config: { damping: 15, stiffness: 180, mass: 0.7 } });
-  const w = look.width * 0.84;
+  // Wide enough to fill the frame, narrow enough to keep a margin at HOLD_ZOOM.
+  const w = look.width * 0.78;
   const size = fit(word, w * 0.86, (look.layout === "wide" ? 280 : 220) * look.u, word.includes(" ") ? 2 : 1, 0.6);
   const flip = idx % 2 === 1;
   return (
