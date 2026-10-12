@@ -1,12 +1,14 @@
 import { Audio } from "@remotion/media";
-import { Sequence, interpolate, staticFile } from "remotion";
+import { Sequence, staticFile } from "remotion";
+import { renderProbe } from "../music/probe";
+import { useTrack } from "../music/useTrack";
+import { encodeWav } from "../music/wav";
 import { AUDIO_EXT } from "./music";
 import type { Plan } from "./plan";
 import { moveWindow, type Timing } from "./rig";
 import { chatTimes, checkTimes, kineticTimes } from "./timing";
 
 const file = (name: string) => staticFile(`audio/${name}.${AUDIO_EXT}`);
-const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
 type Hit = { name: string; at: number; volume: number; frames?: number };
 
@@ -19,7 +21,10 @@ type Hit = { name: string; at: number; volume: number; frames?: number };
  */
 export const Soundtrack: React.FC<{ plan: Plan; timing: Timing }> = ({ plan, timing }) => {
   const t = timing;
-  const fadeAt = t.closeAt;
+  // Spike: a probe in place of the bed, beeping at 0.5 s and on every card landing.
+  const beeps = [0.5, ...plan.scenes.map((_, i) => moveWindow(i, t)[1] / 30)];
+  const key = `probe:${t.total}:${beeps.join(",")}`;
+  const track = useTrack(key, async () => encodeWav(await renderProbe(t.total / 30, beeps)));
   const hits: Hit[] = [{ name: "impact", at: 0, volume: 0.55 }];
   plan.scenes.forEach((scene, i) => {
     const [leave, land] = moveWindow(i, t);
@@ -56,14 +61,7 @@ export const Soundtrack: React.FC<{ plan: Plan; timing: Timing }> = ({ plan, tim
 
   return (
     <>
-      <Audio
-        src={file(t.music)}
-        trimBefore={Math.round(t.musicFrom * 30)}
-        volume={(f) => interpolate(f, [0, 6, fadeAt - 4, fadeAt + 4], [0, 0.62, 0.62, 0], clamp)}
-      />
-      <Sequence from={Math.max(0, t.closeAt - 1)}>
-        <Audio src={file(`${t.music}-end`)} volume={0.8} />
-      </Sequence>
+      {track ? <Audio src={track} /> : null}
       {hits.map((h, i) => (
         <Sequence key={i} from={Math.max(0, h.at)} durationInFrames={h.frames ?? 90}>
           <Audio src={file(h.name)} volume={h.volume} />
