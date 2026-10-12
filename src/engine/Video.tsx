@@ -6,6 +6,7 @@ import { LookContext, makeLook, type Look } from "./looks";
 import type { VideoInput } from "./plan";
 import { cameraAt, moveWindow, planTiming, stations, type Camera, type Station } from "./rig";
 import { Soundtrack } from "./soundtrack";
+import { Stage3D, type Mote } from "./stage3d";
 
 /**
  * The engine: one continuous shot through a room. Cards stand along a
@@ -13,12 +14,12 @@ import { Soundtrack } from "./soundtrack";
  * slow push while a card plays, and passes it by. Depth of field, a floor,
  * drifting dust and motion blur sell the space.
  *
- * The 3D is computed here, not by CSS: every card, mote and floor line is
- * projected through the camera to a 2D position and scale, and drawn far to
- * near. Browser export (@remotion/web-renderer) draws the DOM to a canvas
- * without CSS perspective, radial gradients or blend modes, so the engine
- * only uses what that renderer draws; the preview and a server render then
- * show the same picture.
+ * Cards are HTML, placed by a camera computed here rather than by CSS: each
+ * is projected to a 2D position and scale and drawn far to near, because
+ * browser export (@remotion/web-renderer) draws the DOM to a canvas without
+ * CSS perspective, z-index, radial gradients or blend modes. The floor and
+ * the dust are WebGL (stage3d.tsx) under the same camera; the exporter
+ * copies that canvas as pixels.
  */
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -38,7 +39,7 @@ function hashString(v: string): number {
   return h >>> 0;
 }
 
-/** The room: its edge color, a lit center and two soft glows, drifting with the camera. */
+/** The room behind the floor: its edge color, a lit center and two soft glows, drifting with the camera. */
 const Room: React.FC<{ look: Look; cam: Camera }> = ({ look, cam }) => {
   const frame = useCurrentFrame();
   const { width: W, height: H, u } = look;
@@ -77,84 +78,6 @@ function projector(cam: Camera, width: number, height: number, perspective: numb
   };
 }
 
-/**
- * A grid floor under the route, fading into the room's haze. Drawn as 2D
- * lines projected through the camera rather than as a huge 3D plane: the
- * same picture at a sliver of the cost, in a server render and in a browser.
- */
-const Floor: React.FC<{ look: Look; y: number; cam: Camera; perspective: number }> = ({ look, y, cam, perspective }) => {
-  const { width, height, u } = look;
-  const project = projector(cam, width, height, perspective);
-  const cell = 240 * u;
-  const near = cam.z + perspective * 0.75;
-  const far = cam.z - 15000 * u;
-  const span = width * 3;
-  const segs: { x1: number; y1: number; x2: number; y2: number; a: number }[] = [];
-  const line = (a: [number, number, number], b: [number, number, number]) => {
-    let p = project(...a);
-    let q = project(...b);
-    const limit = perspective * 0.92;
-    if (p.z >= limit && q.z >= limit) return;
-    // Clip the end that runs past the camera.
-    if (p.z >= limit || q.z >= limit) {
-      const t = (limit - p.z) / (q.z - p.z);
-      const m = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t] as [number, number, number];
-      if (p.z >= limit) p = project(...m);
-      else q = project(...m);
-    }
-    const depth = (cam.z - (a[2] + b[2]) / 2) / (15000 * u);
-    const alpha = Math.max(0, 1 - depth) ** 1.6;
-    if (alpha < 0.02) return;
-    segs.push({ x1: p.sx, y1: p.sy, x2: q.sx, y2: q.sy, a: alpha });
-  };
-  // Lines across, fixed to the room: snap to the grid.
-  const z0 = Math.floor(near / cell) * cell;
-  for (let z = z0; z > far; z -= cell) line([cam.x - span, y, z], [cam.x + span, y, z]);
-  // Lines along, in pieces so each piece can fade with distance.
-  const x0 = Math.floor((cam.x - span) / cell) * cell;
-  const piece = cell * 4;
-  for (let x = x0; x < cam.x + span; x += cell) {
-    for (let z = Math.floor(near / piece) * piece + piece; z > far; z -= piece) line([x, y, z], [x, y, z - piece]);
-  }
-  return (
-    <svg width={width} height={height} style={{ position: "absolute", inset: 0 }}>
-      {segs.map((s, i) => (
-        <line key={i} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={look.grid} strokeOpacity={s.a} strokeWidth={1.4 * u} />
-      ))}
-    </svg>
-  );
-};
-
-type Mote = { x: number; y: number; z: number; r: number; a: number; drift: number };
-
-const Dust: React.FC<{ look: Look; motes: Mote[]; project: Projector; perspective: number }> = ({ look, motes, project, perspective }) => {
-  const frame = useCurrentFrame();
-  return (
-    <>
-      {motes.map((m, i) => {
-        const p = project(m.x, m.y + Math.sin(frame / 40 + m.drift) * 20 * look.u, m.z);
-        if (p.z > perspective * 0.8 || p.z < -9000 * look.u) return null;
-        const r = m.r * p.k;
-        if (r < 0.4) return null;
-        return (
-          <div
-            key={i}
-            style={{
-              position: "absolute",
-              left: p.sx - r,
-              top: p.sy - r,
-              width: r * 2,
-              height: r * 2,
-              borderRadius: "50%",
-              background: i % 5 === 0 ? `rgba(${look.accentRgb},${m.a})` : `rgba(${look.textRgb},${m.a * 0.6})`,
-            }}
-          />
-        );
-      })}
-    </>
-  );
-};
-
 export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots }) => {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
@@ -167,20 +90,22 @@ export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots }
   const perspective = 1500 * u;
   const Z = 2300 * u;
 
-  const motes = useMemo(() => {
+  const floorY = Math.max(...route.map((s) => s.pos.y)) + height * 0.62;
+  const motes = useMemo<Mote[]>(() => {
     const rnd = seeded(hashString(plan.angle + plan.scenes.length));
     const zMin = route[route.length - 1].pos.z - 4000 * u;
-    return Array.from({ length: 70 }, () => ({
-      x: (rnd() * 2 - 1) * width * 1.6,
-      y: (rnd() * 2 - 1) * height * 1.3 + route[Math.floor(rnd() * route.length)].pos.y,
+    return Array.from({ length: 160 }, (_, i) => ({
+      x: (rnd() * 2 - 1) * width * 1.8,
+      // Above the floor: the canvas draws dust over it, so none may sit under it.
+      y: Math.min((rnd() * 2 - 1) * height * 1.3 + route[Math.floor(rnd() * route.length)].pos.y, floorY - 60 * u),
       z: 1500 * u + rnd() * (zMin - 1500 * u),
       r: (3 + rnd() * 7) * u,
-      a: 0.12 + rnd() * 0.3,
+      a: 0.14 + rnd() * 0.3,
       drift: rnd() * 10,
+      accent: i % 5 === 0,
     }));
-  }, [plan.angle, plan.scenes.length, route, width, height, u]);
+  }, [plan.angle, plan.scenes.length, route, width, height, u, floorY]);
 
-  const floorY = Math.max(...route.map((s) => s.pos.y)) + height * 0.62;
   const project = projector(cam, width, height, perspective);
   // Cards in view, drawn far to near: the canvas exporter has no z-index.
   const placed = route
@@ -193,9 +118,8 @@ export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots }
     <LookContext.Provider value={look}>
       <AbsoluteFill>
           <Room look={look} cam={cam} />
-          <Floor look={look} y={floorY} cam={cam} perspective={perspective} />
+          <Stage3D look={look} cam={cam} route={route} motes={motes} floorY={floorY} perspective={perspective} frame={frame} blur={blur} />
           <AbsoluteFill style={{ overflow: "hidden", filter: blur > 0.3 ? `blur(${blur}px)` : undefined }}>
-            <Dust look={look} motes={motes} project={project} perspective={perspective} />
             {placed.map(({ i, p }) => {
               const scene = plan.scenes[i];
               const Card = CARDS[scene.type];
@@ -227,6 +151,9 @@ export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots }
   );
 };
 
+/** Cards ahead wait dim in the haze; the one in focus is whole; a passed one fades. */
+const cardOpacity = (z: number, Z: number) => interpolate(z, [-Z * 3.2, -Z * 1.8, -Z * 0.6, -Z * 0.25, Z * 0.3, Z * 0.68], [0, 0.12, 0.2, 1, 1, 0], clamp);
+
 /**
  * One card in the room: placed where the camera sees it and scaled by its
  * distance, turned by what is left of its angle to the camera, faded in from
@@ -234,8 +161,7 @@ export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots }
  * from the plane in focus.
  */
 const Placed: React.FC<{ station: Station; cam: Camera; p: ReturnType<Projector>; Z: number; children: React.ReactNode }> = ({ station, cam, p, Z, children }) => {
-  // Cards ahead wait dim in the haze; the one in focus is whole.
-  const opacity = interpolate(p.z, [-Z * 3.2, -Z * 1.8, -Z * 0.6, -Z * 0.25, Z * 0.3, Z * 0.68], [0, 0.12, 0.2, 1, 1, 0], clamp);
+  const opacity = cardOpacity(p.z, Z);
   if (opacity <= 0.001) return null;
   // Defocus only where it shows: a card the camera is leaving or nearing.
   const defocus = p.z > -Z * 0.75 ? Math.min(14, (Math.abs(p.z) / Z) * 9) : 0;

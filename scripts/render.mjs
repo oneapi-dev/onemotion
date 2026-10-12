@@ -33,7 +33,9 @@ const out = resolve(target ?? join(root, "renders", `${basename(source).replace(
 
 console.log("bundling…");
 const serveUrl = await bundle({ entryPoint: join(root, "src", "engine", "remotion", "index.ts"), publicDir: join(root, "public") });
-const composition = await selectComposition({ serveUrl, id: "video", inputProps });
+// The room is WebGL (three.js); headless Chrome needs ANGLE to draw it.
+const chromiumOptions = { gl: "angle" };
+const composition = await selectComposition({ serveUrl, id: "video", inputProps, chromiumOptions });
 const started = Date.now();
 let shown = -1;
 await renderMedia({
@@ -43,6 +45,7 @@ await renderMedia({
   crf: 18,
   outputLocation: out,
   inputProps,
+  chromiumOptions,
   onProgress: ({ progress }) => {
     const pct = Math.floor(progress * 10) * 10;
     if (pct !== shown) {

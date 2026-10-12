@@ -15,9 +15,11 @@
     "render": "node scripts/render.mjs"
   },
   "dependencies": {
+    "@react-three/fiber": "^9.8.1",
     "@remotion/google-fonts": "4.0.534",
     "@remotion/media": "^4.0.534",
     "@remotion/player": "4.0.534",
+    "@remotion/three": "^4.0.534",
     "@remotion/web-renderer": "4.0.534",
     "next": "16.2.11",
     "node-html-parser": "^7.0.1",
@@ -25,6 +27,7 @@
     "react-dom": "19.2.4",
     "remotion": "4.0.534",
     "server-only": "^0.0.1",
+    "three": "^0.186.1",
     "undici": "^7.10.0"
   },
   "devDependencies": {
@@ -33,6 +36,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.186.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "typescript": "^5",
