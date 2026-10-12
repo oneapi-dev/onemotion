@@ -1,29 +1,28 @@
 import { Easing, interpolate } from "remotion";
-import { MUSIC } from "./music";
+import { scoreOf } from "../music/score";
 import { FPS, type CameraPath, type Plan } from "./plan";
 
 /**
  * Timing and the camera rig of a flythrough.
  *
- * Every scene starts on a beat of the chosen music bed and the closing scene
- * on a bar line; the bed is started at whatever bar puts its breakdown right
- * before the close, so the last card lands on the music's own release.
+ * The music is composed for the video, so the video sets the grid: every
+ * scene starts on a beat of the score's tempo, a whole number of beats long,
+ * and the closing scene on a bar line. Cards land on their scene's first
+ * beat, where the music hits.
  */
 
-export type MusicName = keyof typeof MUSIC;
-
 export type Timing = {
-  music: MusicName;
-  /** Frames per beat (fractional). */
+  /** Beats per minute, and frames per beat (fractional). */
+  bpm: number;
   beat: number;
-  /** Frame each scene starts on, and its length. */
+  /** Beat and frame each scene starts on, and its length in beats and frames. */
+  startBeats: number[];
+  beats: number[];
   starts: number[];
   frames: number[];
   total: number;
   /** Frame of the closing scene. */
   closeAt: number;
-  /** Seconds into the music bed at frame 0. */
-  musicFrom: number;
   /** Frames a camera move between two cards takes. */
   move: number;
 };
@@ -31,9 +30,8 @@ export type Timing = {
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
 export function planTiming(plan: Plan): Timing {
-  const music = (plan.music in MUSIC ? plan.music : "drive") as MusicName;
-  const m = MUSIC[music];
-  const beat = (FPS * 60) / m.bpm;
+  const { bpm } = scoreOf(plan);
+  const beat = (FPS * 60) / bpm;
   const n = plan.scenes.length;
   // Whole beats per scene, an even count so cuts fall on strong beats; the
   // close holds at least two bars for the logo and the music's last hit.
@@ -48,24 +46,16 @@ export function planTiming(plan: Plan): Timing {
     const before = sum(beats.slice(0, n - 1));
     if (before % 4) beats[n - 2] += 4 - (before % 4);
   }
-  const startBeat: number[] = [];
+  const startBeats: number[] = [];
   beats.reduce((at, b) => {
-    startBeat.push(at);
+    startBeats.push(at);
     return at + b;
   }, 0);
-  const starts = startBeat.map((b) => Math.round(b * beat));
-  const total = Math.round(sum(beats) * beat);
+  const starts = startBeats.map((b) => Math.round(b * beat));
+  const total = Math.max(1, Math.round(sum(beats) * beat));
   const frames = starts.map((s, i) => (i < n - 1 ? starts[i + 1] : total) - s);
-
-  const barSeconds = (4 * 60) / m.bpm;
-  const closeBar = Math.round(startBeat[n - 1] / 4);
-  let fromBar = m.breakAt + 2 - closeBar;
-  if (fromBar < m.intro) fromBar = m.intro;
-  const room = m.seconds - 0.5 - total / FPS;
-  if (fromBar * barSeconds > room) fromBar = Math.max(0, Math.floor(room / barSeconds));
-
   const move = Math.round(Math.min(26, Math.max(14, beat * 1.5)));
-  return { music, beat, starts, frames, total: Math.max(1, total), closeAt: starts[n - 1], musicFrom: fromBar * barSeconds, move };
+  return { bpm, beat, startBeats, beats, starts, frames, total, closeAt: starts[n - 1], move };
 }
 
 // ------------------------------------------------------------------ camera
@@ -107,10 +97,10 @@ export function stations(n: number, path: CameraPath, width: number, height: num
 const whip = Easing.bezier(0.72, 0, 0.18, 1);
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
-/** When the camera leaves for card i, and when it has landed there. */
+/** When the camera leaves for card i, and when it has landed there: on the scene's first beat. */
 export function moveWindow(i: number, t: Timing): [number, number] {
   if (i === 0) return [0, 26];
-  const land = t.starts[i] + Math.round(t.move * 0.25);
+  const land = t.starts[i];
   return [land - t.move, land];
 }
 

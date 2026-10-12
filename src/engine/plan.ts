@@ -4,6 +4,8 @@
  * together.
  */
 
+import type { Score } from "../music/score";
+
 export type Tone = "punchy" | "polished" | "cinematic" | "playful" | "deadpan" | "energetic" | "clean";
 
 export type Music = "drive" | "bright" | "calm" | "pulse" | "epic";
@@ -83,7 +85,10 @@ export type Plan = {
   tone: Tone;
   caption: string;
   fonts: { display: string; body: string };
+  /** The bed a plan was made with before scores existed; it picks the genre when `score` is missing. */
   music: Music;
+  /** The music, composed for this video (src/music/score.ts). Checked before it plays. */
+  score?: Score;
   scenes: PlanScene[];
 };
 
