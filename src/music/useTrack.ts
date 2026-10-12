@@ -1,6 +1,8 @@
 import { useEffect, useEffectEvent, useState } from "react";
 import { useDelayRender } from "remotion";
 
+const COMPOSE_TIMEOUT = 120_000;
+
 /** Tracks made in this page, by key: one render per score however often a frame asks. */
 const made = new Map<string, Promise<string>>();
 
@@ -13,13 +15,14 @@ const made = new Map<string, Promise<string>>();
 export function useTrack(key: string, render: () => Promise<Blob>): string | null {
   const { delayRender, continueRender, cancelRender } = useDelayRender();
   // Held from the first frame, before any effect runs.
-  const [first] = useState(() => delayRender("Composing the soundtrack"));
+  // A CLI render composes in every browser tab at once; allow it two minutes.
+  const [first] = useState(() => delayRender("Composing the soundtrack", { timeoutInMilliseconds: COMPOSE_TIMEOUT }));
   const [track, setTrack] = useState<{ key: string; url: string } | null>(null);
   const make = useEffectEvent(render);
 
   useEffect(() => {
     let live = true;
-    const handle = delayRender(`Composing the soundtrack (${key.slice(0, 40)})`);
+    const handle = delayRender(`Composing the soundtrack (${key.slice(0, 40)})`, { timeoutInMilliseconds: COMPOSE_TIMEOUT });
     let pending = made.get(key);
     if (!pending) {
       pending = make().then((blob) => URL.createObjectURL(blob));

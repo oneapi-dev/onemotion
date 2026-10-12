@@ -134,3 +134,9 @@ Each phase ends at a checkpoint.
 2. **Samples and two genres.** Sample pipeline and manifest, `arrange` and `render` with `trailer` and `house` end to end, and `/lab`. The user listens and judges.
 3. **Six more genres and the director.** Remaining genre templates; the director writes the score; validation; variety between takes.
 4. **Polish.** Cues pitched to the key, mixing and mastering levels, removal of the old beds, credits in the app.
+
+## Decisions made while building
+
+- **2026-10-13: Web Audio directly, not Tone.js.** Rendering with Tone.js took 8 to 10 s for a 25 s soundtrack. Profiling showed the main thread idle: the cost was in the audio graph. Tone's voices each keep a dozen always-running signal nodes, and every node scheduled up front is processed in every 128-sample block whether it sounds or not (about 1,500 nodes for a house track). `render.ts` now builds notes from native nodes, created a second ahead of when they sound by suspending the offline render once a second. The same songs render in about 3 s in a busy dev page; Tone.js was removed as a dependency.
+- **Every sample is CC0** (VCSL, including its Steinway B grand piano), so no attribution is required; the CC-BY allowance was not needed.
+- **Cards land on the first beat of their scene** (they landed about five frames after it before), so the music's hit and the camera's arrival coincide.
