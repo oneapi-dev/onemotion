@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+build/
+renders/
+.env*.local
+.env
+*.tsbuildinfo
+next-env.d.ts
+.motion-audio-tmp/
+.opencode-context.md

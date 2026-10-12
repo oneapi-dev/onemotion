@@ -1,0 +1,41 @@
+{
+  "name": "oneapi-motion",
+  "version": "0.1.0",
+  "description": "Describe a video in a sentence; an AI director designs it and your browser renders it. Powered by OneAPI.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "audio": "node scripts/make-audio.mjs",
+    "render": "node scripts/render.mjs"
+  },
+  "dependencies": {
+    "@remotion/google-fonts": "4.0.534",
+    "@remotion/media": "^4.0.534",
+    "@remotion/player": "4.0.534",
+    "@remotion/web-renderer": "4.0.534",
+    "next": "16.2.11",
+    "node-html-parser": "^7.0.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "remotion": "4.0.534",
+    "server-only": "^0.0.1",
+    "undici": "^7.10.0"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "4.0.534",
+    "@remotion/renderer": "4.0.534",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.11",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,533 @@
+/*
+ * One neutral room, one accent. The accent (OneAPI orange) marks the one
+ * action that matters on screen: make the video, then export it. Everything
+ * else is ink on paper, so the video stays the brightest thing on the page.
+ */
+:root {
+  --bg: #f5f3ee;
+  --panel: #fffefb;
+  --ink: #17150f;
+  --ink-2: #4b4740;
+  --line: #e3dfd6;
+  --line-2: #cfc9bd;
+  --accent: #c8430f;
+  --accent-ink: #ffffff;
+  --danger: #b42318;
+  --ok: #1f6f43;
+  --radius: 8px;
+  --font: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121110;
+    --panel: #1a1917;
+    --ink: #f2efe8;
+    --ink-2: #bdb7ab;
+    --line: #2c2a26;
+    --line-2: #3d3a34;
+    --accent: #ff6a2c;
+    --accent-ink: #160b05;
+    --danger: #ff8a7a;
+    --ok: #7fd3a2;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+}
+
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.wordmark {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.by {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.studio {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+}
+
+.compose {
+  padding: 28px 24px 40px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.compose h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.lead {
+  margin: -16px 0 0;
+  color: var(--ink-2);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.row.wrap {
+  flex-wrap: wrap;
+}
+
+.row.end {
+  justify-content: flex-end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field > span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.field em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-left: 6px;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  width: 100%;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+textarea.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  white-space: pre;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.inline select {
+  width: auto;
+  padding: 7px 10px;
+}
+
+.examples {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: -6px;
+}
+
+.example {
+  text-align: left;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 3px;
+}
+
+.example:hover:not(:disabled) {
+  color: var(--ink);
+  text-decoration-color: var(--ink-2);
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.seg button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border: 0;
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.seg button + button {
+  border-left: 1px solid var(--line-2);
+}
+
+.seg button[aria-checked="true"] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.btn {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ink-2);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn.primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.btn.ghost {
+  background: none;
+}
+
+.btn.small {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.btn.big {
+  min-height: 48px;
+  font-size: 15px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ok {
+  margin: 0;
+  color: var(--ok);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.recent h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.recent ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.recent li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.recent li[aria-current="true"] .recent-open strong {
+  color: var(--accent);
+}
+
+.recent-open {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 10px 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-open span {
+  color: var(--ink-2);
+  font-size: 13px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.stage {
+  padding: 28px 32px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+
+/* The one lifted surface on the page: the video. */
+.frame {
+  width: 100%;
+  margin: 0 auto;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 18px 50px rgba(20, 16, 8, 0.18);
+}
+
+.stage-portrait .frame {
+  max-width: 400px;
+}
+
+.stage-square .frame {
+  max-width: 640px;
+}
+
+.preview-wait {
+  aspect-ratio: 16 / 9;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.meta h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+}
+
+.brief {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+}
+
+.angle {
+  margin: 8px 0 0;
+}
+
+.facts {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.caption {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 12px 14px;
+}
+
+.caption p {
+  margin: 0;
+}
+
+.example-note {
+  text-align: center;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editor fieldset {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel);
+}
+
+.editor legend {
+  font-weight: 800;
+  padding: 0 6px;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.dialog {
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  padding: 0;
+  width: min(480px, calc(100vw - 32px));
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.dialog::backdrop {
+  background: rgba(10, 8, 4, 0.45);
+}
+
+.dialog-body {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dialog-body h2 {
+  margin: 0;
+}
+
+.muted {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+@media (max-width: 900px) {
+  .studio {
+    grid-template-columns: 1fr;
+  }
+
+  .compose {
+    border-right: 0;
+    border-top: 1px solid var(--line);
+    padding: 22px 16px 28px;
+  }
+
+  .stage {
+    padding: 16px 16px 24px;
+    order: -1;
+  }
+
+  .top {
+    padding: 12px 16px;
+  }
+
+  .pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (pointer: coarse) {
+  .seg button,
+  .btn.small {
+    min-height: 44px;
+  }
+}
