@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 /** Public files the bespoke sandbox loads. Its iframe has an opaque origin, so module scripts and fetches from it are cross-origin. */
-const SANDBOX_READS = ["/sandbox/:path*", "/audio/:path*", "/samples/:path*"];
+const SANDBOX_READS = ["/sandbox/:path*", "/audio/:path*", "/samples/:path*", "/music/:path*"];
 
 const nextConfig: NextConfig = {
   // The browser exporter encodes with WebCodecs and reads its own module

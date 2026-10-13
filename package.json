@@ -14,7 +14,8 @@
     "test": "vitest run",
     "audio": "node scripts/make-audio.mjs",
     "render": "node scripts/render.mjs",
-    "sandbox": "node scripts/build-sandbox.mjs"
+    "sandbox": "node scripts/build-sandbox.mjs",
+    "music": "node scripts/fetch-music.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",

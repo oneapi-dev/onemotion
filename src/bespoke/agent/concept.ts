@@ -1,4 +1,5 @@
 import type { SiteInfo } from "@/director/input";
+import { LIBRARY } from "@/music/library";
 import { normalizeScore } from "@/music/score";
 import type { FilmFormat, FilmSpec } from "../film";
 import { FONT_NAMES } from "../kit/fonts";
@@ -18,6 +19,8 @@ export type Concept = {
   brand: { name: string; url: string };
   beats: { id: string; says: string; shows: string; voice: string; seconds: number }[];
   score: unknown;
+  /** A built-in track id, or "composed" for the composer. */
+  music: string;
   whyDifferent: string;
 };
 
@@ -75,17 +78,33 @@ export function normalizeConcept(raw: unknown): Concept {
     brand: { name: str(brand.name, 60), url: str(brand.url, 80).replace(/^https?:\/\//, "").replace(/\/$/, "") },
     beats,
     score: raw.score,
+    music: LIBRARY.some((t) => t.id === raw.music) || raw.music === "composed" ? String(raw.music) : "",
     whyDifferent: str(raw.why_different),
   };
 }
 
 /** The film a concept describes, in the chosen format, with the website's logo and colour when it was read. */
-export function filmSpecOf(concept: Concept, format: FilmFormat, site: SiteInfo | null, seed: number): FilmSpec {
+/**
+ * The built-in track a film plays: the concept's pick, else one picked by the
+ * seed from those the recent films did not use. "composed" keeps the composer.
+ */
+export function trackFor(concept: Concept, seed: number, recent: string[] = []): string | undefined {
+  if (concept.music === "composed") return undefined;
+  if (concept.music) return concept.music;
+  const fresh = LIBRARY.filter((t) => !recent.includes(t.id));
+  const pool = fresh.length ? fresh : LIBRARY;
+  return pool[seed % pool.length]?.id;
+}
+
+export function filmSpecOf(concept: Concept, format: FilmFormat, site: SiteInfo | null, seed: number, recentTracks: string[] = []): FilmSpec {
+  const track = LIBRARY.find((t) => t.id === trackFor(concept, seed, recentTracks));
   const colors = [site?.accent, concept.palette.accent, concept.palette.support].filter((c): c is string => typeof c === "string" && HEX.test(c));
   return {
     format,
     beats: concept.beats,
     brand: { name: concept.brand.name || site?.name || "", url: concept.brand.url || site?.domain || "", logo: site?.logo ?? null, colors: [...new Set(colors)] },
-    score: normalizeScore(concept.score, concept.beats.length, "corporate-pop", seed),
+    // A built-in track sets the tempo the beats snap to.
+    score: track ? { ...normalizeScore(concept.score, concept.beats.length, "corporate-pop", seed), bpm: track.bpm } : normalizeScore(concept.score, concept.beats.length, "corporate-pop", seed),
+    ...(track ? { track: track.id } : {}),
   };
 }

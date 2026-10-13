@@ -32,7 +32,7 @@ export type FilmState = {
 };
 
 /** What a recent film was, so the next one is different. */
-export type RecentFilm = { style: string; metaphor: string; world: string; genre: string };
+export type RecentFilm = { style: string; metaphor: string; world: string; genre: string; track?: string };
 
 export const NO_SPEND: Spend = { input: 0, output: 0, cached: 0, usd: 0 };
 const MAX_STEPS = 18;
@@ -91,7 +91,7 @@ async function makeConcept(o: { key: string; model: string; brief: string; site:
     `BRIEF:\n${o.brief || "(none: make a launch film for the website)"}`,
     `FACTS:\n${factsOf(o.brief, o.site, o.models)}`,
     o.site?.accent ? `BRAND COLOUR: ${o.site.accent}` : "",
-    `RECENT FILMS (do not repeat their style, metaphor, world or music):\n${o.recent.length ? o.recent.map((r) => `- style "${r.style}", metaphor "${r.metaphor}", world "${r.world}", music ${r.genre}`).join("\n") : "(none)"}`,
+    `RECENT FILMS (do not repeat their style, metaphor, world or music):\n${o.recent.length ? o.recent.map((r) => `- style "${r.style}", metaphor "${r.metaphor}", world "${r.world}", music ${r.track ?? r.genre}`).join("\n") : "(none)"}`,
     o.refs?.length ? `The person gave ${o.refs.length} screenshot(s) of the real product (REF images below): build at least one beat around remaking it.` : "",
     "Return the concept JSON.",
   ]
@@ -128,7 +128,7 @@ export async function makeFilm(o: {
 }): Promise<FilmState> {
   const price = priceOf(o.models, o.model);
   const { concept, usage } = await makeConcept(o);
-  let spec = filmSpecOf(concept, o.format, o.site, Math.floor(Math.random() * 1e6));
+  let spec = filmSpecOf(concept, o.format, o.site, Math.floor(Math.random() * 1e6), o.recent.flatMap((r) => (r.track ? [r.track] : [])));
   let film: FilmState = { concept, spec, files: {}, modules: null, status: "building", summary: "", spend: addUsage(NO_SPEND, usage, price), log: [], reviews: [] };
   o.onConcept(film);
 

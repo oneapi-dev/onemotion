@@ -1,6 +1,7 @@
 import type { Music, Plan } from "../engine/plan";
 import { isGenre, specOf, type Genre } from "./genres";
 import type { Energy, GenreSpec } from "./genres/types";
+import { trackOf } from "./pick";
 import { hashOf, rngOf } from "./rng";
 import { PITCH_CLASSES, chordOf, type Mode, type PitchClass } from "./theory";
 
@@ -115,5 +116,9 @@ export function scoreOf(plan: Pick<Plan, "angle" | "music" | "scenes"> & { score
   const n = Math.max(1, plan.scenes.length);
   const fallback = LEGACY_GENRE[plan.music] ?? "corporate-pop";
   const seed = hashOf(`${plan.angle}|${n}`);
-  return plan.score === undefined ? presetScore(fallback, n, seed) : normalizeScore(plan.score, n, fallback, seed);
+  if (plan.score !== undefined) return normalizeScore(plan.score, n, fallback, seed);
+  // A plan without a written score plays a built-in track: the beats snap to its tempo.
+  const track = trackOf(plan);
+  const preset = presetScore(fallback, n, seed);
+  return track ? { ...preset, bpm: track.bpm } : preset;
 }

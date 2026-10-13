@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { Sequence, staticFile } from "remotion";
 import { composeTrack } from "../music/render";
 import { hashOf } from "../music/rng";
+import { trackOf } from "../music/pick";
 import { scoreOf } from "../music/score";
 import { useTrack } from "../music/useTrack";
 import { AUDIO_EXT } from "./music";
@@ -26,12 +27,20 @@ const DUCK = 0.4;
 /** The music bed under the picture: a bed, not the show (about -3 dB from full). */
 const MUSIC_LEVEL = 0.65;
 const DUCK_FRAMES = 6;
+/** Frames a built-in track fades out over at the end of the video. */
+const FADE_FRAMES = 36;
 
-export const Soundtrack: React.FC<{ plan: Plan; timing: Timing; voiceover?: Record<number, string> }> = ({ plan, timing, voiceover }) => {
-  const t = timing;
+/** The music composed for the video from its score. */
+const ComposedBed: React.FC<{ plan: Plan; timing: Timing; volume: number | ((f: number) => number) }> = ({ plan, timing: t, volume }) => {
   const score = useMemo(() => scoreOf(plan), [plan]);
   const key = `${hashOf(JSON.stringify(score))}:${t.total}:${t.startBeats.join(",")}`;
   const track = useTrack(key, () => composeTrack(score, t));
+  return track ? <Audio src={track} volume={volume} /> : null;
+};
+
+export const Soundtrack: React.FC<{ plan: Plan; timing: Timing; voiceover?: Record<number, string> }> = ({ plan, timing, voiceover }) => {
+  const t = timing;
+  const library = useMemo(() => trackOf(plan), [plan]);
   // Each recorded line starts just after its card lands, and the music dips under it.
   const lead = Math.round(VOICE_LEAD * 30);
   const lines = plan.scenes.flatMap((s, i) => {
@@ -82,7 +91,12 @@ export const Soundtrack: React.FC<{ plan: Plan; timing: Timing; voiceover?: Reco
 
   return (
     <>
-      {track ? <Audio src={track} volume={lines.length ? musicLevel : MUSIC_LEVEL} /> : null}
+      {library ? (
+        // A built-in track starts on its first beat, so the cards land on its beats; it fades out with the video.
+        <Audio src={staticFile(`music/${library.id}.mp3`)} trimBefore={Math.round(library.firstBeat * 30)} volume={(f) => musicLevel(f) * Math.min(1, Math.max(0, (t.total - f) / FADE_FRAMES))} />
+      ) : (
+        <ComposedBed plan={plan} timing={t} volume={lines.length ? musicLevel : MUSIC_LEVEL} />
+      )}
       {lines.map((l, i) => (
         <Sequence key={`voice-${i}`} from={l.from} durationInFrames={l.to - l.from + 15}>
           <Audio src={l.src} volume={1} />

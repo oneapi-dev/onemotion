@@ -9,6 +9,7 @@ import { SAMPLE_INPUT } from "@/engine/sample";
 import { scoreOf } from "@/music/score";
 import { planTiming } from "@/engine/rig";
 import { filmTiming } from "@/bespoke/timing";
+import { LIBRARY } from "@/music/library";
 import type { Sandbox } from "@/bespoke/host";
 import { makeFilm, type FilmState, type RecentFilm } from "@/bespoke/agent/run";
 import { storedFilmMusic, storedFilmVoice } from "@/bespoke/voice";
@@ -61,7 +62,7 @@ const recentOf = (p: Plan): Recent => ({ look: p.look, path: p.path, music: p.mu
 
 const hasPlan = (p: Project | null): p is PlanProject => Boolean(p?.plan);
 const titleOf = (p: Project) => p.plan?.brand || p.film?.spec.brand.name || p.site?.name || "Video";
-const recentFilmOf = (f: FilmState): RecentFilm => ({ style: f.concept.style, metaphor: f.concept.metaphor, world: f.concept.world, genre: f.spec.score.genre });
+const recentFilmOf = (f: FilmState): RecentFilm => ({ style: f.concept.style, metaphor: f.concept.metaphor, world: f.concept.world, genre: f.spec.score.genre, track: f.spec.track });
 
 function inputOf(project: PlanProject, voiceover?: Record<number, string>): VideoInput {
   const input: VideoInput = {
@@ -579,7 +580,7 @@ export function Studio() {
                   <p className="facts">
                     {[
                       film.concept.style,
-                      `${film.spec.score.genre} music`,
+                      film.musicKey ? "ElevenLabs music" : film.spec.track ? `music: ${LIBRARY.find((x) => x.id === film.spec.track)?.title ?? film.spec.track}` : `${film.spec.score.genre} music (composed)`,
                       `${Math.round(filmTiming(film.spec.beats, film.spec.score).timing.total / 30)}s`,
                       film.status === "building" ? "building" : film.status === "done" ? "finished" : film.status === "stopped" ? "stopped early" : "failed",
                       film.reviews?.length ? `art director ${film.reviews[film.reviews.length - 1].score}/10` : "",

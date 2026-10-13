@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DIMENSIONS } from "@/engine/plan";
+import { LIBRARY } from "@/music/library";
 import { normalizeScore } from "@/music/score";
 import type { FilmSpec } from "./film";
 import { SANDBOX_FLAGS, SANDBOX_SRC, Sandbox } from "./host";
@@ -48,7 +49,9 @@ export default function BespokeLab() {
       const beats = fake
         ? ex.film.beats.map((b) => ({ ...b, words: (b.voice ?? "").split(" ").filter(Boolean).map((text, i) => ({ text, start: i * 0.38, end: i * 0.38 + 0.32 })) }))
         : ex.film.beats;
-      const spec: FilmSpec = { format: ex.film.format, brand: ex.film.brand, beats, score };
+      // ?track=<id> plays a built-in track; the beats snap to its tempo.
+      const track = LIBRARY.find((t) => t.id === new URLSearchParams(window.location.search).get("track"));
+      const spec: FilmSpec = track ? { format: ex.film.format, brand: ex.film.brand, beats, score: { ...score, bpm: track.bpm }, track: track.id } : { format: ex.film.format, brand: ex.film.brand, beats, score };
       // ?music=1 plays a finished bed (as an ElevenLabs Music track would) instead of the composed score.
       const bed = new URLSearchParams(window.location.search).get("music") === "1" ? await (await fetch("/audio/bright.mp3")).blob() : undefined;
       const wire = { spec, modules: checked.modules, music: bed };

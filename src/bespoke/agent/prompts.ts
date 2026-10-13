@@ -1,4 +1,5 @@
 import "server-only";
+import { LIBRARY } from "@/music/library";
 import { GENRES } from "@/music/score";
 import { kitSource } from "../check";
 import { readExample } from "../examples";
@@ -47,6 +48,7 @@ Reply with ONE JSON object and nothing else:
   "palette": { "bg": "#hex", "ink": "#hex", "accent": "#hex", "support": "#hex" },
   "brand": { "name": "the product or company the film is about", "url": "its domain, e.g. oneapi.id, or empty" },
   "beats": [ { "id": "b1", "says": "the on-screen words of this beat (short)", "voice": "the voice-over line of this beat, as it is spoken", "shows": "what the viewer sees", "seconds": 2.5 } ],
+  "music": "the id of a built-in track from MUSIC below, or \"composed\"",
   "score": { "genre": "one of ${GENRES.join(", ")}", "bpm": 110, "key": "C", "mode": "major or minor", "energy": [1, 1, 2] },
   "why_different": "how this differs from the recent films"
 }
@@ -60,7 +62,11 @@ Rules:
 - If the film is about a software product, at least one beat shows it being USED (a UI moment, code, a terminal), designed fresh for this film.
 - Brand colours may lead the palette (the message gives them when known), but the world and the metaphor must be new.
 - Score: energy is one number per beat, 0 (sparse) to 3 (full); keep it restrained: mostly 1 and 2, a 3 only where the story peaks. Pick a genre that fits the world, and not the recent films' genre.
+- Music: pick the built-in track whose mood fits this film's world and pace (MUSIC below), and not one the recent films used. The film's beats snap to its tempo. Use "composed" only when no track fits; then the score below drives a synthesized bed.
 - Fonts come from this list: ${FONT_NAMES.join(", ")}.
+
+# MUSIC (built-in tracks, public domain)
+${LIBRARY.map((t) => `- ${t.id}: ${t.mood} (${t.bpm} BPM)`).join("\n")}
 
 ${RANGE}`;
 }

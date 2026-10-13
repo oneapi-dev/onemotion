@@ -3,8 +3,9 @@ import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as JSXRuntime from "react/jsx-runtime";
 import * as Remotion from "remotion";
-import { AbsoluteFill, Sequence, useDelayRender } from "remotion";
+import { AbsoluteFill, Sequence, staticFile, useDelayRender } from "remotion";
 import { DIMENSIONS } from "../../engine/plan";
+import { LIBRARY } from "../../music/library";
 import { composeTrack } from "../../music/render";
 import { hashOf } from "../../music/rng";
 import { useTrack } from "../../music/useTrack";
@@ -99,7 +100,12 @@ function useFonts(req: Record<string, string[]>): boolean {
 
 const FilmSound: React.FC<{ input: FilmInput; timing: ReturnType<typeof filmTiming>["timing"] }> = ({ input, timing: t }) => {
   const { spec, voiceover, music } = input;
-  return music ? <Sound music={music} voiceover={voiceover} spec={spec} timing={t} /> : <ComposedSound input={input} timing={t} />;
+  // A made bed (ElevenLabs Music) first, then a built-in track, then the composer.
+  if (music) return <Sound music={music} voiceover={voiceover} spec={spec} timing={t} fade />;
+  const track = LIBRARY.find((x) => x.id === spec.track);
+  // The track starts on its first beat, so the film's beat grid (at its tempo) lands on the music's.
+  if (track) return <Sound music={staticFile(`music/${track.id}.mp3`)} trimBefore={Math.round(track.firstBeat * FILM_FPS)} voiceover={voiceover} spec={spec} timing={t} fade />;
+  return <ComposedSound input={input} timing={t} />;
 };
 
 /** The music composed for the film's beats. */
@@ -111,7 +117,10 @@ const ComposedSound: React.FC<{ input: FilmInput; timing: ReturnType<typeof film
 };
 
 /** A music bed and the voice-over lines over it, the music dipping under the voice. */
-const Sound: React.FC<{ music: string | null; voiceover?: Record<number, string>; spec: FilmInput["spec"]; timing: ReturnType<typeof filmTiming>["timing"] }> = ({ music: track, voiceover, spec, timing: t }) => {
+/** Frames a finished bed fades out over at the end of the film (a composed score ends on its own hit). */
+const FADE_FRAMES = 36;
+
+const Sound: React.FC<{ music: string | null; trimBefore?: number; fade?: boolean; voiceover?: Record<number, string>; spec: FilmInput["spec"]; timing: ReturnType<typeof filmTiming>["timing"] }> = ({ music: track, trimBefore, fade, voiceover, spec, timing: t }) => {
   const lead = Math.round(VOICE_LEAD * FILM_FPS);
   const lines = spec.beats.flatMap((b, i) => {
     const src = voiceover?.[i];
@@ -126,11 +135,12 @@ const Sound: React.FC<{ music: string | null; voiceover?: Record<number, string>
       const out = Math.min(1, Math.max(0, (l.to + DUCK_FRAMES - f) / DUCK_FRAMES));
       dip = Math.max(dip, Math.min(into, out));
     }
-    return MUSIC_LEVEL * (1 - (1 - DUCK) * dip);
+    const tail = fade ? Math.min(1, Math.max(0, (t.total - f) / FADE_FRAMES)) : 1;
+    return MUSIC_LEVEL * (1 - (1 - DUCK) * dip) * tail;
   };
   return (
     <>
-      {track ? <Audio src={track} volume={lines.length ? level : MUSIC_LEVEL} /> : null}
+      {track ? <Audio src={track} trimBefore={trimBefore} volume={lines.length || fade ? level : MUSIC_LEVEL} /> : null}
       {lines.map((l, i) => (
         <Sequence key={i} from={l.from} durationInFrames={l.to - l.from + 15} layout="none">
           <Audio src={l.src} volume={1} />

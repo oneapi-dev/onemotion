@@ -11,7 +11,7 @@ Each video is one continuous camera move through a 3D room. The camera flies fro
 - **Cards:** headline, announcement, spec sheet, bar chart, side-by-side comparison, chat thread, code editor, checklist, steps, feature tiles, big number, quote, offer, and closing call to action.
 - **Rooms:** six looks with different card construction: `midnight`, `graphite`, `paper`, `sage`, `mono` and `ember`.
 - **Camera paths:** three, `dolly`, `serpentine` and `staircase`.
-- **Music:** five beds (`drive`, `bright`, `calm`, `pulse`, `epic`). The cuts snap to the beat. The music's breakdown is lined up to end on the closing card, which lands on the track's final hit.
+- **Music:** a built-in library of 16 public-domain tracks (FreePD, CC0): uplifting acoustic, cinematic piano, tech electronic, drum and bass, 8-bit, retro synth, spacey ambient, epic orchestral, tense and funky beds. Each video plays one that fits its mood, starting on the track's first beat so the cuts land on its beats, and fading out at the end. With a paid ElevenLabs key a bespoke video gets music made for it instead; a composer that synthesizes a score is the last fallback.
 - **Variety:** a new take never repeats the previous take's look, path or music. A new video avoids the ones used by your last video.
 
 ## Honesty rules
@@ -64,7 +64,8 @@ src/
   studio/     The app: brief, preview (Remotion Player), editor, browser export
   app/        Next.js routes: /api/direct, /api/site, /api/catalog
 scripts/
-  make-audio.mjs   Synthesizes the music and sound effects (deterministic, no samples)
+  make-audio.mjs   Synthesizes the sound effects (deterministic, no samples)
+  fetch-music.mjs  Builds the music library (public/music) from scripts/music.json, checking every source file's SHA-256
   render.mjs       Command-line render
 ```
 
@@ -75,10 +76,13 @@ npm test          # director rules and fact checks
 npm run typecheck
 npm run lint
 npm run audio     # regenerate public/audio and src/engine/music.ts
+npm run music     # rebuild public/music and src/music/library.ts
 ```
 
 ## License
 
 This project is MIT licensed.
+
+The built-in music (`public/music`) is from FreePD and dedicated to the public domain under CC0 1.0; see `public/music/CREDITS.md`. The instrument samples (`public/samples`) are from VCSL, also CC0.
 
 It is built on [Remotion](https://www.remotion.dev), which has its own license. Remotion is free for individuals and for companies of up to three people. Larger companies need a [Remotion company license](https://www.remotion.dev/license) to use this project.
