@@ -40,14 +40,41 @@ export function keyFrames(spec: FilmSpec): number[] {
 }
 
 /**
+ * What one agent may touch when several build a film together: the files
+ * it may write, the set of files it compiles and renders (its own work
+ * with the others' last good versions), the check errors that are its
+ * own, and the stretch of the film it looks at.
+ */
+export type ToolScope = {
+  canWrite?: (path: string) => boolean;
+  /** Which files this agent may write, in words, for the refusal. */
+  writes?: string;
+  view?: () => Record<string, string>;
+  mine?: (error: string) => boolean;
+  /** Called after this agent's files pass the check. */
+  onPassed?: () => void;
+  /** The frames this agent is responsible for: its contact sheet shows them and the seams around them. */
+  focus?: { from: number; to: number; label: string };
+};
+
+/**
  * The agent's tools. They change `ws` in place and call `changed` after
  * every change, so the Studio can save it and refresh the preview.
  */
-export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void, signal?: AbortSignal): AgentTool[] {
+export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void, signal?: AbortSignal, scope: ToolScope = {}): AgentTool[] {
   const { width: W, height: H } = DIMENSIONS[ws.spec.format];
+  const view = () => scope.view?.() ?? ws.files;
+  const report = (errors: string[]) => {
+    const own = scope.mine ? errors.filter(scope.mine) : errors;
+    return own.length ? own : errors;
+  };
   const path = (a: Record<string, unknown>) => {
     const p = String(a.path ?? "").replace(/^\.?\//, "");
     if (!PATH.test(p) || p.includes("..")) throw new Error(`"${p}": files live in scene/ and end in .tsx or .ts`);
+    return p;
+  };
+  const writable = (p: string) => {
+    if (scope.canWrite && !scope.canWrite(p)) throw new Error(`"${p}" is not yours to change: you write ${scope.writes ?? "your own files"} only.`);
     return p;
   };
   const write = (p: string, src: string) => {
@@ -55,18 +82,42 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
     ws.dirty = true;
     changed();
   };
+  const passed = (modules: Record<string, string>) => {
+    ws.modules = modules;
+    ws.dirty = false;
+    scope.onPassed?.();
+    changed();
+  };
   /** Compiles when files changed; the preview follows every version that passes. */
   const ensure = async (): Promise<string | null> => {
     if (!ws.dirty && ws.modules) return null;
-    const r = await compile(ws.files, ws.facts, signal);
-    if (!r.ok) return `Not rendered. Fix these first:\n- ${r.errors.join("\n- ")}`;
-    ws.modules = r.modules;
-    ws.dirty = false;
-    changed();
+    const r = await compile(view(), ws.facts, signal);
+    if (!r.ok) return `Not rendered. Fix these first:\n- ${report(r.errors).join("\n- ")}`;
+    passed(r.modules);
     return null;
   };
   const film = () => ({ spec: ws.spec, modules: ws.modules ?? {} });
   const total = filmTiming(ws.spec.beats, ws.spec.score).timing.total;
+  const clampFrame = (f: number) => Math.max(0, Math.min(total - 1, Math.round(f)));
+  /** The contact sheet's moments: the whole film, or this agent's stretch with the seams on either side. */
+  const sheetFrames = (): { frames: number[]; labels: string[] } => {
+    const f = scope.focus;
+    if (!f) {
+      const frames = keyFrames(ws.spec).map(clampFrame);
+      return { frames, labels: frames.map((x) => `frame ${x}`) };
+    }
+    const len = f.to - f.from;
+    const marks: [number, string][] = [
+      [f.from - 8, "seam in (before)"],
+      [f.from + 3, "start"],
+      [f.from + len * 0.33, "a third in"],
+      [f.from + len * 0.66, "two thirds in"],
+      [f.to - 4, "end"],
+      [f.to + 6, "seam out (after)"],
+    ];
+    const kept = marks.filter(([x]) => x >= 0 && x < total).map(([x, l]) => [clampFrame(x), l] as const);
+    return { frames: kept.map(([x]) => x), labels: kept.map(([x, l]) => `${l}, frame ${x}`) };
+  };
 
   return [
     {
@@ -95,7 +146,10 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
       name: "list_files",
       description: "List the files in scene/.",
       parameters: { type: "object", properties: {} },
-      run: async () => ({ text: Object.keys(ws.files).map((f) => `${f} (${lines(ws.files[f])} lines)`).join("\n") || "(empty: start with your components, then scene/index.tsx)" }),
+      run: async () => {
+        const files = view();
+        return { text: Object.keys(files).map((f) => `${f} (${lines(files[f])} lines)`).join("\n") || "(empty: start with your components, then scene/index.tsx)" };
+      },
     },
     {
       name: "read_file",
@@ -103,15 +157,15 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
       parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
       run: async (a) => {
         const p = path(a);
-        return { text: ws.files[p] ?? "not found" };
+        return { text: view()[p] ?? "not found" };
       },
     },
     {
       name: "write_file",
-      description: "Create or overwrite a file in scene/ (scene/index.tsx, scene/components/Name.tsx).",
+      description: `Create or overwrite a file in scene/${scope.writes ? ` (yours: ${scope.writes})` : " (scene/index.tsx, scene/components/Name.tsx)"}.`,
       parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path", "content"] },
       run: async (a) => {
-        const p = path(a);
+        const p = writable(path(a));
         write(p, String(a.content ?? ""));
         return { text: `wrote ${p} (${lines(ws.files[p])} lines)` };
       },
@@ -121,7 +175,7 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
       description: "Replace an exact string in a scene/ file. old_string must occur once, unless replace_all.",
       parameters: { type: "object", properties: { path: { type: "string" }, old_string: { type: "string" }, new_string: { type: "string" }, replace_all: { type: "boolean" } }, required: ["path", "old_string", "new_string"] },
       run: async (a) => {
-        const p = path(a);
+        const p = writable(path(a));
         const src = ws.files[p];
         if (src === undefined) return { text: `${p} does not exist` };
         const old = String(a.old_string ?? "");
@@ -137,7 +191,7 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
       description: "Delete a file in scene/.",
       parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
       run: async (a) => {
-        const p = path(a);
+        const p = writable(path(a));
         delete ws.files[p];
         ws.dirty = true;
         changed();
@@ -146,30 +200,31 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
     },
     {
       name: "check",
-      description: "Run the scene rules (imports, determinism) and the TypeScript compiler. A passing scene shows in the live preview.",
+      description: "Run the scene rules (imports, determinism, facts) and the TypeScript compiler. A passing scene shows in the live preview.",
       parameters: { type: "object", properties: {} },
       run: async () => {
-        const r = await compile(ws.files, ws.facts, signal);
-        if (!r.ok) return { text: `${r.errors.length} problem(s):\n- ${r.errors.join("\n- ")}` };
-        ws.modules = r.modules;
-        ws.dirty = false;
-        changed();
+        const r = await compile(view(), ws.facts, signal);
+        if (!r.ok) {
+          const own = report(r.errors);
+          return { text: `${own.length} problem(s):\n- ${own.join("\n- ")}` };
+        }
+        passed(r.modules);
         return { text: "ok: no problems" };
       },
     },
     {
       name: "render_frames",
-      description: "Render up to 6 frames and look at them. The frames are exactly what the exported video draws.",
+      description: `Render up to 6 frames and look at them. The frames are exactly what the exported video draws.${scope.focus ? ` Your frames are ${scope.focus.from} to ${scope.focus.to}.` : ""}`,
       parameters: { type: "object", properties: { frames: { type: "array", items: { type: "number" } } }, required: ["frames"] },
       run: async (a) => {
         const blocked = await ensure();
         if (blocked) return { text: blocked };
-        const frames = (Array.isArray(a.frames) ? a.frames : []).slice(0, 6).map((x) => Math.max(0, Math.min(total - 1, Math.round(Number(x) || 0))));
+        const frames = (Array.isArray(a.frames) ? a.frames : []).slice(0, 6).map((x) => clampFrame(Number(x) || 0));
         if (!frames.length) return { text: "Give the frames to render." };
         try {
           const r = await sandbox.stills(film(), frames, signal);
           const urls = await Promise.all(r.images.map((b) => scaled(b, H > W ? 540 : 960)));
-          return { text: `rendered frames ${frames.join(", ")}${r.warnings.length ? `\nwarnings:\n- ${r.warnings.join("\n- ")}` : ""}`, images: urls.map((url, i) => ({ label: `frame ${frames[i]}`, url })) };
+          return { text: `rendered frames ${frames.join(", ")}${r.warnings.length ? `\nQA:\n- ${r.warnings.join("\n- ")}` : "\nQA: no warnings"}`, images: urls.map((url, i) => ({ label: `frame ${frames[i]}`, url })) };
         } catch (err) {
           return { text: `The scene crashed while rendering: ${err instanceof Error ? err.message : String(err)}` };
         }
@@ -177,18 +232,23 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
     },
     {
       name: "contact_sheet",
-      description: "Render the key moments (the first frame, two-thirds into every beat, the close) as one tiled image: the fastest way to judge the whole film.",
+      description: scope.focus
+        ? `Render your stretch (${scope.focus.label}: its start, a third in, two thirds in, its end) and the seams with the beats on either side, as one tiled image.`
+        : "Render the key moments (the first frame, two-thirds into every beat, the close) as one tiled image: the fastest way to judge the whole film.",
       parameters: { type: "object", properties: {} },
       run: async () => {
         const blocked = await ensure();
         if (blocked) return { text: blocked };
-        const frames = keyFrames(ws.spec).map((f) => Math.max(0, Math.min(total - 1, f)));
+        const { frames, labels } = sheetFrames();
         try {
           const r = await sandbox.stills(film(), frames, signal);
           const P = H > W;
           const cols = P ? 5 : W === H ? 4 : 3;
-          const url = await sheet(r.images, frames.map((f) => `frame ${f}`), cols, P ? 300 : W === H ? 420 : 640);
-          return { text: `contact sheet: frames ${frames.join(", ")} (left to right, top to bottom)`, images: [{ label: `contact sheet, frames ${frames.join(", ")}`, url }] };
+          const url = await sheet(r.images, labels, cols, P ? 300 : W === H ? 420 : 640);
+          return {
+            text: `contact sheet: ${labels.join("; ")} (left to right, top to bottom)${r.warnings.length ? `\nQA:\n- ${r.warnings.join("\n- ")}` : "\nQA: no warnings"}`,
+            images: [{ label: `contact sheet: ${labels.join("; ")}`, url }],
+          };
         } catch (err) {
           return { text: `The scene crashed while rendering: ${err instanceof Error ? err.message : String(err)}` };
         }
@@ -196,7 +256,7 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
     },
     {
       name: "finish",
-      description: "Call when the film is finished and you have looked at rendered frames of it.",
+      description: "Call when your part is finished and you have looked at rendered frames of it.",
       parameters: { type: "object", properties: { summary: { type: "string" } }, required: ["summary"] },
       run: async (a) => ({ text: String(a.summary ?? "done"), done: true }),
     },

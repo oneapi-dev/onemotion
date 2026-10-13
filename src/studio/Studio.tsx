@@ -51,6 +51,10 @@ const ARCHETYPE: Record<Plan["archetype"], string> = {
 };
 
 type Stage = "site" | "design" | "voice" | "film" | null;
+/** Names of the agents of a bespoke run, and the order their lines show in: the film's own steps, the lead, the beats, the review. */
+const WHO: Record<string, string> = { film: "Film", lead: "Lead", review: "Review" };
+const ORDER = (who: string) => (who === "film" ? 0 : who === "lead" ? 1 : who === "review" ? 999 : 2 + (Number(who.replace(/\D/g, "")) || 0));
+
 /** Product screenshots a bespoke video may remake: each costs the model an image on every step. */
 const MAX_REFS = 4;
 /** Bespoke: the model writes this video's own code (the default). Quick: the director fills a template plan. */
@@ -106,7 +110,7 @@ export function Studio() {
   const onFilmError = useCallback((m: string) => setError(`The preview hit an error: ${m}`), []);
   const running = useRef<AbortController | null>(null);
   // What a bespoke run is doing right now, and the run second it started (so its own time can show).
-  const [activity, setActivity] = useState<{ text: string; key: string; at: number } | null>(null);
+  const [activity, setActivity] = useState<{ who: string; text: string; key: string; at: number }[]>([]);
   const runStarted = useRef(0);
   // Screenshots of the real product for a bespoke video, as image data URLs.
   const [refs, setRefs] = useState<string[]>([]);
@@ -335,11 +339,16 @@ export function Studio() {
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName } : undefined,
           onVoice: (clips) => setFilmClips({ projectId: base.id, clips }),
           onMusic: (blob) => setFilmMusic({ projectId: base.id, blob }),
-          onActivity: (text) => {
-            // A new activity restarts its clock; the same one with a new character count keeps it.
-            const key = text.replace(/\s*\([^)]*\)/g, "");
+          onActivity: (who, text) => {
+            // One line per agent working; a new activity restarts its clock, the same one with a new character count keeps it.
             const at = Math.round((Date.now() - runStarted.current) / 1000);
-            setActivity((a) => (a?.key === key ? { ...a, text } : { text, key, at }));
+            setActivity((all) => {
+              const rest = all.filter((a) => a.who !== who);
+              if (text === null) return rest;
+              const key = text.replace(/\s*\([^)]*\)/g, "");
+              const was = all.find((a) => a.who === who);
+              return [...rest, was && was.key === key ? { ...was, text } : { who, text, key, at }].sort((a, b) => ORDER(a.who) - ORDER(b.who));
+            });
           },
           onConcept: keep,
           update: keep,
@@ -350,7 +359,7 @@ export function Studio() {
         if (!ctrl.signal.aborted) setError(err instanceof Error ? err.message : String(err));
       } finally {
         running.current = null;
-        setActivity(null);
+        setActivity([]);
         setStage(null);
       }
     },
@@ -602,12 +611,17 @@ export function Studio() {
                   </p>
                 ) : null}
               </div>
-              {stage === "film" && activity ? (
-                <p className="activity" role="status">
-                  <span className="pulse" aria-hidden="true" />
-                  Now: {activity.text}
-                  <span className="activity-time">{Math.max(0, seconds - activity.at)}s</span>
-                </p>
+              {stage === "film" && activity.length ? (
+                <ul className="activity" role="status" aria-label="What each agent is doing now">
+                  {activity.map((a) => (
+                    <li key={a.who}>
+                      <span className="pulse" aria-hidden="true" />
+                      <span className="activity-who">{WHO[a.who] ?? a.who}</span>
+                      <span className="activity-text">{a.text}</span>
+                      <span className="activity-time">{Math.max(0, seconds - a.at)}s</span>
+                    </li>
+                  ))}
+                </ul>
               ) : null}
               {film?.log.length ? (
                 <ol className="agent-log" aria-label="What the AI is doing">

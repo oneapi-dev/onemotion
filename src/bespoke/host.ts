@@ -76,9 +76,17 @@ export class Sandbox {
     void this.send({ type: "show", film });
   }
 
+  /** Stills one job at a time: agents working in parallel share this sandbox, and its QA reads one render at a time. */
+  private queue: Promise<unknown> = Promise.resolve();
+
   async stills(film: WireFilm, frames: number[], signal?: AbortSignal): Promise<{ images: Blob[]; warnings: string[] }> {
-    const r = await this.request<Extract<FromSandbox, { type: "stills" }>>({ type: "stills", id: `s${++this.n}`, film, frames }, signal);
-    return { images: r.images, warnings: r.warnings };
+    const run = this.queue.then(async () => {
+      signal?.throwIfAborted();
+      const r = await this.request<Extract<FromSandbox, { type: "stills" }>>({ type: "stills", id: `s${++this.n}`, film, frames }, signal);
+      return { images: r.images, warnings: r.warnings };
+    });
+    this.queue = run.catch(() => undefined);
+    return run;
   }
 
   async exportMp4(film: WireFilm, onProgress: (p: number) => void, signal?: AbortSignal): Promise<Blob> {

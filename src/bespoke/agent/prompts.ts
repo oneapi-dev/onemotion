@@ -81,6 +81,9 @@ const KIT_DOC = `# @kit (import from "@kit"): the clock is required, the rest ar
   - Captions: when the voice-over is recorded, the film draws it as captions in the bottom band (outside \`safe\`). Style them to fit your palette with \`export const captionStyle = { bg, fg, hot, font }\`, or turn them off with \`export const captions = false\` only when your own type already shows every word. brand = { name, url, logo (image URL or null), colors }. safe = the box to keep key content in.
 - useCurrentFrame() from "remotion" is the frame. Everything is a pure function of it.
 
+## Beats built by a team
+<Beats of={BEATS} overlap? /> renders each beat's component during its beat (plus overlap frames for an exit), on its own clock: inside a beat, useCurrentFrame() is 0 at the beat's start. useBeat() gives { beat, len, cue } where cue("word") is the local frame the voice says that word in the beat, cue("@0.5") halfway, cue("end") its last frame, cue("b4") another beat's start in local time.
+
 ## Motion math
 prog(t, a, b, ease?) eased 0..1 between frames a and b · pop(t, t0, k?) springy 0..1 with overshoot · kf(t, [[frame, value, ease?], ...]) keyframes · hitEnv(t, at) punch envelope · seeded(n) deterministic 0..1 (instead of Math.random) · typed(text, t, at, cps) · remap, mix, clamp01 · easings outE, inOut, flyE, lin. interpolate, spring, Easing from "remotion" are fine too.
 
@@ -118,6 +121,7 @@ export function agentPrompt(): string {
 You invent this film's own components for its concept: the world, the metaphor objects, the UI, the transitions. The @kit gives you the clock and optional helpers; use them where they save time, write your own where your idea is better.
 
 # How to work (few, substantial steps; every reply costs money)
+When your task says you are part of a team (a lead, or the agent for one beat), its instructions about which files you write and when you finish come first; the steps below are for building a whole film alone.
 You may call several tools in one reply.
 1. Call \`timing\` first: the beats in frames, the format and the brand.
 2. Write the files, at most 3 per reply: components in scene/components/*.tsx, then scene/index.tsx. Call \`check\` in the reply that writes the last file.

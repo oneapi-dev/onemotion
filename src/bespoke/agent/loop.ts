@@ -75,6 +75,8 @@ export async function runAgent(o: {
   onStep: (messages: Msg[], spend: Spend) => void;
   /** What is happening right now, for the person to see. */
   onActivity?: (text: string) => void;
+  /** Spend shared by agents working in parallel: every step adds to it, and the budget is checked against it. */
+  ledger?: Spend;
   signal?: AbortSignal;
 }): Promise<{ done: boolean; summary: string; spend: Spend }> {
   const { messages } = o;
@@ -84,7 +86,7 @@ export async function runAgent(o: {
   let timeouts = 0;
   for (let step = 1; step <= o.maxSteps; step++) {
     if (o.signal?.aborted) return { done: false, summary: "stopped", spend };
-    if (o.price && spend.usd >= o.budgetUsd) {
+    if (o.price && (o.ledger ?? spend).usd >= o.budgetUsd) {
       o.onEvent({ kind: "error", text: `Budget of $${o.budgetUsd.toFixed(2)} reached; stopping here.` });
       return { done: false, summary: "budget reached", spend };
     }
@@ -113,6 +115,7 @@ export async function runAgent(o: {
     }
     const { text, toolCalls, usage, finish } = reply;
     spend = addUsage(spend, usage, o.price);
+    if (o.ledger) Object.assign(o.ledger, addUsage(o.ledger, usage, o.price));
     // An assistant turn with neither text nor tool calls is refused by some providers behind the gateway.
     messages.push({ role: "assistant", content: text || (toolCalls.length ? null : "(no reply)"), ...(toolCalls.length ? { tool_calls: toolCalls } : {}) });
     if (text.trim()) o.onEvent({ kind: "say", text: text.trim() });

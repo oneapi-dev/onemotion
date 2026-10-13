@@ -10,7 +10,9 @@ import { filmSpecOf, normalizeConcept, type Concept } from "./concept";
 import { jsonStep, type Msg, type Part } from "./llm";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
 import { reviewFilm, type Review } from "./review";
-import { compile, sceneTools, type Workspace } from "./tools";
+import { BEATS_INDEX, beatFile, beatOf, beatsIndex, beatView, ownsBeat, pool, snapshotBeat, stubBeat } from "./parallel";
+import { LEAD_INTEGRATE, OVERLAP, beatTask, leadFoundationTask } from "./roles";
+import { compile, sceneTools, type AgentTool, type Workspace } from "./tools";
 
 /** A film being made or made: what the Studio keeps of a bespoke run. */
 export type FilmState = {
@@ -35,7 +37,11 @@ export type FilmState = {
 export type RecentFilm = { style: string; metaphor: string; world: string; genre: string; track?: string };
 
 export const NO_SPEND: Spend = { input: 0, output: 0, cached: 0, usd: 0 };
-const MAX_STEPS = 18;
+/** Steps for the lead's foundation, each beat agent, and the lead's joining pass; how many beat agents run at once. */
+const FOUNDATION_STEPS = 8;
+const BEAT_STEPS = 10;
+const INTEGRATE_STEPS = 6;
+const BEAT_CONCURRENCY = 3;
 /** Review rounds after the build, and the steps the agent gets to fix each one. */
 const MAX_REVIEWS = 2;
 const REVISE_STEPS = 8;
@@ -122,15 +128,16 @@ export async function makeFilm(o: {
   voice?: FilmVoice & { apiKey: string };
   onVoice?: (clips: Record<number, Blob>) => void;
   onMusic?: (music: Blob) => void;
-  /** What is happening right now, for the person to see. */
-  onActivity?: (text: string) => void;
+  /** What each agent is doing right now (null when it is done), for the person to see. */
+  onActivity?: (who: string, text: string | null) => void;
   onConcept: (film: FilmState) => void;
   update: (film: FilmState) => void;
   signal?: AbortSignal;
 }): Promise<FilmState> {
   const price = priceOf(o.models, o.model);
-  o.onActivity?.("the art director is thinking about the concept");
-  const { concept, usage } = await makeConcept(o);
+  const act = (text: string | null) => o.onActivity?.("film", text);
+  act("the art director is thinking about the concept");
+  const { concept, usage } = await makeConcept({ ...o, onActivity: act });
   let spec = filmSpecOf(concept, o.format, o.site, Math.floor(Math.random() * 1e6), o.recent.flatMap((r) => (r.track ? [r.track] : [])));
   let film: FilmState = { concept, spec, files: {}, modules: null, status: "building", summary: "", spend: addUsage(NO_SPEND, usage, price), log: [], reviews: [] };
   o.onConcept(film);
@@ -138,8 +145,8 @@ export async function makeFilm(o: {
   // The voice is the clock: record it first, so the beats and every word cue follow the real lines.
   if (o.voice && spec.beats.some((b) => b.voice)) {
     try {
-      o.onActivity?.(`recording the voice-over with ${o.voice.voiceName}`);
-      const rec = await recordFilmVoice({ spec, language: concept.language, apiKey: o.voice.apiKey, voice: o.voice, signal: o.signal, onLine: (done, total) => o.onActivity?.(`recording the voice-over: line ${done} of ${total}`) });
+      act(`recording the voice-over with ${o.voice.voiceName}`);
+      const rec = await recordFilmVoice({ spec, language: concept.language, apiKey: o.voice.apiKey, voice: o.voice, signal: o.signal, onLine: (done, total) => act(`recording the voice-over: line ${done} of ${total}`) });
       spec = rec.spec;
       film = { ...film, spec, voice: { voiceId: o.voice.voiceId, voiceName: o.voice.voiceName }, log: [...film.log, { kind: "tool", text: `voice-over: ${Object.keys(rec.clips).length} lines recorded with ${o.voice.voiceName}` }] };
       o.onVoice?.(rec.clips);
@@ -155,7 +162,7 @@ export async function makeFilm(o: {
   if (o.voice) {
     try {
       const seconds = filmTiming(spec.beats, spec.score).timing.total / 30 + 1;
-      o.onActivity?.("asking ElevenLabs Music for a bed");
+      act("asking ElevenLabs Music for a bed");
       const m = await filmMusic({ apiKey: o.voice.apiKey, prompt: musicPrompt({ style: concept.style, metaphor: concept.metaphor, genre: spec.score.genre, bpm: spec.score.bpm }), seconds, signal: o.signal });
       film = { ...film, musicKey: m.key, log: [...film.log, { kind: "tool", text: "music: made with ElevenLabs Music for this film" }] };
       o.onMusic?.(m.blob);
@@ -167,63 +174,172 @@ export async function makeFilm(o: {
     }
   }
 
+  act(null);
   const sandbox = o.sandbox();
   if (!sandbox) throw new Error("The preview is not ready.");
   const facts = `${o.brief}\n${factsOf(o.brief, o.site, o.models)}`;
-  const ws: Workspace = { spec, facts, files: {}, modules: null, dirty: false };
-  const push = (patch: Partial<FilmState>) => {
-    film = { ...film, files: { ...ws.files }, modules: ws.modules, ...patch };
+  const { agent: system, review: reviewSystem } = await loadPrompts();
+  const context = [`BRIEF:\n${o.brief}`, `FACTS (the only numbers and claims allowed on screen):\n${factsOf(o.brief, o.site, o.models)}`, `CONCEPT:\n${JSON.stringify({ ...concept, score: spec.score }, null, 1)}`].join("\n\n");
+  const refs = refParts(o.refs ?? []);
+  const task = (text: string): Msg => ({ role: "user", content: refs.length ? [{ type: "text", text }, ...refs] : text });
+
+  // The shared files every agent writes into (each only its own), and each beat's last version that passed the check.
+  const { beats: timed } = filmTiming(spec.beats, spec.score);
+  const ids = timed.map((b) => b.id);
+  const files: Record<string, string> = { [BEATS_INDEX]: beatsIndex(ids), ...Object.fromEntries(ids.map((id) => [beatFile(id), stubBeat(id)])) };
+  const good: Record<string, Record<string, string>> = Object.fromEntries(ids.map((id) => [id, { [beatFile(id)]: stubBeat(id) }]));
+  const ledger: Spend = { ...film.spend };
+  /** The newest version of the whole film that compiled, from any agent: the preview follows it. */
+  let shown: Record<string, string> | null = null;
+  const push = (patch: Partial<FilmState> = {}) => {
+    film = { ...film, files: { ...files }, modules: shown, spend: { ...ledger }, ...patch };
     o.update(film);
   };
-  const { agent: system, review: reviewSystem } = await loadPrompts();
-  const say = (e: AgentEvent) => push({ log: [...film.log, e].slice(-MAX_LOG) });
-  const messages: Msg[] = [
-    { role: "system", content: system },
-    {
-      role: "user",
-      content: [
-        {
-          type: "text",
-          text: [`BRIEF:\n${o.brief}`, `FACTS (the only numbers and claims allowed on screen):\n${factsOf(o.brief, o.site, o.models)}`, `CONCEPT:\n${JSON.stringify({ ...concept, score: spec.score }, null, 1)}`, "Build the film in scene/. Start with `timing`."].join("\n\n"),
-        },
-        ...refParts(o.refs ?? []),
-      ],
-    },
-  ];
-  const tools = sceneTools(ws, sandbox, () => push({}), o.signal);
-  const agent = (maxSteps: number) =>
-    runAgent({ key: o.key, model: o.model, messages, tools, maxSteps, budgetUsd: o.budgetUsd, price, spend: film.spend, onEvent: say, onStep: (_, spend) => push({ spend }), onActivity: o.onActivity, signal: o.signal });
-  let r = await agent(MAX_STEPS);
+  const say = (who: string, e: AgentEvent) => push({ log: [...film.log, { ...e, text: `[${who}] ${e.text}` }].slice(-MAX_LOG) });
+  const agent = (who: string, messages: Msg[], tools: AgentTool[], maxSteps: number) =>
+    runAgent({
+      key: o.key,
+      model: o.model,
+      messages,
+      tools,
+      maxSteps,
+      budgetUsd: o.budgetUsd,
+      price,
+      spend: NO_SPEND,
+      ledger,
+      onEvent: (e) => say(who, e),
+      onStep: () => push(),
+      onActivity: (t) => o.onActivity?.(who, t),
+      signal: o.signal,
+    });
 
-  // The art director looks with fresh eyes; the same agent session fixes what it finds.
+  // 1. The lead lays the foundation: theme, shared components, the stage. Beats are stubs.
+  const lead: Workspace = { spec, facts, files, modules: null, dirty: true };
+  const leadMessages: Msg[] = [{ role: "system", content: system }, task(leadFoundationTask({ context, beats: timed }))];
+  const leadTools = (all: boolean) =>
+    sceneTools(
+      lead,
+      sandbox,
+      () => {
+        if (lead.modules) shown = lead.modules;
+        push();
+      },
+      o.signal,
+      {
+        canWrite: (p) => p !== BEATS_INDEX && (all || beatOf(p) === null),
+        writes: all ? `any file except ${BEATS_INDEX}` : "the theme, the shared components and scene/index.tsx (not the beats)",
+      },
+    );
+  const foundation = await agent("lead", leadMessages, leadTools(false), FOUNDATION_STEPS);
+  o.onActivity?.("lead", null);
+  // A foundation that never passed the check would break every beat: fall back to a plain stage.
+  if (!(await compile(files, facts, o.signal)).ok) {
+    files["scene/index.tsx"] = fallbackStage(concept);
+    say("lead", { kind: "error", text: "the foundation did not pass the check; the beats build on a plain stage" });
+  }
+  if (o.signal?.aborted || foundation.summary === "budget reached") return finish(foundation);
+
+  // 2. Every beat at once (a few at a time), each agent on its own file, seeing the others' last good versions.
+  const shared = Object.fromEntries(Object.entries(files).filter(([p]) => beatOf(p) === null && p !== BEATS_INDEX));
+  const results = await pool(
+    timed.map((b, i) => async () => {
+      const ws: Workspace = { spec, facts, files, modules: null, dirty: true };
+      const tools = sceneTools(
+        ws,
+        sandbox,
+        () => {
+          if (ws.modules) shown = ws.modules;
+          push();
+        },
+        o.signal,
+        {
+          canWrite: ownsBeat(b.id),
+          writes: `${beatFile(b.id)} and helpers in scene/beats/${b.id}/`,
+          view: () => beatView(b.id, files, good),
+          mine: (e) => e.startsWith(`scene/beats/${b.id}`),
+          onPassed: () => {
+            good[b.id] = snapshotBeat(b.id, files);
+          },
+          focus: { from: b.start, to: b.end, label: `beat ${b.id}, frames ${b.start} to ${b.end}` },
+        },
+      );
+      o.onActivity?.(b.id, "starting");
+      try {
+        return await agent(b.id, [{ role: "system", content: system }, task(beatTask({ context, beat: b, index: i, beats: timed, notes: foundation.summary, shared }))], tools, BEAT_STEPS);
+      } finally {
+        o.onActivity?.(b.id, null);
+      }
+    }),
+    BEAT_CONCURRENCY,
+  );
+  results.forEach((r, i) => {
+    if (r.status === "rejected") say(ids[i], { kind: "error", text: `stopped: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}` });
+  });
+  // Each beat is its last version that passed: a half-finished edit does not reach the film.
+  for (const id of ids) {
+    for (const p of Object.keys(files)) if (ownsBeat(id)(p)) delete files[p];
+    Object.assign(files, good[id]);
+  }
+  push();
+  if (o.signal?.aborted || ledger.usd >= o.budgetUsd) return finish({ done: false, summary: o.signal?.aborted ? "stopped" : "budget reached" });
+
+  // 3. The lead joins the beats into one film, then the art director's rounds.
+  lead.dirty = true;
+  leadMessages.push({ role: "user", content: LEAD_INTEGRATE });
+  let r = await agent("lead", leadMessages, leadTools(true), INTEGRATE_STEPS);
   for (let round = 1; round <= MAX_REVIEWS && r.summary !== "budget reached" && !o.signal?.aborted; round++) {
-    if (ws.dirty || !ws.modules) {
-      const c = await compile(ws.files, facts, o.signal);
-      if (!c.ok) break;
-      ws.modules = c.modules;
-      ws.dirty = false;
-    }
-    say({ kind: "tool", text: `review ${round}: the art director is looking at the frames` });
-    o.onActivity?.(`review ${round}: rendering labelled frames, then the art director looks at them`);
-    const { review, usage: used } = await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: ws.modules, concept, facts, sandbox, refs: o.refs, signal: o.signal });
-    push({ spend: addUsage(film.spend, used, price), reviews: [...film.reviews, review] });
-    say({ kind: "say", text: `Review ${round}: ${review.score}/10${review.pass ? ", ready to ship" : ""}. ${review.summary}` });
+    const c = await compile(files, facts, o.signal);
+    if (!c.ok) break;
+    shown = c.modules;
+    say("review", { kind: "tool", text: `round ${round}: the art director is looking at the frames` });
+    o.onActivity?.("review", `round ${round}: rendering labelled frames, then the art director looks at them`);
+    const { review, usage: used } = await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: c.modules, concept, facts, sandbox, refs: o.refs, signal: o.signal });
+    o.onActivity?.("review", null);
+    Object.assign(ledger, addUsage(ledger, used, price));
+    push({ reviews: [...film.reviews, review] });
+    say("review", { kind: "say", text: `${review.score}/10${review.pass ? ", ready to ship" : ""}. ${review.summary}` });
     const todo = review.issues.filter((i) => i.severity !== "low");
     if (review.pass || !todo.length || round === MAX_REVIEWS) break;
-    messages.push({
+    leadMessages.push({
       role: "user",
-      content: `The art director reviewed rendered frames of your film with fresh eyes (score ${review.score}/10). Fix these, keep what works, check your fixes with renders, then call finish:\n${todo.map((i) => `- [${i.severity}] ${i.tile ?? ""} ${i.problem} -> ${i.fix}`).join("\n")}`,
+      content: `The art director reviewed rendered frames of the film with fresh eyes (score ${review.score}/10). Fix these in whichever files they live, keep what works, check your fixes with renders, then call finish:\n${todo.map((i) => `- [${i.severity}] ${i.tile ?? ""} ${i.problem} -> ${i.fix}`).join("\n")}`,
     });
-    r = await agent(REVISE_STEPS);
+    lead.dirty = true;
+    r = await agent("lead", leadMessages, leadTools(true), REVISE_STEPS);
   }
-  // Whatever the agent did, the film is the last version that passes the check.
-  const final = await compile(ws.files, facts, o.signal);
-  if (final.ok) ws.modules = final.modules;
-  const ok = Boolean(ws.modules);
-  push({
-    spend: r.spend,
-    status: ok ? (r.done ? "done" : "stopped") : "failed",
-    summary: ok ? r.summary : `The scene did not pass the check: ${final.errors.slice(0, 3).join("; ")}`,
-  });
-  return film;
+  return finish(r);
+
+  /** Whatever the agents did, the film is the last version that passes the check. */
+  async function finish(last: { done: boolean; summary: string }): Promise<FilmState> {
+    const final = await compile(files, facts, o.signal).catch(() => null);
+    if (final?.ok) shown = final.modules;
+    const ok = Boolean(shown);
+    push({
+      status: ok ? (last.done ? "done" : "stopped") : "failed",
+      summary: ok ? last.summary : `The scene did not pass the check: ${(final?.errors ?? []).slice(0, 3).join("; ")}`,
+    });
+    return film;
+  }
+}
+
+/** The stage a film falls back to when the lead's foundation never passed the check: the beats on the concept's background. */
+function fallbackStage(c: Concept): string {
+  const fonts: Record<string, string[]> = {};
+  fonts[c.typography.display] = ["400", "700"];
+  fonts[c.typography.text] = [...new Set([...(fonts[c.typography.text] ?? []), "400", "600"])];
+  return `import { AbsoluteFill } from "remotion";
+import { Beats } from "@kit";
+import { BEATS } from "./beats";
+
+export const fonts = ${JSON.stringify(fonts)};
+export const background = ${JSON.stringify(c.palette.bg)};
+
+export default function Scene() {
+  return (
+    <AbsoluteFill>
+      <Beats of={BEATS} overlap={${OVERLAP}} />
+    </AbsoluteFill>
+  );
+}
+`;
 }

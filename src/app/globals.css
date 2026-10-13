@@ -458,14 +458,36 @@ a:focus-visible {
   display: none;
 }
 
-/* What a bespoke run is doing right now. */
+/* What each agent of a bespoke run is doing right now. */
 .activity {
   margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.activity li {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
-  color: var(--ink);
+  min-width: 0;
+}
+
+.activity-who {
+  flex: none;
+  width: 52px;
+  font-weight: 600;
+}
+
+.activity-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .activity-time {
