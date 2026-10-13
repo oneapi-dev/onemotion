@@ -140,3 +140,25 @@ the running cost and stops at a budget the person sets.
 - Both aspects per run.
 - Word-level cues (needs ElevenLabs timestamps; beat-level cues first).
 - Running generated code outside the sandbox, ever.
+
+## Parity with remotion-opus-skill (2026-10-13)
+
+Built, after the user asked for bespoke mode to match remotion-opus-skill's
+code mode:
+
+| remotion-opus-skill | OneMotion |
+| --- | --- |
+| creative director concept, different from recent films | concept call with the recent films' style, metaphor, world and music |
+| VO script, ElevenLabs VO with word timings | a voice line per beat, recorded with timestamps (with-timestamps), cached |
+| `cue("m02:word")`, captions with word highlight | `cue("b2:word")`, captions drawn for recorded lines |
+| scene agent: write, check, contact sheet, look, fix | same tools, in the browser, rendering in the sandbox |
+| facts linter (numbers on screen) | the scene check fails numbers not in the facts |
+| DOM QA (text clipped, off frame) | QA probe on every still rendered for the model |
+| Opus art director review, revise in the same session | review of labelled tiles, up to two revise rounds |
+| reference screenshots (refs/) | up to four screenshots in the Studio |
+| ElevenLabs Music bed | on a paid ElevenLabs plan; the composed score otherwise |
+| 2.5D kit (camera, billboards, particles, floor) | ported, particles and floor on canvas |
+
+Not built: both aspects per run (cost), multi-take VO with an STT check,
+resuming an interrupted run, the JSON spec engines (plan mode stays as
+Quick).
