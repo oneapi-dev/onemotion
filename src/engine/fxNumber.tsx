@@ -32,7 +32,8 @@ function Odometer({ value, f, start, end }: { value: string; f: number; start: n
   const pos = odometerPositions(value, f, start, end);
   let col = 0;
   return (
-    <span style={{ display: "inline-flex", lineHeight: 1, whiteSpace: "pre" }}>
+    // Normal tracking: each digit stands in its own column, and display type's tight tracking would push neighbours into each other.
+    <span style={{ display: "inline-flex", lineHeight: 1, whiteSpace: "pre", letterSpacing: 0 }}>
       {[...value].map((c, i) => {
         if (!/\d/.test(c)) return <span key={i}>{c}</span>;
         const y = pos[col++];
