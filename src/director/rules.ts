@@ -1,4 +1,4 @@
-import type { Archetype, CameraPath, LookName, Music, Plan, PlanItem, PlanScene, SceneType, Tone } from "@/engine/plan";
+import type { Archetype, CameraPath, LookName, Music, NumberFx, Plan, PlanItem, PlanScene, SceneFx, SceneType, TextFx, Tone, TransitionFx } from "@/engine/plan";
 import type { DirectInput } from "./input";
 import { clipRunes, firstNonEmpty, fitText, normalizeHex, words } from "./text";
 import { aboutPlatform, squash } from "./facts";
@@ -13,6 +13,11 @@ import { aboutPlatform, squash } from "./facts";
 export const TONES: Tone[] = ["punchy", "polished", "cinematic", "playful", "deadpan", "energetic", "clean"];
 export const ARCHETYPES: Archetype[] = ["promo", "launch", "announcement", "explainer", "tutorial", "problem-solution", "versus", "reasons", "one-number"];
 export const MUSIC: Music[] = ["drive", "bright", "calm", "pulse", "epic"];
+export const TEXT_FX: TextFx[] = ["reveal", "scramble", "typewriter", "wave", "scatter", "rolling"];
+export const NUMBER_FX: NumberFx[] = ["count", "odometer"];
+export const TRANSITION_FX: TransitionFx[] = ["wipe", "iris", "blinds", "pixels", "shutter", "flash"];
+/** More full-screen transitions than this and the video reads as a slideshow. */
+export const MAX_TRANSITIONS = 3;
 export const LOOKS: LookName[] = ["midnight", "graphite", "paper", "sage", "mono", "ember"];
 export const PATHS: CameraPath[] = ["dolly", "serpentine", "staircase"];
 
@@ -156,6 +161,7 @@ function normalizeScene(raw: PlanScene, shots: number): PlanScene | null {
   if (value) s.value = value;
   if (left) s.left = left;
   if (right) s.right = right;
+  if (raw.fx) s.fx = raw.fx;
   const narration = typeof raw.narration === "string" ? fitText(raw.narration, NARRATION_MAX) : "";
   if (narration) {
     s.narration = narration;
@@ -184,6 +190,21 @@ function normalizeScene(raw: PlanScene, shots: number): PlanScene | null {
     if (items.length) s.items = items;
   }
   return s;
+}
+
+/** Whether a scene shows a number its number effect could animate. */
+const showsNumber = (s: PlanScene) => /\d/.test([s.value, ...(s.items ?? []).map((it) => it.body)].join(" "));
+
+/** The effects a scene can actually show, from what the model asked for. */
+function normalizeFx(raw: unknown, s: PlanScene, index: number): SceneFx | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const fx: SceneFx = {};
+  if (has(TEXT_FX, r.text)) fx.text = r.text;
+  if (has(NUMBER_FX, r.number) && showsNumber(s)) fx.number = r.number;
+  // The opening card has nothing before it to transition from.
+  if (has(TRANSITION_FX, r.transition) && index > 0) fx.transition = r.transition;
+  return Object.keys(fx).length ? fx : undefined;
 }
 
 function wordCount(s: PlanScene): number {
@@ -359,6 +380,14 @@ export function normalizePlan(raw: Partial<Plan> & { scenes?: PlanScene[] }, inp
   if (scenes.length < MIN_SCENES) throw new UnusablePlanError(`only ${scenes.length} usable scenes`);
   const [lo, hi] = lengthWindow(input.prompt ?? "", p.archetype);
   scenes = trimToLength(scenes, Math.min(HARD_MAX, hi + HARD_SLACK));
+  // Effects last: they depend on where each scene ended up.
+  let transitions = 0;
+  scenes.forEach((s, i) => {
+    const fx = normalizeFx(s.fx, s, i);
+    if (fx?.transition && ++transitions > MAX_TRANSITIONS) delete fx.transition;
+    if (fx && Object.keys(fx).length) s.fx = fx;
+    else delete s.fx;
+  });
   fitDurations(scenes, lo, hi);
   p.scenes = scenes;
   return p;

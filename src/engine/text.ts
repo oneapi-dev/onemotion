@@ -29,11 +29,15 @@ function splitValue(value: string) {
   };
 }
 
+/** Whether a value is a quantity that may animate: "V2.6" or "GPT-5" is a name and never counts. */
+export function countable(value: string): boolean {
+  const lead = /^(\D*)/.exec(value.trim())?.[1] ?? "";
+  return /\d/.test(value) && !/[a-z]/i.test(lead.replace(/^(rp|us\$|usd|idr|eur)\s?/i, ""));
+}
+
 /** The number in `value` counting up between frames start and end. */
 export function countAt(value: string, frame: number, start: number, end: number): string {
-  // "V2.6" or "GPT-5" is a name, not a quantity: it never counts.
-  const lead = /^(\D*)/.exec(value.trim())?.[1] ?? "";
-  if (/[a-z]/i.test(lead.replace(/^(rp|us\$|usd|idr|eur)\s?/i, ""))) return value;
+  if (!countable(value)) return value;
   const format = splitValue(value);
   if (!format) return value;
   const m = /(\d[\d.,]*)/.exec(value);

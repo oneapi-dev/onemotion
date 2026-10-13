@@ -223,3 +223,26 @@ describe("narration", () => {
     expect(msg).toContain("one language");
   });
 });
+
+describe("effects", () => {
+  const base = [sc("hook", { title: "a" }), sc("stat", { value: "$5", title: "b" }), sc("statement", { title: "c" }), sc("specs", { title: "d", items: [{ title: "x", body: "$2" }, { title: "y", body: "5x" }] }), sc("cta", { title: "e" })];
+
+  it("keeps the effects a scene can show and drops the rest", () => {
+    const p = normalizePlan(
+      plan(
+        base.map((s, i) =>
+          i === 1 ? { ...s, fx: { text: "scramble", number: "odometer", transition: "iris" } } : i === 0 ? { ...s, fx: { text: "explode", transition: "wipe", number: "odometer" } } : s,
+        ) as PlanScene[],
+      ),
+      input(),
+    );
+    expect(p.scenes[1].fx).toEqual({ text: "scramble", number: "odometer", transition: "iris" });
+    // The first card has nothing to transition from; a headline has no number; an unknown effect is dropped.
+    expect(p.scenes[0].fx).toBeUndefined();
+  });
+
+  it("allows at most three transitions in a video", () => {
+    const p = normalizePlan(plan(base.map((s, i) => (i > 0 ? { ...s, fx: { transition: "flash" } } : s)) as PlanScene[]), input());
+    expect(p.scenes.filter((s) => s.fx?.transition)).toHaveLength(3);
+  });
+});

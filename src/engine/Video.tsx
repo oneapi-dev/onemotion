@@ -6,6 +6,8 @@ import { LookContext, makeLook, type Look } from "./looks";
 import type { VideoInput } from "./plan";
 import { PERSPECTIVE, cameraAt, moveWindow, planTiming, projector, stations, type Camera, type Projector, type Station } from "./rig";
 import { Soundtrack } from "./soundtrack";
+import { FxContext } from "./fx";
+import { Transitions } from "./fxTransition";
 import { Stage3D, type Mote } from "./stage3d";
 
 /**
@@ -23,6 +25,7 @@ import { Stage3D, type Mote } from "./stage3d";
  */
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
+const NO_FX = {};
 
 /** Seeded random, so every render of a plan is identical. */
 function seeded(seed: number) {
@@ -108,7 +111,9 @@ export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots, 
               return (
                 <Placed key={i} station={route[i]} cam={cam} p={p} Z={Z}>
                   <Sequence from={from} layout="none">
-                    <Card scene={scene} at={Math.max(0, start - from)} frames={Math.max(30, end - start)} index={i} count={plan.scenes.length} brand={brand} shots={shots} />
+                    <FxContext.Provider value={scene.fx ?? NO_FX}>
+                      <Card scene={scene} at={Math.max(0, start - from)} frames={Math.max(30, end - start)} index={i} count={plan.scenes.length} brand={brand} shots={shots} />
+                    </FxContext.Provider>
                   </Sequence>
                 </Placed>
               );
@@ -120,6 +125,7 @@ export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots, 
               background: `linear-gradient(180deg, rgba(0,0,0,${look.mode === "dark" ? 0.18 : 0.03}), transparent 30%, transparent 70%, rgba(0,0,0,${look.mode === "dark" ? 0.25 : 0.05}))`,
             }}
           />
+          <Transitions plan={plan} timing={timing} look={look} />
           <Grain look={look} />
           <Soundtrack plan={plan} timing={timing} voiceover={voiceover} />
       </AbsoluteFill>

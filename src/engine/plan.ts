@@ -49,6 +49,16 @@ export type Archetype =
   | "reasons"
   | "one-number";
 
+/** How a scene's headline enters. */
+export type TextFx = "reveal" | "scramble" | "typewriter" | "wave" | "scatter" | "rolling";
+/** How a scene's numbers arrive: counting up, or rolling digits like an odometer. */
+export type NumberFx = "count" | "odometer";
+/** A full-screen transition as the camera lands on the scene's card. */
+export type TransitionFx = "wipe" | "iris" | "blinds" | "pixels" | "shutter" | "flash";
+
+/** The effects the director picks for a scene; anything left out uses the default. */
+export type SceneFx = { text?: TextFx; number?: NumberFx; transition?: TransitionFx };
+
 export type PlanItem = {
   title: string;
   body?: string;
@@ -71,6 +81,7 @@ export type PlanScene = {
   /** Index into the video's screenshots. */
   shot?: number;
   motion?: "scroll" | "zoom" | "pan";
+  fx?: SceneFx;
   /** The voiceover line spoken over this scene, in the plan's language, numbers as on screen. */
   narration?: string;
   /** How long the recorded line runs, once a voice has read it: the scene holds at least that long. */

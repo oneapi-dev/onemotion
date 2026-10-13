@@ -60,6 +60,11 @@ Scene library (3 to 10 scenes; the last scene must be "cta"):
 - offer: a real promotion from the sources (discount, free tier, bonus). eyebrow (max 24), title (max 40), value (max 12), body (max 60)
 - cta: closing call to action. title (button text, max 24), body (optional, max 60)
 
+Effects: give a scene an optional "fx" object to make it land harder. Pick what fits the content and the tone, vary them across the video, and leave a scene without "fx" when plain is better.
+- text (how its headline enters): reveal (clean masked rise, the default), scramble (characters decode into place: tech, AI, security, code, launches), typewriter (typed out with a caret: chat, explanations, calm tones), wave (letters ripple in: playful, friendly), scatter (letters fly in from all sides: bold claims, energetic), rolling (letters roll up like a slot reel: punchy taglines, prices). Use 2 to 4 different text effects in a video, not one per scene.
+- number (only on scenes showing a number: stat, offer, specs, bars): count (counts up, the default) or odometer (each digit spins into place: prices, totals, premium feel).
+- transition (a full-screen move as the camera lands on this card; at most 3 in a video, never the first scene): wipe (clean, corporate), iris (playful, retro), blinds (editorial), pixels (tech, gaming), shutter (cinematic, dramatic), flash (an impact: a big number, a reveal, the drop).
+
 The video is one continuous camera move through a 3D room: the camera flies from card to card on the beat. You choose the room and the route:
 Looks: midnight (ink-dark room, frosted dark cards, a chartreuse signal color; developer tools, infrastructure, technical), graphite (bright white studio, crisp white cards, orange-red; product, SaaS, clean), paper (warm paper, ink borders, hard shadows, red; editorial, explainers, comparisons), sage (soft greige room, white cards, deep green; calm, trustworthy, finance, health), mono (white lab, blue outlines on a grid; data, precise, technical), ember (near black with an ember glow, amber; premium, bold, launches).
 Paths: dolly (pushes straight in; calm, focused), serpentine (weaves left and right; energetic, many beats), staircase (climbs up; progress, steps, growth).
@@ -68,7 +73,7 @@ Music: drive (steady, confident), bright (upbeat, happy), calm (soft, elegant), 
 Fonts: display from [${DISPLAY_FONTS.join(", ")}], body from [${BODY_FONTS.join(", ")}].
 
 Reply with ONLY a JSON object, no prose and no code fence:
-{"archetype": "...", "language": "ISO 639-1 code of the brief's language, e.g. id or en", "angle": "one sentence: the story this video tells", "brand": "the name of the product or company the video is about", "look": "...", "path": "...", "tone": "...", "caption": "a post caption for social media in the brief's language, max 220 chars, may include 1 to 3 hashtags", "fonts": {"display": "...", "body": "..."}, "music": "...", "scenes": [{"type": "hook", "duration": 2.6, "title": "..."}, ...]}`;
+{"archetype": "...", "language": "ISO 639-1 code of the brief's language, e.g. id or en", "angle": "one sentence: the story this video tells", "brand": "the name of the product or company the video is about", "look": "...", "path": "...", "tone": "...", "caption": "a post caption for social media in the brief's language, max 220 chars, may include 1 to 3 hashtags", "fonts": {"display": "...", "body": "..."}, "music": "...", "scenes": [{"type": "hook", "duration": 2.6, "title": "...", "fx": {"text": "scramble"}}, ...]}`;
 
 /** Asked for when the person wants a voiceover. */
 export const NARRATION_BRIEF = `NARRATION: give every scene a "narration" field: what a voiceover says while that scene is on screen.

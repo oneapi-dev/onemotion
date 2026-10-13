@@ -4,7 +4,10 @@ import { Glow } from "./glow";
 import { useLook, type Look } from "./looks";
 import { REVEAL_MASK_PAD, REVEAL_TILT, clamp, easeInOut, easeOut, revealDrop } from "./motion";
 import type { PlanScene, VideoInput } from "./plan";
-import { countAt, fit, numberIn } from "./text";
+import { useFx } from "./fx";
+import { Num } from "./fxNumber";
+import { CharText } from "./fxText";
+import { fit, numberIn } from "./text";
 import { chatTimes, checkTimes, kineticTimes, tokens } from "./timing";
 
 /**
@@ -60,7 +63,7 @@ function useSince(at: number) {
  * Headline type revealed word by word from behind a mask, the last word in
  * the accent gradient. Reads as cut, not faded.
  */
-export const Reveal: React.FC<{
+type RevealProps = {
   text: string;
   size: number;
   at: number;
@@ -72,7 +75,19 @@ export const Reveal: React.FC<{
   per?: number;
   lineHeight?: number;
   family?: string;
-}> = ({ text, size, at, align = "center", maxWidth, weight, color, accentLast = true, per = 3, lineHeight = 1.02, family }) => {
+};
+
+/** A headline entering the way its scene's text effect says: the masked reveal, or a letter-by-letter effect. */
+export const Reveal: React.FC<RevealProps> = (props) => {
+  const { text: kind } = useFx();
+  if (kind && kind !== "reveal") {
+    const { text, size, at, align, maxWidth, weight, color, accentLast, lineHeight, family } = props;
+    return <CharText kind={kind} {...{ text, size, at, align, maxWidth, weight, color, accentLast, lineHeight, family }} />;
+  }
+  return <MaskReveal {...props} />;
+};
+
+const MaskReveal: React.FC<RevealProps> = ({ text, size, at, align = "center", maxWidth, weight, color, accentLast = true, per = 3, lineHeight = 1.02, family }) => {
   const look = useLook();
   const { f, fps } = useSince(at);
   const words = text.split(/\s+/).filter(Boolean);
@@ -500,7 +515,7 @@ export const SpecsCard: React.FC<CardProps> = ({ scene, at, frames, index, count
                   ...(i === 0 ? { color: look.accentA } : {}),
                 }}
               >
-                {countAt(it.body ?? "", f, 8 + i * 5, Math.min(frames - 10, 46))}
+                <Num value={it.body ?? ""} f={f} start={8 + i * 5} end={Math.min(frames - 10, 46)} />
               </div>
             </div>
           );
@@ -566,7 +581,7 @@ export const BarsCard: React.FC<CardProps> = ({ scene, at, frames, index, count 
                     opacity: Math.min(1, grow * 1.6),
                   }}
                 >
-                  {countAt(it.body ?? "", f, 10 + i * 6, end)}
+                  <Num value={it.body ?? ""} f={f} start={10 + i * 6} end={end} />
                 </div>
               </div>
             </div>
@@ -887,7 +902,7 @@ export const StatCard: React.FC<CardProps> = ({ scene, at, frames }) => {
   const { f } = useSince(at);
   const ring = 560 * u;
   const prog = interpolate(f, [4, Math.min(frames - 10, 50)], [0, 1], { ...clamp, easing: easeOut });
-  const value = countAt(scene.value ?? "", f, 4, Math.min(frames - 10, 50));
+  const value = <Num value={scene.value ?? ""} f={f} start={4} end={Math.min(frames - 10, 50)} />;
   const size = fit(scene.value ?? "", ring * 0.8, 210 * u, 1, 0.6);
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 26 * u }}>
@@ -954,7 +969,7 @@ export const OfferCard: React.FC<CardProps> = ({ scene, at, frames, index, count
           color: look.accentA,
         }}
       >
-        {countAt(scene.value ?? "", f, 8, Math.min(frames - 10, 50))}
+        <Num value={scene.value ?? ""} f={f} start={8} end={Math.min(frames - 10, 50)} />
       </div>
       {scene.body ? (
         <div style={{ marginTop: "auto", borderTop: `${2 * u}px dashed rgba(${look.textRgb},0.2)`, paddingTop: 22 * u }}>
