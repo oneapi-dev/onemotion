@@ -181,7 +181,8 @@ export async function renderSong(song: Song): Promise<AudioBuffer> {
   padTone.output.connect(pads);
   const braamTone = lowpass24(ctx, 950);
   braamTone.output.connect(keys);
-  const braamDrive = new WaveShaperNode(ctx, { curve: driveCurve(0.22) });
+  // Light drive: harder and the shaper saturates, so a braam's velocity no longer changes how loud it is.
+  const braamDrive = new WaveShaperNode(ctx, { curve: driveCurve(0.08) });
   braamDrive.connect(braamTone.input);
   const pluckTone = new BiquadFilterNode(ctx, { type: "lowpass", frequency: 2600 });
   pluckTone.connect(keys);

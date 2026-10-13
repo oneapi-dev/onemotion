@@ -23,6 +23,8 @@ type Hit = { name: string; at: number; volume: number; frames?: number };
  */
 /** How far the music dips while the voiceover speaks (about -8 dB), and how many frames the dip takes. */
 const DUCK = 0.4;
+/** The music bed under the picture: a bed, not the show (about -3 dB from full). */
+const MUSIC_LEVEL = 0.65;
 const DUCK_FRAMES = 6;
 
 export const Soundtrack: React.FC<{ plan: Plan; timing: Timing; voiceover?: Record<number, string> }> = ({ plan, timing, voiceover }) => {
@@ -45,12 +47,12 @@ export const Soundtrack: React.FC<{ plan: Plan; timing: Timing; voiceover?: Reco
       const out = Math.min(1, Math.max(0, (l.to + DUCK_FRAMES - f) / DUCK_FRAMES));
       dip = Math.max(dip, Math.min(into, out));
     }
-    return 0.9 * (1 - (1 - DUCK) * dip);
+    return MUSIC_LEVEL * (1 - (1 - DUCK) * dip);
   };
   const hits: Hit[] = [];
   plan.scenes.forEach((scene, i) => {
     const [leave] = moveWindow(i, t);
-    if (i > 0) hits.push({ name: t.move < 18 ? "swoosh" : "whoosh", at: leave - 2, volume: 0.36 });
+    if (i > 0) hits.push({ name: t.move < 18 ? "swoosh" : "whoosh", at: leave - 2, volume: 0.24 });
     const s = t.starts[i];
     const items = scene.items ?? [];
     switch (scene.type) {
@@ -80,7 +82,7 @@ export const Soundtrack: React.FC<{ plan: Plan; timing: Timing; voiceover?: Reco
 
   return (
     <>
-      {track ? <Audio src={track} volume={lines.length ? musicLevel : 0.9} /> : null}
+      {track ? <Audio src={track} volume={lines.length ? musicLevel : MUSIC_LEVEL} /> : null}
       {lines.map((l, i) => (
         <Sequence key={`voice-${i}`} from={l.from} durationInFrames={l.to - l.from + 15}>
           <Audio src={l.src} volume={1} />

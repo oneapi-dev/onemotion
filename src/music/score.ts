@@ -42,8 +42,9 @@ function progressionFor(spec: GenreSpec, mode: Mode, scene: number, seed: number
   return [...p.slice(turn), ...p.slice(0, turn)];
 }
 
+/** A bed that stays under the picture: quiet in, steady through the middle, a step up for the close. */
 function defaultEnergy(scenes: number): Energy[] {
-  return Array.from({ length: scenes }, (_, i): Energy => (i === 0 ? 1 : i >= scenes - 2 ? 3 : 2));
+  return Array.from({ length: scenes }, (_, i): Energy => (i === 0 ? 1 : i === scenes - 1 ? 2 : i % 3 === 2 ? 2 : 1));
 }
 
 /** A complete, genre-true score for a number of scenes, varied by the seed. */
@@ -53,9 +54,8 @@ export function presetScore(genre: Genre, scenes: number, seed: number): Score {
   const { key, mode } = spec.keys[Math.floor(rnd() * spec.keys.length)];
   const [lo, hi] = spec.bpm;
   const bpm = Math.round(lo + rnd() * (hi - lo));
+  // Moments are the director's to give where the story turns; a preset has none.
   const moments: Moment[] = [];
-  if (scenes >= 4) moments.push({ scene: 1, kind: "drop" });
-  if (scenes >= 2) moments.push({ scene: scenes - 1, kind: "riser" });
   return {
     genre,
     bpm,

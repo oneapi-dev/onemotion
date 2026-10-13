@@ -13,7 +13,9 @@ describe("presetScore", () => {
       expect(s.chords).toHaveLength(6);
       expect(s.energy).toHaveLength(6);
       for (const scene of s.chords) for (const c of scene) expect(spec.allowed[s.mode]).toContain(c);
-      expect(s.moments.some((m) => m.kind === "riser" && m.scene === 5)).toBe(true);
+      // A preset is a bed under the picture: no drops or risers, energy no higher than 2.
+      expect(s.moments).toEqual([]);
+      expect(Math.max(...s.energy)).toBeLessThanOrEqual(2);
     }
   });
 });

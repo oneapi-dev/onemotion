@@ -71,17 +71,14 @@ export const trailer: GenreSpec = {
     if (energy === 3) {
       for (const n of voicing) notes.push({ inst: "braam", beat: start, beats: Math.min(beats, 3.5), note: n - 12, vel: 0.6 });
       for (let b = 0; at(b); b += 0.5) notes.push({ inst: "tom", sample: b % 1 ? "high" : "low", beat: start + b, vel: human(0.42, rng) });
-      if (first) notes.push({ inst: "crash", sample: "2", beat: start, vel: 0.7 });
     }
     return notes;
   },
 
   landing({ beat, energy, drop, voicing, bass }) {
-    const notes: Note[] = [
-      { inst: "boom", sample: "ff", beat, vel: drop ? 1 : 0.7 + energy * 0.08 },
-      { inst: "sub", beat, note: bass - 12, beats: 3, vel: drop ? 1 : 0.7 },
-    ];
-    if (drop || energy >= 2) notes.push({ inst: "crash", sample: "2", beat, vel: drop ? 0.9 : 0.6 });
+    const notes: Note[] = [{ inst: "boom", sample: drop ? "ff" : "f", beat, vel: drop ? 1 : 0.42 + energy * 0.08 }];
+    if (drop || energy === 3) notes.push({ inst: "sub", beat, note: bass - 12, beats: 3, vel: drop ? 0.9 : 0.55 });
+    if (drop) notes.push({ inst: "crash", sample: "2", beat, vel: 0.8 });
     if (drop) {
       for (const n of voicing) notes.push({ inst: "braam", beat, beats: 3, note: n - 12, vel: 0.8 });
       notes.push({ inst: "piano", beat, beats: 4, note: bass, vel: 0.85 });
@@ -104,12 +101,12 @@ export const trailer: GenreSpec = {
   ending({ beat, beats, voicing, bass }) {
     const hold = Math.max(2, beats);
     return [
-      { inst: "boom", sample: "ff", beat, vel: 1 },
-      { inst: "sub", beat, note: bass - 12, beats: 4, vel: 1 },
-      { inst: "crash", sample: "2", beat, vel: 0.9 },
-      ...voicing.map((n): Note => ({ inst: "braam", beat, beats: Math.min(hold, 4), note: n - 12, vel: 0.85 })),
-      { inst: "piano", beat, beats: hold, note: bass, vel: 0.9 },
-      { inst: "piano", beat, beats: hold, note: bass + 12, vel: 0.75 },
+      { inst: "boom", sample: "f", beat, vel: 0.55 },
+      { inst: "sub", beat, note: bass - 12, beats: 1.5, vel: 0.4 },
+      { inst: "crash", sample: "2", beat, vel: 0.55 },
+      // The close resolves rather than explodes: a low piano octave over the pad, no braam.
+      { inst: "piano", beat, beats: hold, note: bass, vel: 0.7 },
+      { inst: "piano", beat, beats: hold, note: bass + 12, vel: 0.55 },
       ...voicing.map((n): Note => ({ inst: "pad", beat, beats: hold, note: n - 12, vel: 0.4 })),
     ];
   },

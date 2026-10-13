@@ -44,7 +44,7 @@ export const house: GenreSpec = {
   register: { low: 55, high: 76, voices: 4, bass: 33 },
   sidechain: true,
 
-  bar({ start, beats, energy, voicing, bass, rng, first }) {
+  bar({ start, beats, energy, voicing, bass, rng }) {
     const notes: Note[] = [];
     const at = (b: number) => b < beats - 1e-6;
     for (const n of voicing) notes.push({ inst: "pad", beat: start, beats, note: n, vel: energy === 0 ? 0.5 : 0.32 });
@@ -62,14 +62,14 @@ export const house: GenreSpec = {
       for (let b = 0; at(b); b += 0.25) if (b % 0.5 !== 0) notes.push({ inst: "hat", sample: "closed2", beat: start + b, vel: human(0.28, rng) });
       for (let b = 0.5; at(b); b += 1) notes.push({ inst: "openhat", sample: "open", beat: start + b, vel: human(0.32, rng) });
     }
-    if (first && energy >= 2) notes.push({ inst: "crash", sample: "1", beat: start, vel: 0.6 });
     return notes;
   },
 
   landing({ beat, energy, drop, voicing, bass }) {
-    const notes: Note[] = [{ inst: "crash", sample: drop ? "2" : "1", beat, vel: drop ? 0.95 : 0.55 + energy * 0.1 }];
-    if (drop || energy >= 1) notes.push({ inst: "kick", beat, vel: 1 });
-    if (drop || energy >= 2) notes.push({ inst: "sub", beat, note: bass - 12, beats: 2, vel: drop ? 0.9 : 0.6 });
+    const notes: Note[] = [];
+    if (drop || energy >= 2) notes.push({ inst: "crash", sample: drop ? "2" : "1", beat, vel: drop ? 0.85 : 0.32 });
+    if (drop || energy >= 1) notes.push({ inst: "kick", beat, vel: drop ? 1 : 0.85 });
+    if (drop) notes.push({ inst: "sub", beat, note: bass - 12, beats: 2, vel: 0.8 });
     if (drop) for (const n of voicing) notes.push({ inst: "piano", beat, beats: 1.5, note: n + 12, vel: 0.8 });
     return notes;
   },
@@ -81,9 +81,9 @@ export const house: GenreSpec = {
   ending({ beat, beats, voicing, bass }) {
     const hold = Math.max(2, beats);
     return [
-      { inst: "crash", sample: "2", beat, vel: 0.9 },
-      { inst: "kick", beat, vel: 1 },
-      { inst: "sub", beat, note: bass - 12, beats: 3, vel: 0.85 },
+      { inst: "crash", sample: "2", beat, vel: 0.55 },
+      { inst: "kick", beat, vel: 0.9 },
+      { inst: "sub", beat, note: bass - 12, beats: 1.5, vel: 0.4 },
       ...voicing.map((n): Note => ({ inst: "piano", beat, beats: hold, note: n + 12, vel: 0.75 })),
       { inst: "piano", beat, beats: hold, note: bass + 12, vel: 0.7 },
       ...voicing.map((n): Note => ({ inst: "pad", beat, beats: hold, note: n, vel: 0.4 })),
