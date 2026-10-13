@@ -1,5 +1,7 @@
+import { Audio } from "@remotion/media";
 import type { ReactNode } from "react";
-import { Easing, Img, interpolate, useCurrentFrame } from "remotion";
+import { Easing, Img, Sequence, interpolate, staticFile, useCurrentFrame } from "remotion";
+import { AUDIO_EXT } from "./music";
 import { useFx } from "./fx";
 import { useLook } from "./looks";
 
@@ -7,7 +9,9 @@ import { useLook } from "./looks";
  * A pointer that glides in from below right, clicks the element it wraps
  * (which dips like a pressed button, with a ripple at the tip) and rests on
  * it. `at` is the frame the glide starts; the click lands about a second
- * later. Shown only when the scene asks for a cursor.
+ * later, with a click you hear on the same frame (played from here, so it
+ * stays in sync wherever a card puts its cursor). Shown only when the scene
+ * asks for a cursor.
  */
 
 const glideEase = Easing.bezier(0.3, 0, 0.2, 1);
@@ -42,6 +46,12 @@ export const CursorTarget: React.FC<{ at: number; children: ReactNode }> = ({ at
   return (
     <div style={{ position: "relative", display: "inline-block", transform: `scale(${press})` }}>
       {children}
+      {Number.isFinite(at) ? (
+        // Two frames early: sound that leads the picture reads as in sync.
+        <Sequence from={at + CLICK - 2} durationInFrames={20} layout="none">
+          <Audio src={staticFile(`audio/click.${AUDIO_EXT}`)} volume={0.9} />
+        </Sequence>
+      ) : null}
       {f >= 0 ? (
         <div style={{ position: "absolute", left: "64%", top: "58%", transform: `translate(${x}px, ${y}px)`, opacity: Math.min(1, f / 4) }}>
           {f >= CLICK && ripple < 1 ? (

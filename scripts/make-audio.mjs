@@ -2,7 +2,7 @@
 //
 //   public/audio/<track>.mp3       48 s music beds at a fixed tempo
 //   public/audio/<track>-end.mp3   the track's closing hit, rung out
-//   public/audio/<sfx>.mp3         whoosh, swoosh, impact, riser, tick, pop, ding, type
+//   public/audio/<sfx>.mp3         whoosh, swoosh, impact, riser, tick, pop, ding, type, click
 //   src/engine/music.ts              tempo and bar length of each bed (generated)
 //
 // Every bed is arranged in bars (intro, groove, a break, a fuller groove) so a
@@ -680,6 +680,17 @@ function makeSfx() {
     noiseHit(type, t, { gain: 0.15, decay: 0.012, type: "low", cutoff: 400 });
   }
   out.type = master(type, 0.6);
+
+  // A mouse click: a sharp press with a plastic body, then a softer release.
+  // Its energy sits around 1.5 to 4 kHz, above the music's bass and pads, so
+  // it reads through a mix without being loud.
+  const click = bus(0.25);
+  for (const [t, g] of [[0, 1], [0.07, 0.45]]) {
+    noiseHit(click, t, { gain: 1.6 * g, decay: 0.006, type: "band", cutoff: 3200, q: 1.2 });
+    noiseHit(click, t, { gain: 0.6 * g, decay: 0.01, type: "band", cutoff: 2200, q: 5, tone: 0.25, toneHz: 2300 });
+    noiseHit(click, t, { gain: 0.15 * g, decay: 0.01, type: "low", cutoff: 300 });
+  }
+  out.click = master(click, 0.9);
   return out;
 }
 
