@@ -1,0 +1,10 @@
+{
+  "format": "landscape",
+  "brand": { "name": "OneAPI", "url": "oneapi.id", "logo": null, "colors": ["#FF4F1F"] },
+  "score": { "genre": "house", "bpm": 118, "seed": 3 },
+  "beats": [
+    { "id": "b1", "says": "One key.", "voice": "One key.", "shows": "the first card, in focus", "seconds": 2.2 },
+    { "id": "b2", "says": "Every model.", "voice": "Every model.", "shows": "the camera flies to the second card", "seconds": 2.2 },
+    { "id": "b3", "says": "oneapi.id", "voice": "OneAPI.", "shows": "the brand card", "seconds": 3 }
+  ]
+}

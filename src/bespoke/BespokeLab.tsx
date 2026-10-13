@@ -32,7 +32,8 @@ export default function BespokeLab() {
     box.current = sb;
     let live = true;
     (async () => {
-      const ex = (await (await fetch("/api/scene/example?name=gateway")).json()) as Example;
+      const name = new URLSearchParams(window.location.search).get("example") ?? "gateway";
+      const ex = (await (await fetch(`/api/scene/example?name=${encodeURIComponent(name)}`)).json()) as Example;
       const t0 = performance.now();
       const checked = (await (await fetch("/api/scene/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ files: ex.files }) })).json()) as { ok: boolean; errors: string[]; modules: Record<string, string> };
       if (!live) return;

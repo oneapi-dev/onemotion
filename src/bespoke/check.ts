@@ -165,4 +165,4 @@ function typecheck(files: Record<string, string>): string[] {
 
 /** The kit's source, for the model's system prompt. */
 export const kitSource = () =>
-  ["index.ts", "film.tsx", "motion.ts", "text.tsx", "draw.tsx", "fx.tsx", "ui.tsx", "sound.tsx", "sfx.ts"].map((f) => `--- @kit/${f} ---\n${readFileSync(path.join(ROOT, "src", "bespoke", "kit", f), "utf8")}`).join("\n\n");
+  ["index.ts", "film.tsx", "motion.ts", "text.tsx", "draw.tsx", "fx.tsx", "ui.tsx", "space.tsx", "sound.tsx", "sfx.ts"].map((f) => `--- @kit/${f} ---\n${readFileSync(path.join(ROOT, "src", "bespoke", "kit", f), "utf8")}`).join("\n\n");

@@ -4,7 +4,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Img } from "remotion";
 import { useFilm } from "./film";
-import { prog } from "./motion";
+import { pop, prog } from "./motion";
 import { Sfx } from "./sound";
 
 /** The brand's logo, or a monogram tile in its colour when it has none. */
@@ -91,5 +91,21 @@ export const Cursor = ({ t, x, y, clicks = [], dark = false, ring = "#111", size
         <Img src={dark ? POINTER_DARK : POINTER_LIGHT} style={{ position: "absolute", left: -2, top: -2, width: size, height: size * 1.38, transformOrigin: "0 0", transform: `scale(${1 - press * 0.12})` }} />
       </div>
     </>
+  );
+};
+
+/** A notification banner that springs in at frame `at` (phone style). */
+export const Notification = ({ t, at, app, title, body, w = 900, icon, dark = false }: { t: number; at: number; app: string; title: string; body: string; w?: number; icon?: ReactNode; dark?: boolean }) => {
+  if (t < at - 2) return null;
+  const p = pop(t, at, 5);
+  return (
+    <div style={{ width: w, borderRadius: 34, padding: "24px 28px", background: dark ? "rgba(40,40,44,0.94)" : "rgba(250,250,252,0.96)", boxShadow: "0 30px 60px -30px rgba(0,0,0,0.45)", display: "flex", gap: 20, alignItems: "center", transform: `translateY(${((1 - Math.min(1, p)) * -80).toFixed(1)}px) scale(${(0.92 + 0.08 * p).toFixed(3)})`, opacity: Math.min(1, p * 1.5), fontFamily: "Inter, Helvetica, sans-serif", color: dark ? "#FFF" : "#111" }}>
+      <div style={{ width: 76, height: 76, borderRadius: 18, overflow: "hidden", flex: "none", display: "flex", alignItems: "center", justifyContent: "center", background: "#E5E5EA" }}>{icon}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 24, opacity: 0.6, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>{app}</div>
+        <div style={{ fontSize: 32, fontWeight: 700, marginTop: 2 }}>{title}</div>
+        <div style={{ fontSize: 30, opacity: 0.85, marginTop: 2 }}>{body}</div>
+      </div>
+    </div>
   );
 };

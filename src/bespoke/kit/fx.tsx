@@ -2,10 +2,10 @@
 // one-frame step reads as a glitch. Adapted from remotion-opus-skill's kit
 // (MIT, (c) 2026 direkturcrypto), drawn on canvas for the browser exporter.
 import { useMemo } from "react";
-import { Img } from "remotion";
+import { Easing, Img } from "remotion";
 import { Draw } from "./draw";
 import { useFilm } from "./film";
-import { hitEnv, prog, seeded } from "./motion";
+import { hitEnv, lin, prog, seeded } from "./motion";
 
 export type Hit = { at: number; kind: "shake" | "punch" | "flash"; amp?: number };
 
@@ -105,3 +105,44 @@ export const Confetti = ({ at, colors, n = 90, seed = 3 }: { at: number; colors:
     />
   );
 };
+
+/** A tapered lash from a to b that cracks at frame `at`, with a motion trail: a whip-pan accent or a fast connection. */
+export const Whip = ({ at, a, b, color, width = 46 }: { at: number; a: [number, number]; b: [number, number]; color: string; width?: number }) => (
+  <Draw
+    draw={(ctx, t) => {
+      if (t < at - 10 || t > at + 20) return;
+      const shape = (tt: number) => {
+        const reveal = prog(tt, at - 10, at + 2, Easing.bezier(0.6, 0, 0.9, 0.6));
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const L = Math.hypot(dx, dy) || 1;
+        const nx = -dy / L;
+        const ny = dx / L;
+        const amp = 150 * (1 - 0.6 * prog(tt, at, at + 16));
+        const left: [number, number][] = [];
+        const right: [number, number][] = [];
+        for (let i = 0; i <= 60; i++) {
+          const u = (i / 60) * reveal;
+          const wave = Math.sin(u * Math.PI * 2.1 - (tt - at + 10) * 0.5) * amp * Math.sin(u * Math.PI);
+          const x = a[0] + dx * u + nx * wave;
+          const y = a[1] + dy * u + ny * wave;
+          const wd = width * (1 - u) ** 1.4 + 5;
+          left.push([x + nx * wd * 0.5, y + ny * wd * 0.5]);
+          right.unshift([x - nx * wd * 0.5, y - ny * wd * 0.5]);
+        }
+        ctx.beginPath();
+        [...left, ...right].forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+        ctx.closePath();
+        ctx.fill();
+      };
+      const fade = 1 - prog(t, at + 6, at + 18, lin);
+      ctx.fillStyle = color;
+      if (t - 3 >= at - 10) {
+        ctx.globalAlpha = 0.25 * fade;
+        shape(t - 3);
+      }
+      ctx.globalAlpha = fade;
+      shape(t);
+    }}
+  />
+);

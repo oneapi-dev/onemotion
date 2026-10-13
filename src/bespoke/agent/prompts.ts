@@ -90,8 +90,11 @@ prog(t, a, b, ease?) eased 0..1 between frames a and b · pop(t, t0, k?) springy
 ## Sound (place the sound design yourself)
 <Sfx name at volume? /> names: ${SFX.join(", ")}. A cue on every camera move, connection, click, impact and reveal; sound a frame or two before the picture.
 
+## 2.5D (optional: one continuous camera through a world)
+camAt([[frame, { x, y, z, r }, ease?], ...], t) a keyframed camera · project3D(p, cam, W, cy, F?) where a world point lands and its scale · <Billboard3D cam p={{ x, y, z }} w h focusZ? unfocus?> a DOM element standing in 3D with lens depth of field (render far ones first) · <Particles3D cam prev /> drifting particles that streak while the camera moves (prev = the camera one frame earlier) · <Floor3D cam y? /> a perspective grid floor · focusWeight(t, a, b) 0..1 "this is what the voice is about".
+
 ## Shells and effects
-<Window kind="mac|browser|terminal" w h title? url? dark?> · <Phone w? dark?> · <Cursor t x y clicks={[frames]} /> (plays its own click) · <Mark size /> the brand logo · useHits([{ at, kind: "punch|shake|flash", amp? }], t) camera reactions · <Grain /> print grain · <Burst at x y color /> · <Confetti at colors /> (only for real celebrations).`;
+<Window kind="mac|browser|terminal" w h title? url? dark?> · <Phone w? dark?> · <Cursor t x y clicks={[frames]} /> (plays its own click) · <Notification t at app title body /> · <Mark size /> the brand logo · useHits([{ at, kind: "punch|shake|flash", amp? }], t) camera reactions · <Whip at a={[x, y]} b={[x, y]} color /> a lash for whip pans and fast connections · <Grain /> print grain · <Burst at x y color /> · <Confetti at colors /> (only for real celebrations).`;
 
 /** The motion designer who codes: builds the film with tools. */
 export function agentPrompt(): string {

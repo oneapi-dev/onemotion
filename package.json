@@ -5,8 +5,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "predev": "node scripts/build-sandbox.mjs",
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
     "prebuild": "node scripts/build-sandbox.mjs",
     "build": "next build",
     "start": "next start",
