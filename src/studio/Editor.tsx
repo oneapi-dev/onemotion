@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { DirectInput } from "@/director/input";
-import { normalizePlan, SPECS, UnusablePlanError } from "@/director/rules";
+import { NARRATION_MAX, normalizePlan, SPECS, UnusablePlanError } from "@/director/rules";
 import type { Plan, PlanItem, PlanScene, SceneType } from "@/engine/plan";
 
 const LABELS: Record<SceneType, string> = {
@@ -109,6 +109,9 @@ export function Editor({ plan, input, onSave }: { plan: Plan; input: DirectInput
                 <Field key={f} label={names[f] as string} value={scene[f] ?? ""} max={spec[f] as number} code={scene.type === "code" && f === "body"} onChange={(v) => patch(i, { [f]: v })} />
               ) : null,
             )}
+            {scene.narration !== undefined ? (
+              <Field label="Voiceover" value={scene.narration} max={NARRATION_MAX} onChange={(v) => patch(i, { narration: v })} />
+            ) : null}
             {scene.items?.map((it, k) => (
               <div className="pair" key={k}>
                 {spec.itemTitle && itemTitle ? <Field label={`${itemTitle} ${k + 1}`} value={it.title} max={spec.itemTitle} onChange={(v) => setItem(k, { title: v })} /> : null}
@@ -125,7 +128,7 @@ export function Editor({ plan, input, onSave }: { plan: Plan; input: DirectInput
           {error}
         </p>
       ) : null}
-      {saved ? <p className="ok">Saved. The preview shows your words.</p> : null}
+      {saved ? <p className="ok">Saved. The preview shows your words{draft.scenes.some((s) => s.narration) ? "; changed voiceover lines are recorded again" : ""}.</p> : null}
       <div className="row">
         <button type="button" className="btn primary" onClick={save}>
           Save text

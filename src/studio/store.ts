@@ -2,6 +2,7 @@
 
 import type { SiteInfo } from "@/director/input";
 import type { MotionFormat, Plan, Tone } from "@/engine/plan";
+import type { VoiceChoice } from "@/voice/narrate";
 
 /**
  * Everything is kept in this browser: the OneAPI key, the chosen model and
@@ -19,9 +20,17 @@ export type Project = {
   tone: Tone | "auto";
   site: SiteInfo | null;
   plan: Plan;
+  /** The voice that read this video's narration, when it has one. */
+  voice?: VoiceChoice;
 };
 
-export type Settings = { key: string; model: string };
+/** Optional voiceover with the person's own ElevenLabs key. */
+export type VoiceSettings = { on: boolean; key: string; voiceId: string; voiceName: string };
+
+export type Settings = { key: string; model: string; voice?: VoiceSettings };
+
+/** Voiceover is wanted and can be recorded. */
+export const voiceReady = (s: Settings): s is Settings & { voice: VoiceSettings } => Boolean(s.voice?.on && s.voice.key && s.voice.voiceId);
 
 const PROJECTS = "oneapi-motion:projects";
 const SETTINGS = "oneapi-motion:settings";

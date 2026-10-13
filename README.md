@@ -35,6 +35,16 @@ npm run dev                  # http://localhost:3000
 
 Open the app, add your key and pick a model under Settings, then describe a video. The key is kept in your browser's local storage and is sent only with each design request.
 
+### Voiceover (optional)
+
+Turn on **Narrate my videos** in Settings and add your own [ElevenLabs](https://elevenlabs.io) API key. The director then writes one spoken line per scene, in the brief's language only (no mixing), and your browser has ElevenLabs read it with the voice you pick. The key goes from your browser straight to ElevenLabs.
+
+- Each scene holds until its line is spoken, and the music dips under the voice.
+- Lines are stored in your browser, so re-exporting or editing one line does not pay for the others again.
+- Numbers are written on screen as digits ("$5", "5x", "1M") and read out as words in Indonesian or English.
+- Free ElevenLabs plans can use the built-in voices for non-commercial videos only. Native voices from the Voice Library (an Indonesian narrator, for example) and commercial use need a paid plan; add a library voice to your ElevenLabs account and it appears in the voice list.
+- The command-line render has no voiceover: the recordings live in the browser that made them.
+
 ### Export
 
 - **In the browser:** Export MP4 renders in the tab with WebCodecs (H.264 + AAC). This works in Chrome and Edge on desktop.

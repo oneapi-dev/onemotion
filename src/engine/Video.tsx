@@ -54,7 +54,7 @@ const Room: React.FC<{ look: Look; cam: Camera }> = ({ look, cam }) => {
   );
 };
 
-export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots }) => {
+export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots, voiceover }) => {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const look = useMemo(() => makeLook(plan, format, width, height), [plan, format, width, height]);
@@ -121,7 +121,7 @@ export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots }
             }}
           />
           <Grain look={look} />
-          <Soundtrack plan={plan} timing={timing} />
+          <Soundtrack plan={plan} timing={timing} voiceover={voiceover} />
       </AbsoluteFill>
     </LookContext.Provider>
   );

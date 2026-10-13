@@ -43,6 +43,11 @@ describe("spoken", () => {
     expect(spoken("A 1M context", "en")).toBe("A one million context");
   });
 
+  it("does not say a multiple twice", () => {
+    expect(spoken("Pemakaian 5x lipat", "id")).toBe("Pemakaian lima kali lipat");
+    expect(spoken("5x faster, 3 times over", "en")).toBe("five times faster, three times over");
+  });
+
   it("leaves other languages and plain text alone", () => {
     expect(spoken("Precio $5", "es")).toBe("Precio $5");
     expect(spoken("Tanpa angka sama sekali.", "id")).toBe("Tanpa angka sama sekali.");

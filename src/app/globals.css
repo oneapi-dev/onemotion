@@ -491,6 +491,13 @@ a:focus-visible {
   gap: 14px;
 }
 
+.settings-section {
+  margin: 10px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+}
+
 .dialog-body h2 {
   margin: 0;
 }

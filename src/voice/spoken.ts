@@ -110,8 +110,8 @@ export function spoken(text: string, lang: string): string {
   });
   // Percentages: "40%".
   s = s.replace(new RegExp(`${FREE}(\\d+(?:[.,]\\d+)?)\\s?%`, "gu"), (_, n: string) => `${amountWords(n, L)} ${L === "id" ? "persen" : "percent"}`);
-  // Multiples: "5x".
-  s = s.replace(new RegExp(`${FREE}(\\d+(?:[.,]\\d+)?)[x×]${END}`, "gu"), (_, n: string) => `${amountWords(n, L)} ${L === "id" ? "kali lipat" : "times"}`);
+  // Multiples: "5x" (an Indonesian "5x lipat" already says lipat once).
+  s = s.replace(new RegExp(`${FREE}(\\d+(?:[.,]\\d+)?)[x×]${END}(?:\\s+lipat\\b)?`, "gu"), (_, n: string) => `${amountWords(n, L)} ${L === "id" ? "kali lipat" : "times"}`);
   // Scaled counts: "1M", "10k+".
   s = s.replace(new RegExp(`${FREE}(\\d+(?:[.,]\\d+)?)([kKMB])(\\+)?${END}`, "gu"), (_, n: string, unit: string, plus: string | undefined) => scaledWords(n, unit, Boolean(plus), L));
   // Everything else that is a bare number.

@@ -10,7 +10,8 @@ import { scoreOf } from "@/music/score";
 import { planTiming } from "@/engine/rig";
 import { Editor } from "./Editor";
 import { SettingsDialog } from "./Settings";
-import { deleteProject, loadProjects, loadSettings, newId, saveProject, saveSettings, type Project, type Settings } from "./store";
+import { hasNarration, recordNarration, storedNarration } from "@/voice/narrate";
+import { deleteProject, loadProjects, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
 
 const Preview = dynamic(() => import("./Preview"), { ssr: false, loading: () => <div className="preview-wait" aria-hidden="true" /> });
 
@@ -42,18 +43,20 @@ const ARCHETYPE: Record<Plan["archetype"], string> = {
   "one-number": "One number",
 };
 
-type Stage = "site" | "design" | null;
+type Stage = "site" | "design" | "voice" | null;
 type Exporting = { state: "idle" } | { state: "running"; progress: number } | { state: "done"; url: string; name: string } | { state: "failed"; message: string };
 
 const recentOf = (p: Plan): Recent => ({ look: p.look, path: p.path, music: p.music, angle: p.angle, tone: p.tone, scenes: p.scenes.map((s) => s.type) });
 
-function inputOf(project: Project): VideoInput {
-  return {
+function inputOf(project: Project, voiceover?: Record<number, string>): VideoInput {
+  const input: VideoInput = {
     plan: project.plan,
     format: project.format,
     brand: { name: project.site?.name || project.plan.brand, domain: project.site?.domain ?? "", logo_src: project.site?.logo ?? null },
     shots: [],
   };
+  if (voiceover && Object.keys(voiceover).length) input.voiceover = voiceover;
+  return input;
 }
 
 function slug(s: string) {
@@ -77,6 +80,8 @@ export function Studio() {
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState<Exporting>({ state: "idle" });
   const abort = useRef<AbortController | null>(null);
+  // The current video's recorded voiceover lines, as URLs the preview and exporter play.
+  const [voice, setVoice] = useState<{ projectId: string; clips: Record<number, string>; missing: boolean } | null>(null);
 
   // Storage is only readable in the browser, after the first render.
   useEffect(() => {
@@ -106,8 +111,58 @@ export function Studio() {
     if (exporting.state === "done") URL.revokeObjectURL(exporting.url);
   }, [exporting]);
 
-  const input = useMemo(() => (current ? inputOf({ ...current, format }) : { ...SAMPLE_INPUT, format }), [current, format]);
+  // Recorded lines live in this browser's store; a video opened here finds them again.
+  useEffect(() => {
+    // A video without a voice keeps none: clips below only match their own project.
+    if (!current?.voice || !hasNarration(current.plan)) return;
+    let live = true;
+    const urls: string[] = [];
+    void storedNarration(current.plan, current.voice).then((blobs) => {
+      if (!live) return;
+      const clips: Record<number, string> = {};
+      for (const [scene, blob] of Object.entries(blobs ?? {})) {
+        const url = URL.createObjectURL(blob);
+        urls.push(url);
+        clips[Number(scene)] = url;
+      }
+      setVoice({ projectId: current.id, clips, missing: !blobs });
+    });
+    return () => {
+      live = false;
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [current]);
+
+  const mine = voice && current?.voice && voice.projectId === current.id ? voice : null;
+  const clips = mine?.clips;
+  const input = useMemo(() => (current ? inputOf({ ...current, format }, clips) : { ...SAMPLE_INPUT, format }), [current, format, clips]);
   const ready = Boolean(settings.key && settings.model);
+
+  /**
+   * Records a video's voiceover with the voice in Settings (lines already
+   * recorded with it are reused) and saves the plan timed to its lines. A
+   * failure keeps the video, which then plays without a voice.
+   */
+  const recordVoice = useCallback(
+    async (project: Project): Promise<Project> => {
+      if (!voiceReady(settings) || !hasNarration(project.plan)) return project;
+      setStage("voice");
+      try {
+        const choice = { voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName };
+        const rec = await recordNarration(project.plan, settings.voice.key, choice);
+        const updated = { ...project, plan: rec.plan, voice: choice };
+        setProjects(saveProject(updated));
+        setCurrent(updated);
+        return updated;
+      } catch (err) {
+        setError(`The voiceover could not be recorded (${err instanceof Error ? err.message : String(err)}). The video plays without it.`);
+        return project;
+      } finally {
+        setStage(null);
+      }
+    },
+    [settings],
+  );
 
   const design = useCallback(
     async (opts: { brief: string; website: string; site?: SiteInfo | null; previous?: Plan; replace?: Project }) => {
@@ -145,6 +200,7 @@ export function Studio() {
           previous: opts.previous ? recentOf(opts.previous) : undefined,
           recent,
           model: settings.model,
+          narration: voiceReady(settings),
         };
         const res = await fetch("/api/direct", {
           method: "POST",
@@ -165,13 +221,15 @@ export function Studio() {
         };
         setProjects(saveProject(project));
         setCurrent(project);
+        setStage(null);
+        await recordVoice(project);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
         setStage(null);
       }
     },
-    [ready, projects, format, tone, settings],
+    [ready, projects, format, tone, settings, recordVoice],
   );
 
   function submit(e: FormEvent) {
@@ -191,7 +249,7 @@ export function Studio() {
     abort.current = new AbortController();
     setExporting({ state: "running", progress: 0 });
     try {
-      const blob = await exportMp4(inputOf({ ...current, format }), (p) => setExporting({ state: "running", progress: p }), abort.current.signal);
+      const blob = await exportMp4(inputOf({ ...current, format }, clips), (p) => setExporting({ state: "running", progress: p }), abort.current.signal);
       setExporting({ state: "done", url: URL.createObjectURL(blob), name: slug(current.plan.brand || current.brief) });
     } catch (err) {
       setExporting(abort.current.signal.aborted ? { state: "idle" } : { state: "failed", message: err instanceof Error ? err.message : String(err) });
@@ -271,7 +329,13 @@ export function Studio() {
               </label>
             </div>
             <button type="submit" className="btn primary big" disabled={Boolean(stage) || (!brief.trim() && !website.trim())}>
-              {stage === "site" ? `Reading the website… ${seconds}s` : stage === "design" ? `Designing… ${seconds}s` : "Make the video"}
+              {stage === "site"
+                ? `Reading the website… ${seconds}s`
+                : stage === "design"
+                  ? `Designing… ${seconds}s`
+                  : stage === "voice"
+                    ? `Recording the voiceover… ${seconds}s`
+                    : "Make the video"}
             </button>
             {!ready ? <p className="hint">You need a OneAPI API key first. Designing a video costs one chat request on your key.</p> : null}
             {error ? (
@@ -326,8 +390,15 @@ export function Studio() {
                 {current.brief ? <p className="brief">{current.brief}</p> : null}
                 <p className="angle">{plan.angle}</p>
                 <p className="facts">
-                  {[ARCHETYPE[plan.archetype], `${plan.look} room`, `${plan.path} camera`, `${scoreOf(plan).genre} music`, `${length}s`].join("  ·  ")}
+                  {[ARCHETYPE[plan.archetype], `${plan.look} room`, `${plan.path} camera`, `${scoreOf(plan).genre} music`, clips && current.voice ? `${current.voice.voiceName} voice` : "", `${length}s`]
+                    .filter(Boolean)
+                    .join("  ·  ")}
                 </p>
+                {hasNarration(plan) && (!current.voice || mine?.missing) && voiceReady(settings) ? (
+                  <button type="button" className="btn small" disabled={Boolean(stage)} onClick={() => void recordVoice(current)}>
+                    Record the voiceover ({settings.voice.voiceName})
+                  </button>
+                ) : null}
               </div>
               {plan.caption ? (
                 <div className="caption">
@@ -404,6 +475,8 @@ export function Studio() {
                     const updated = { ...current, plan: next };
                     setProjects(saveProject(updated));
                     setCurrent(updated);
+                    // Changed lines are read again; unchanged ones come from the store.
+                    if (updated.voice && hasNarration(next)) void recordVoice(updated);
                   }}
                 />
               ) : null}

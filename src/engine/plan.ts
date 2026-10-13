@@ -108,6 +108,8 @@ export type VideoInput = {
   format: MotionFormat;
   brand: { name: string; domain: string; logo_src: string | null };
   shots: { src: string | null; kind: ShotKind; width: number; height: number }[];
+  /** Recorded voiceover lines by scene index, as URLs this page can play (blob: URLs from the browser's store). */
+  voiceover?: Record<number, string>;
 };
 
 export const FPS = 30;
