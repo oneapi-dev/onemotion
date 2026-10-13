@@ -33,7 +33,7 @@ export const filmFrames = (input: FilmInput) => filmTiming(input.spec.beats, inp
  * fonts (loaded before the first frame, since text is measured), the music
  * composed for its beats and the voice-over.
  */
-export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover, qa }) => {
+export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover, music, qa }) => {
   const root = useRef<HTMLDivElement>(null);
   const scene = useMemo(() => loadScene(modules, EXTERNALS), [modules]);
   const { width: W, height: H } = DIMENSIONS[spec.format];
@@ -70,7 +70,7 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover,
       ) : null}
       {ready && scene.captions !== false ? <Captions beats={beats} W={W} H={H} style={scene.captionStyle} /> : null}
       {ready ? <QaProbe root={root} width={W} on={Boolean(qa)} /> : null}
-      <FilmSound input={{ spec, modules, voiceover }} timing={timing} />
+      <FilmSound input={{ spec, modules, voiceover, music }} timing={timing} />
     </AbsoluteFill>
   );
 };
@@ -98,9 +98,20 @@ function useFonts(req: Record<string, string[]>): boolean {
 }
 
 const FilmSound: React.FC<{ input: FilmInput; timing: ReturnType<typeof filmTiming>["timing"] }> = ({ input, timing: t }) => {
+  const { spec, voiceover, music } = input;
+  return music ? <Sound music={music} voiceover={voiceover} spec={spec} timing={t} /> : <ComposedSound input={input} timing={t} />;
+};
+
+/** The music composed for the film's beats. */
+const ComposedSound: React.FC<{ input: FilmInput; timing: ReturnType<typeof filmTiming>["timing"] }> = ({ input, timing: t }) => {
   const { spec, voiceover } = input;
   const key = `film:${hashOf(JSON.stringify(spec.score))}:${t.total}:${t.startBeats.join(",")}`;
   const track = useTrack(key, () => composeTrack(spec.score, t));
+  return <Sound music={track} voiceover={voiceover} spec={spec} timing={t} />;
+};
+
+/** A music bed and the voice-over lines over it, the music dipping under the voice. */
+const Sound: React.FC<{ music: string | null; voiceover?: Record<number, string>; spec: FilmInput["spec"]; timing: ReturnType<typeof filmTiming>["timing"] }> = ({ music: track, voiceover, spec, timing: t }) => {
   const lead = Math.round(VOICE_LEAD * FILM_FPS);
   const lines = spec.beats.flatMap((b, i) => {
     const src = voiceover?.[i];

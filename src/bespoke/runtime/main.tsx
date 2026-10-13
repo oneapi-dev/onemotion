@@ -21,7 +21,7 @@ import { qaWarnings } from "./qa";
 const post = (msg: FromSandbox) => window.parent.postMessage(msg, "*");
 
 const voiceUrls = new Map<Blob, string>();
-/** Voice blobs become URLs of this origin, made once per blob. */
+/** Voice and music blobs become URLs of this origin, made once per blob. */
 function toInput(film: WireFilm): FilmInput {
   const voiceover: Record<number, string> = {};
   for (const [i, blob] of Object.entries(film.voiceover ?? {})) {
@@ -32,7 +32,15 @@ function toInput(film: WireFilm): FilmInput {
     }
     voiceover[Number(i)] = url;
   }
-  return { spec: film.spec, modules: film.modules, voiceover };
+  let music: string | undefined;
+  if (film.music) {
+    music = voiceUrls.get(film.music);
+    if (!music) {
+      music = URL.createObjectURL(film.music);
+      voiceUrls.set(film.music, music);
+    }
+  }
+  return { spec: film.spec, modules: film.modules, voiceover, music };
 }
 
 const composition = (input: FilmInput) => {

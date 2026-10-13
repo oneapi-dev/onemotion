@@ -11,7 +11,7 @@ import { planTiming } from "@/engine/rig";
 import { filmTiming } from "@/bespoke/timing";
 import type { Sandbox } from "@/bespoke/host";
 import { makeFilm, type FilmState, type RecentFilm } from "@/bespoke/agent/run";
-import { storedFilmVoice } from "@/bespoke/voice";
+import { storedFilmMusic, storedFilmVoice } from "@/bespoke/voice";
 import { scaled } from "@/bespoke/agent/images";
 import { Editor } from "./Editor";
 import { FilmStage } from "./FilmStage";
@@ -108,6 +108,8 @@ export function Studio() {
   const [refs, setRefs] = useState<string[]>([]);
   // A bespoke video's recorded voice-over lines, by beat.
   const [filmClips, setFilmClips] = useState<{ projectId: string; clips: Record<number, Blob> } | null>(null);
+  // A bespoke video's ElevenLabs music bed, when it has one.
+  const [filmMusic, setFilmMusic] = useState<{ projectId: string; blob: Blob } | null>(null);
 
   // Storage is only readable in the browser, after the first render.
   useEffect(() => {
@@ -171,6 +173,19 @@ export function Studio() {
       live = false;
     };
   }, [current, filmClips]);
+
+  // ...and its music bed.
+  useEffect(() => {
+    const key = current?.film?.musicKey;
+    if (!current || !key || filmMusic?.projectId === current.id) return;
+    let live = true;
+    void storedFilmMusic(key).then((blob) => {
+      if (live && blob) setFilmMusic({ projectId: current.id, blob });
+    });
+    return () => {
+      live = false;
+    };
+  }, [current, filmMusic]);
 
   const mine = voice && current?.voice && voice.projectId === current.id ? voice : null;
   const clips = mine?.clips;
@@ -314,6 +329,7 @@ export function Studio() {
           sandbox: () => sandbox.current,
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName } : undefined,
           onVoice: (clips) => setFilmClips({ projectId: base.id, clips }),
+          onMusic: (blob) => setFilmMusic({ projectId: base.id, blob }),
           onConcept: keep,
           update: keep,
           signal: ctrl.signal,
@@ -362,7 +378,7 @@ export function Studio() {
     abort.current = new AbortController();
     setExporting({ state: "running", progress: 0 });
     try {
-      const blob = await box.exportMp4({ spec: film.spec, modules: film.modules, voiceover }, (p) => setExporting({ state: "running", progress: p }), abort.current.signal);
+      const blob = await box.exportMp4({ spec: film.spec, modules: film.modules, voiceover, music }, (p) => setExporting({ state: "running", progress: p }), abort.current.signal);
       setExporting({ state: "done", url: URL.createObjectURL(blob), name: slug(film.spec.brand.name || film.concept.title) });
     } catch (err) {
       setExporting(abort.current.signal.aborted ? { state: "idle" } : { state: "failed", message: err instanceof Error ? err.message : String(err) });
@@ -372,6 +388,7 @@ export function Studio() {
   const plan = current?.plan ?? null;
   const film = current?.film ?? null;
   const voiceover = filmClips && filmClips.projectId === current?.id ? filmClips.clips : undefined;
+  const music = filmMusic && filmMusic.projectId === current?.id ? filmMusic.blob : undefined;
   const isFilm = Boolean(current && !current.plan);
   const length = plan ? Math.round(planTiming(plan).total / 30) : 0;
 
@@ -550,7 +567,7 @@ export function Studio() {
 
         <section className={`stage stage-${format}`} aria-label="Preview">
           <div className="frame">
-            {isFilm ? <FilmStage film={film} format={format} voiceover={voiceover} onSandbox={onSandbox} onError={onFilmError} /> : <Preview input={input} />}
+            {isFilm ? <FilmStage film={film} format={format} voiceover={voiceover} music={music} onSandbox={onSandbox} onError={onFilmError} /> : <Preview input={input} />}
           </div>
           {isFilm && current ? (
             <div className="meta">

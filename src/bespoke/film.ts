@@ -17,6 +17,8 @@ export type FilmInput = {
   spec: FilmSpec;
   modules: Record<string, string>;
   voiceover?: Record<number, string>;
+  /** A finished music bed to play instead of composing one. */
+  music?: string;
   /** A still rendered for the model: run the automated QA on it. */
   qa?: boolean;
 };

@@ -108,3 +108,15 @@ export async function speakTimed(key: string, voiceId: string, text: string, lan
   const bytes = Uint8Array.from(atob(body.audio_base64), (c) => c.charCodeAt(0));
   return { audio: new Blob([bytes], { type: "audio/mpeg" }), words: body.alignment ? wordsOf(body.alignment) : [] };
 }
+
+/** A music bed from ElevenLabs Music: instrumental, `seconds` long. Needs a paid ElevenLabs plan (402 otherwise). */
+export async function composeMusic(key: string, prompt: string, seconds: number, signal?: AbortSignal): Promise<Blob> {
+  const res = await fetch(`${API}/v1/music?output_format=mp3_44100_128`, {
+    method: "POST",
+    headers: { "xi-api-key": key, "Content-Type": "application/json", Accept: "audio/mpeg" },
+    body: JSON.stringify({ prompt, music_length_ms: Math.round(Math.min(300, Math.max(10, seconds)) * 1000), model_id: "music_v1" }),
+    signal,
+  });
+  if (!res.ok) throw await failure(res);
+  return res.blob();
+}

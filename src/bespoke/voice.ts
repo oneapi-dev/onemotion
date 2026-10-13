@@ -1,7 +1,7 @@
 "use client";
 
 import { getLine, putLine } from "@/voice/cache";
-import { speakTimed, VOICE_MODEL, type SpokenWord } from "@/voice/eleven";
+import { composeMusic, speakTimed, VOICE_MODEL, type SpokenWord } from "@/voice/eleven";
 import { spoken } from "@/voice/spoken";
 import type { FilmSpec } from "./film";
 
@@ -69,3 +69,23 @@ export async function storedFilmVoice(spec: FilmSpec, language: string, voice: F
   }
   return clips;
 }
+
+const musicKey = (prompt: string, seconds: number) => `film-music|music_v1|${Math.round(seconds)}|${prompt}`;
+
+/** What the music bed is asked to be: the film's world and mood, restrained under the picture. */
+export function musicPrompt(o: { style: string; metaphor: string; genre: string; bpm: number }): string {
+  return `${o.style}; ${o.metaphor}. A ${o.genre.replace("-", " ")} feel, about ${o.bpm} BPM. Instrumental only, no vocals. A restrained, premium modern launch-film score that sits under a voice-over: it starts on the beat, builds gently, never gets bombastic, and ends on one clean hit about two seconds before the end with a short tail.`;
+}
+
+/** A music bed from ElevenLabs Music for this film, made once per prompt and length and kept in this browser. Throws (402) without a paid plan. */
+export async function filmMusic(o: { apiKey: string; prompt: string; seconds: number; signal?: AbortSignal }): Promise<{ key: string; blob: Blob }> {
+  const key = musicKey(o.prompt, o.seconds);
+  const hit = await getLine(key);
+  if (hit) return { key, blob: hit };
+  const blob = await composeMusic(o.apiKey, o.prompt, o.seconds, o.signal);
+  await putLine(key, blob);
+  return { key, blob };
+}
+
+/** A film's music bed from this browser's store, when it was made here. */
+export const storedFilmMusic = (key: string) => getLine(key);

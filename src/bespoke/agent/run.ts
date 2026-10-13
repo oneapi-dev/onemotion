@@ -4,7 +4,8 @@ import { describeModel, matchModels, mentions } from "@/director/facts";
 import type { CatalogModel, SiteInfo } from "@/director/input";
 import type { FilmFormat, FilmSpec } from "../film";
 import type { Sandbox } from "../host";
-import { recordFilmVoice, type FilmVoice } from "../voice";
+import { filmMusic, musicPrompt, recordFilmVoice, type FilmVoice } from "../voice";
+import { filmTiming } from "../timing";
 import { filmSpecOf, normalizeConcept, type Concept } from "./concept";
 import { chatStep, parseJson, type Msg, type Part } from "./llm";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
@@ -24,6 +25,8 @@ export type FilmState = {
   log: AgentEvent[];
   /** The voice that read the voice-over, when it was recorded. */
   voice?: FilmVoice;
+  /** The stored ElevenLabs music bed playing instead of the composed score, when one was made. */
+  musicKey?: string;
   /** The art director's reviews, oldest first. */
   reviews: Review[];
 };
@@ -118,6 +121,7 @@ export async function makeFilm(o: {
   /** The person's ElevenLabs key and voice, to record the voice-over before the scene is built. */
   voice?: FilmVoice & { apiKey: string };
   onVoice?: (clips: Record<number, Blob>) => void;
+  onMusic?: (music: Blob) => void;
   onConcept: (film: FilmState) => void;
   update: (film: FilmState) => void;
   signal?: AbortSignal;
@@ -139,6 +143,21 @@ export async function makeFilm(o: {
     } catch (err) {
       if (o.signal?.aborted) throw err;
       film = { ...film, log: [...film.log, { kind: "error", text: `The voice-over could not be recorded (${err instanceof Error ? err.message : String(err)}); the film is built without it.` }] };
+      o.update(film);
+    }
+  }
+
+  // The music: ElevenLabs Music on a paid plan, made for this film's world and length; the composed score otherwise.
+  if (o.voice) {
+    try {
+      const seconds = filmTiming(spec.beats, spec.score).timing.total / 30 + 1;
+      const m = await filmMusic({ apiKey: o.voice.apiKey, prompt: musicPrompt({ style: concept.style, metaphor: concept.metaphor, genre: spec.score.genre, bpm: spec.score.bpm }), seconds, signal: o.signal });
+      film = { ...film, musicKey: m.key, log: [...film.log, { kind: "tool", text: "music: made with ElevenLabs Music for this film" }] };
+      o.onMusic?.(m.blob);
+      o.update(film);
+    } catch (err) {
+      if (o.signal?.aborted) throw err;
+      film = { ...film, log: [...film.log, { kind: "tool", text: `music: the composed score (${err instanceof Error ? err.message : String(err)})` }] };
       o.update(film);
     }
   }

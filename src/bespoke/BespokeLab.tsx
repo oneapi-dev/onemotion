@@ -49,7 +49,9 @@ export default function BespokeLab() {
         ? ex.film.beats.map((b) => ({ ...b, words: (b.voice ?? "").split(" ").filter(Boolean).map((text, i) => ({ text, start: i * 0.38, end: i * 0.38 + 0.32 })) }))
         : ex.film.beats;
       const spec: FilmSpec = { format: ex.film.format, brand: ex.film.brand, beats, score };
-      const wire = { spec, modules: checked.modules };
+      // ?music=1 plays a finished bed (as an ElevenLabs Music track would) instead of the composed score.
+      const bed = new URLSearchParams(window.location.search).get("music") === "1" ? await (await fetch("/audio/bright.mp3")).blob() : undefined;
+      const wire = { spec, modules: checked.modules, music: bed };
       setFilm(wire);
       sb.show(wire);
       setStatus(`Checked in ${Math.round(performance.now() - t0)} ms. ${filmTiming(spec.beats, score).timing.total} frames.`);

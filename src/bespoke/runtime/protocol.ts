@@ -5,7 +5,8 @@ import type { FilmSpec } from "../film";
  * Blobs: the sandbox has its own (opaque) origin and cannot open the
  * Studio's blob URLs.
  */
-export type WireFilm = { spec: FilmSpec; modules: Record<string, string>; voiceover?: Record<number, Blob> };
+/** `music`, when given, is a finished music bed (ElevenLabs Music) played instead of the composed one. */
+export type WireFilm = { spec: FilmSpec; modules: Record<string, string>; voiceover?: Record<number, Blob>; music?: Blob };
 
 export type ToSandbox =
   | { type: "ping" }

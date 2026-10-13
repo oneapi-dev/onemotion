@@ -11,7 +11,7 @@ import type { FilmState } from "@/bespoke/agent/run";
  * version of the scene that passed the check. The same sandbox renders the
  * agent's stills and the export, so it is handed up to the Studio.
  */
-export function FilmStage({ film, format, voiceover, onSandbox, onError }: { film: FilmState | null; format: FilmFormat; voiceover?: Record<number, Blob>; onSandbox: (s: Sandbox | null) => void; onError: (message: string) => void }) {
+export function FilmStage({ film, format, voiceover, music, onSandbox, onError }: { film: FilmState | null; format: FilmFormat; voiceover?: Record<number, Blob>; music?: Blob; onSandbox: (s: Sandbox | null) => void; onError: (message: string) => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const box = useRef<Sandbox | null>(null);
 
@@ -34,8 +34,8 @@ export function FilmStage({ film, format, voiceover, onSandbox, onError }: { fil
   const modules = film?.modules ?? null;
   const spec = film?.spec ?? null;
   useEffect(() => {
-    if (box.current && spec && modules) box.current.show({ spec, modules, voiceover });
-  }, [spec, modules, voiceover]);
+    if (box.current && spec && modules) box.current.show({ spec, modules, voiceover, music });
+  }, [spec, modules, voiceover, music]);
 
   return (
     <div className="film-frame" style={{ aspectRatio: `${DIMENSIONS[film?.spec.format ?? format].width} / ${DIMENSIONS[film?.spec.format ?? format].height}` }}>
