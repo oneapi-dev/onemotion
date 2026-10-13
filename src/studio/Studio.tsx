@@ -8,10 +8,14 @@ import type { MotionFormat, Plan, Tone, VideoInput } from "@/engine/plan";
 import { SAMPLE_INPUT } from "@/engine/sample";
 import { scoreOf } from "@/music/score";
 import { planTiming } from "@/engine/rig";
+import { filmTiming } from "@/bespoke/timing";
+import type { Sandbox } from "@/bespoke/host";
+import { makeFilm, type FilmState, type RecentFilm } from "@/bespoke/agent/run";
 import { Editor } from "./Editor";
+import { FilmStage } from "./FilmStage";
 import { SettingsDialog } from "./Settings";
 import { hasNarration, recordNarration, storedNarration } from "@/voice/narrate";
-import { deleteProject, loadProjects, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
+import { DEFAULT_BUDGET_USD, deleteProject, loadProjects, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
 
 const Preview = dynamic(() => import("./Preview"), { ssr: false, loading: () => <div className="preview-wait" aria-hidden="true" /> });
 
@@ -43,12 +47,19 @@ const ARCHETYPE: Record<Plan["archetype"], string> = {
   "one-number": "One number",
 };
 
-type Stage = "site" | "design" | "voice" | null;
+type Stage = "site" | "design" | "voice" | "film" | null;
+/** Bespoke: the model writes this video's own code (the default). Quick: the director fills a template plan. */
+type Mode = "bespoke" | "plan";
+type PlanProject = Project & { plan: Plan };
 type Exporting = { state: "idle" } | { state: "running"; progress: number } | { state: "done"; url: string; name: string } | { state: "failed"; message: string };
 
 const recentOf = (p: Plan): Recent => ({ look: p.look, path: p.path, music: p.music, angle: p.angle, tone: p.tone, scenes: p.scenes.map((s) => s.type) });
 
-function inputOf(project: Project, voiceover?: Record<number, string>): VideoInput {
+const hasPlan = (p: Project | null): p is PlanProject => Boolean(p?.plan);
+const titleOf = (p: Project) => p.plan?.brand || p.film?.spec.brand.name || p.site?.name || "Video";
+const recentFilmOf = (f: FilmState): RecentFilm => ({ style: f.concept.style, metaphor: f.concept.metaphor, world: f.concept.world, genre: f.spec.score.genre });
+
+function inputOf(project: PlanProject, voiceover?: Record<number, string>): VideoInput {
   const input: VideoInput = {
     plan: project.plan,
     format: project.format,
@@ -82,6 +93,13 @@ export function Studio() {
   const abort = useRef<AbortController | null>(null);
   // The current video's recorded voiceover lines, as URLs the preview and exporter play.
   const [voice, setVoice] = useState<{ projectId: string; clips: Record<number, string>; missing: boolean } | null>(null);
+  const [mode, setMode] = useState<Mode>("bespoke");
+  const sandbox = useRef<Sandbox | null>(null);
+  const onSandbox = useCallback((s: Sandbox | null) => {
+    sandbox.current = s;
+  }, []);
+  const onFilmError = useCallback((m: string) => setError(`The preview hit an error: ${m}`), []);
+  const running = useRef<AbortController | null>(null);
 
   // Storage is only readable in the browser, after the first render.
   useEffect(() => {
@@ -114,7 +132,7 @@ export function Studio() {
   // Recorded lines live in this browser's store; a video opened here finds them again.
   useEffect(() => {
     // A video without a voice keeps none: clips below only match their own project.
-    if (!current?.voice || !hasNarration(current.plan)) return;
+    if (!hasPlan(current) || !current.voice || !hasNarration(current.plan)) return;
     let live = true;
     const urls: string[] = [];
     void storedNarration(current.plan, current.voice).then((blobs) => {
@@ -135,7 +153,7 @@ export function Studio() {
 
   const mine = voice && current?.voice && voice.projectId === current.id ? voice : null;
   const clips = mine?.clips;
-  const input = useMemo(() => (current ? inputOf({ ...current, format }, clips) : { ...SAMPLE_INPUT, format }), [current, format, clips]);
+  const input = useMemo(() => (hasPlan(current) ? inputOf({ ...current, format }, clips) : { ...SAMPLE_INPUT, format }), [current, format, clips]);
   const ready = Boolean(settings.key && settings.model);
 
   /**
@@ -144,7 +162,7 @@ export function Studio() {
    * failure keeps the video, which then plays without a voice.
    */
   const recordVoice = useCallback(
-    async (project: Project): Promise<Project> => {
+    async (project: PlanProject): Promise<Project> => {
       if (!voiceReady(settings) || !hasNarration(project.plan)) return project;
       setStage("voice");
       try {
@@ -164,6 +182,20 @@ export function Studio() {
     [settings],
   );
 
+  /** The website: the one typed in, else one named in the brief, else OneAPI's own when the brief is about it. */
+  const findSite = useCallback(async (opts: { brief: string; website: string; site?: SiteInfo | null }): Promise<SiteInfo | null> => {
+    if (opts.site !== undefined) return opts.site;
+    const explicit = opts.website.trim();
+    const target = explicit || findUrl(opts.brief) || (mentions(opts.brief, "oneapi") ? "oneapi.id" : "");
+    if (!target) return null;
+    setStage("site");
+    const res = await fetch("/api/site", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: target }) });
+    const body = (await res.json()) as { site?: SiteInfo; error?: string };
+    if (res.ok && body.site) return body.site;
+    if (explicit) throw new Error(body.error ?? "That website could not be opened.");
+    return null;
+  }, []);
+
   const design = useCallback(
     async (opts: { brief: string; website: string; site?: SiteInfo | null; previous?: Plan; replace?: Project }) => {
       if (!ready) {
@@ -175,22 +207,9 @@ export function Studio() {
       setExporting({ state: "idle" });
       setSeconds(0);
       try {
-        // The website: the one typed in, else one named in the brief, else
-        // OneAPI's own when the brief is about it.
-        let site = opts.site ?? null;
-        if (site === null && opts.site === undefined) {
-          const explicit = opts.website.trim();
-          const target = explicit || findUrl(opts.brief) || (mentions(opts.brief, "oneapi") ? "oneapi.id" : "");
-          if (target) {
-            setStage("site");
-            const res = await fetch("/api/site", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: target }) });
-            const body = (await res.json()) as { site?: SiteInfo; error?: string };
-            if (res.ok && body.site) site = body.site;
-            else if (explicit) throw new Error(body.error ?? "That website could not be opened.");
-          }
-        }
+        const site = await findSite(opts);
         setStage("design");
-        const recent = projects.filter((p) => p.id !== opts.replace?.id).slice(0, 3).map((p) => recentOf(p.plan));
+        const recent = projects.filter((p): p is PlanProject => p.id !== opts.replace?.id && hasPlan(p)).slice(0, 3).map((p) => recentOf(p.plan));
         const payload: Partial<DirectInput> & { model: string } = {
           prompt: opts.brief,
           format,
@@ -209,7 +228,7 @@ export function Studio() {
         });
         const body = (await res.json()) as { plan?: Plan; error?: string };
         if (!res.ok || !body.plan) throw new Error(body.error ?? "The video could not be designed. Try again.");
-        const project: Project = {
+        const project: PlanProject = {
           id: opts.replace?.id ?? newId(),
           createdAt: new Date().toISOString(),
           brief: opts.brief,
@@ -229,17 +248,74 @@ export function Studio() {
         setStage(null);
       }
     },
-    [ready, projects, format, tone, settings, recordVoice],
+    [ready, projects, format, tone, settings, recordVoice, findSite],
+  );
+
+  /**
+   * A bespoke video: the creative director's concept, then the agent writes
+   * the scene, rendering and looking at it until it is good. The project is
+   * saved after every step, and the preview follows every version that
+   * passes the check.
+   */
+  const makeBespoke = useCallback(
+    async (opts: { brief: string; website: string; site?: SiteInfo | null; replace?: Project }) => {
+      if (!ready) {
+        setSettingsOpen(true);
+        return;
+      }
+      setError(null);
+      setEditing(false);
+      setExporting({ state: "idle" });
+      setSeconds(0);
+      const ctrl = new AbortController();
+      running.current = ctrl;
+      try {
+        const site = await findSite(opts);
+        setStage("film");
+        const base: Project = { id: opts.replace?.id ?? newId(), createdAt: new Date().toISOString(), brief: opts.brief, website: opts.website, format, tone, site };
+        setCurrent(base);
+        const keep = (film: FilmState) => {
+          const p = { ...base, film };
+          setCurrent(p);
+          setProjects(saveProject(p));
+        };
+        const recent = projects.filter((p) => p.film && p.id !== base.id).slice(0, 4).map((p) => recentFilmOf(p.film as FilmState));
+        const film = await makeFilm({
+          key: settings.key,
+          model: settings.model,
+          brief: opts.brief,
+          site,
+          format,
+          models,
+          recent,
+          budgetUsd: settings.budgetUsd ?? DEFAULT_BUDGET_USD,
+          sandbox: () => sandbox.current,
+          onConcept: keep,
+          update: keep,
+          signal: ctrl.signal,
+        });
+        if (film.status === "failed") setError(film.summary);
+      } catch (err) {
+        if (!ctrl.signal.aborted) setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        running.current = null;
+        setStage(null);
+      }
+    },
+    [ready, projects, format, tone, settings, models, findSite],
   );
 
   function submit(e: FormEvent) {
     e.preventDefault();
     if (stage || (!brief.trim() && !website.trim())) return;
-    void design({ brief: brief.trim(), website });
+    if (mode === "bespoke") void makeBespoke({ brief: brief.trim(), website });
+    else void design({ brief: brief.trim(), website });
   }
 
   async function startExport() {
     if (!current) return;
+    if (current.film) return exportFilm(current.film);
+    if (!hasPlan(current)) return;
     const { checkExport, exportMp4 } = await import("./exporter");
     const check = await checkExport(format);
     if (!check.ok) {
@@ -256,7 +332,22 @@ export function Studio() {
     }
   }
 
+  async function exportFilm(film: FilmState) {
+    const box = sandbox.current;
+    if (!box || !film.modules) return;
+    abort.current = new AbortController();
+    setExporting({ state: "running", progress: 0 });
+    try {
+      const blob = await box.exportMp4({ spec: film.spec, modules: film.modules }, (p) => setExporting({ state: "running", progress: p }), abort.current.signal);
+      setExporting({ state: "done", url: URL.createObjectURL(blob), name: slug(film.spec.brand.name || film.concept.title) });
+    } catch (err) {
+      setExporting(abort.current.signal.aborted ? { state: "idle" } : { state: "failed", message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
   const plan = current?.plan ?? null;
+  const film = current?.film ?? null;
+  const isFilm = Boolean(current && !current.plan);
   const length = plan ? Math.round(planTiming(plan).total / 30) : 0;
 
   return (
@@ -280,8 +371,8 @@ export function Studio() {
         <section className="compose" aria-labelledby="compose-title">
           <h1 id="compose-title">Describe a video.</h1>
           <p className="lead">
-            A promo, an announcement, a tutorial or a comparison, in any language. An AI director writes it, picks the scenes, the room, the
-            camera and the music; your browser renders the MP4.
+            A promo, an announcement, a tutorial or a comparison, in any language. An AI art director invents a look for it, an AI motion
+            designer writes the video&apos;s own code and checks its frames, and your browser renders the MP4.
           </p>
           <form onSubmit={submit} className="stack">
             <label className="field">
@@ -317,16 +408,26 @@ export function Studio() {
                   </button>
                 ))}
               </div>
-              <label className="inline">
-                <span>Tone</span>
-                <select value={tone} onChange={(e) => setTone(e.target.value as Tone | "auto")}>
-                  {TONES.map((t) => (
-                    <option key={t} value={t}>
-                      {t === "auto" ? "Director picks" : t[0].toUpperCase() + t.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="seg" role="radiogroup" aria-label="How the video is made">
+                <button type="button" role="radio" aria-checked={mode === "bespoke"} title="The model writes this video's own animation code: every video looks different. A few minutes and about $1 to $3 on your key." onClick={() => setMode("bespoke")}>
+                  Bespoke
+                </button>
+                <button type="button" role="radio" aria-checked={mode === "plan"} title="The director fills a template: fast and cheap, but videos look alike." onClick={() => setMode("plan")}>
+                  Quick
+                </button>
+              </div>
+              {mode === "plan" ? (
+                <label className="inline">
+                  <span>Tone</span>
+                  <select value={tone} onChange={(e) => setTone(e.target.value as Tone | "auto")}>
+                    {TONES.map((t) => (
+                      <option key={t} value={t}>
+                        {t === "auto" ? "Director picks" : t[0].toUpperCase() + t.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
             </div>
             <button type="submit" className="btn primary big" disabled={Boolean(stage) || (!brief.trim() && !website.trim())}>
               {stage === "site"
@@ -335,9 +436,21 @@ export function Studio() {
                   ? `Designing… ${seconds}s`
                   : stage === "voice"
                     ? `Recording the voiceover… ${seconds}s`
-                    : "Make the video"}
+                    : stage === "film"
+                      ? `${film ? "Building" : "Writing the concept"}… ${seconds}s`
+                      : "Make the video"}
             </button>
-            {!ready ? <p className="hint">You need a OneAPI API key first. Designing a video costs one chat request on your key.</p> : null}
+            {stage === "film" ? (
+              <button type="button" className="btn" onClick={() => running.current?.abort()}>
+                Stop
+              </button>
+            ) : null}
+            {!ready ? (
+              <p className="hint">
+                You need a OneAPI API key first.{" "}
+                {mode === "bespoke" ? "A bespoke video takes a few minutes and many model steps on your key; use a model that reads images." : "Designing a video costs one chat request on your key."}
+              </p>
+            ) : null}
             {error ? (
               <p className="error" role="alert">
                 {error}
@@ -355,6 +468,7 @@ export function Studio() {
                     <button
                       type="button"
                       className="recent-open"
+                      disabled={Boolean(stage)}
                       onClick={() => {
                         setCurrent(p);
                         setFormat(p.format);
@@ -362,10 +476,10 @@ export function Studio() {
                         setExporting({ state: "idle" });
                       }}
                     >
-                      <strong>{p.plan.brand || p.site?.name || "Video"}</strong>
+                      <strong>{titleOf(p)}</strong>
                       <span>{p.brief || p.website}</span>
                     </button>
-                    <button type="button" className="btn ghost small" aria-label={`Delete ${p.plan.brand || "video"}`} onClick={() => {
+                    <button type="button" className="btn ghost small" aria-label={`Delete ${titleOf(p)}`} disabled={Boolean(stage)} onClick={() => {
                       const list = deleteProject(p.id);
                       setProjects(list);
                       if (current?.id === p.id) setCurrent(list[0] ?? null);
@@ -381,9 +495,63 @@ export function Studio() {
 
         <section className={`stage stage-${format}`} aria-label="Preview">
           <div className="frame">
-            <Preview input={input} />
+            {isFilm ? <FilmStage film={film} format={format} onSandbox={onSandbox} onError={onFilmError} /> : <Preview input={input} />}
           </div>
-          {plan && current ? (
+          {isFilm && current ? (
+            <div className="meta">
+              <div>
+                <h2>{film?.concept.title || titleOf(current)}</h2>
+                {current.brief ? <p className="brief">{current.brief}</p> : null}
+                {film ? <p className="angle">{film.concept.angle}</p> : null}
+                {film ? (
+                  <p className="facts">
+                    {[
+                      film.concept.style,
+                      `${film.spec.score.genre} music`,
+                      `${Math.round(filmTiming(film.spec.beats, film.spec.score).timing.total / 30)}s`,
+                      film.status === "building" ? "building" : film.status === "done" ? "finished" : film.status === "stopped" ? "stopped early" : "failed",
+                      film.spend.usd ? `$${film.spend.usd.toFixed(2)} on your key` : `${Math.round((film.spend.input + film.spend.output) / 1000)}k tokens`,
+                    ].join("  ·  ")}
+                  </p>
+                ) : null}
+              </div>
+              {film?.log.length ? (
+                <ol className="agent-log" aria-label="What the AI is doing">
+                  {film.log
+                    .slice(-60)
+                    .reverse()
+                    .map((e, i) => (
+                      <li key={film.log.length - i} className={`log-${e.kind}`}>
+                        {e.text}
+                      </li>
+                    ))}
+                </ol>
+              ) : null}
+              <div className="row wrap">
+                {exporting.state === "running" ? (
+                  <button type="button" className="btn" onClick={() => abort.current?.abort()}>
+                    Rendering {Math.round(exporting.progress * 100)}%  ·  Cancel
+                  </button>
+                ) : exporting.state === "done" ? (
+                  <a className="btn primary" href={exporting.url} download={exporting.name}>
+                    Download MP4
+                  </a>
+                ) : (
+                  <button type="button" className="btn primary" onClick={startExport} disabled={Boolean(stage) || !film?.modules}>
+                    Export MP4
+                  </button>
+                )}
+                <button type="button" className="btn" disabled={Boolean(stage) || exporting.state === "running"} onClick={() => void makeBespoke({ brief: current.brief, website: current.website, site: current.site })}>
+                  Another take
+                </button>
+              </div>
+              {exporting.state === "failed" ? (
+                <p className="error" role="alert">
+                  {exporting.message}
+                </p>
+              ) : null}
+            </div>
+          ) : hasPlan(current) && plan ? (
             <div className="meta">
               <div>
                 <h2>{plan.brand || current.site?.name || "Your video"}</h2>

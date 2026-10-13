@@ -1,5 +1,6 @@
 "use client";
 
+import type { FilmState } from "@/bespoke/agent/run";
 import type { SiteInfo } from "@/director/input";
 import type { MotionFormat, Plan, Tone } from "@/engine/plan";
 import type { VoiceChoice } from "@/voice/narrate";
@@ -19,7 +20,10 @@ export type Project = {
   format: MotionFormat;
   tone: Tone | "auto";
   site: SiteInfo | null;
-  plan: Plan;
+  /** A template video: the director's plan. */
+  plan?: Plan;
+  /** A bespoke video: its concept and the scene the model wrote. */
+  film?: FilmState;
   /** The voice that read this video's narration, when it has one. */
   voice?: VoiceChoice;
 };
@@ -27,7 +31,15 @@ export type Project = {
 /** Optional voiceover with the person's own ElevenLabs key. */
 export type VoiceSettings = { on: boolean; key: string; voiceId: string; voiceName: string };
 
-export type Settings = { key: string; model: string; voice?: VoiceSettings };
+export type Settings = {
+  key: string;
+  model: string;
+  voice?: VoiceSettings;
+  /** The most one bespoke video may spend on the model, in USD. */
+  budgetUsd?: number;
+};
+
+export const DEFAULT_BUDGET_USD = 3;
 
 /** Voiceover is wanted and can be recorded. */
 export const voiceReady = (s: Settings): s is Settings & { voice: VoiceSettings } => Boolean(s.voice?.on && s.voice.key && s.voice.voiceId);

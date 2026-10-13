@@ -1,9 +1,8 @@
 import { Audio } from "@remotion/media";
 import { Sequence, staticFile } from "remotion";
+import { SFX, type SfxName } from "./sfx";
 
-/** The sound effects a scene can place. */
-export const SFX = ["whoosh", "swoosh", "impact", "riser", "tick", "pop", "ding", "type", "click"] as const;
-export type SfxName = (typeof SFX)[number];
+export { SFX, type SfxName };
 
 /**
  * A sound effect starting at frame `at`. Put one on every move, hit, click
