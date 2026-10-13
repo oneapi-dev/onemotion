@@ -77,6 +77,8 @@ const HARD_SLACK = 5;
 export const MAX_SCENE = 7;
 export const MIN_SCENES = 3;
 export const MAX_SCENES = 10;
+/** Longest voiceover line for one scene, in characters. */
+export const NARRATION_MAX = 220;
 
 /** Which scene types go first when a video runs long. */
 const DROP_ORDER: SceneType[] = ["statement", "quote", "kinetic", "steps", "features", "checklist", "stat", "converge", "logo", "specs", "bars", "compare", "chat", "code", "offer"];
@@ -154,6 +156,12 @@ function normalizeScene(raw: PlanScene, shots: number): PlanScene | null {
   if (value) s.value = value;
   if (left) s.left = left;
   if (right) s.right = right;
+  const narration = typeof raw.narration === "string" ? fitText(raw.narration, NARRATION_MAX) : "";
+  if (narration) {
+    s.narration = narration;
+    const measured = Number(raw.narration_seconds);
+    if (Number.isFinite(measured) && measured > 0 && measured <= 30) s.narration_seconds = Math.round(measured * 100) / 100;
+  }
   if (spec.shotRequired) {
     if (typeof raw.shot !== "number" || raw.shot < 0 || raw.shot >= shots) return null;
     s.shot = raw.shot;
@@ -201,6 +209,9 @@ export function minSeconds(s: PlanScene): number {
     default:
       need = 1 + 0.3 * wordCount(s);
   }
+  // A scene holds while its line is spoken: the recorded length once known,
+  // else about 2.4 words a second plus a breath.
+  if (s.narration) need = Math.max(need, s.narration_seconds ? s.narration_seconds + 0.8 : 0.8 + words(s.narration) / 2.4);
   return Math.min(Math.max(SPECS[s.type].minSeconds, need), MAX_SCENE);
 }
 
@@ -284,6 +295,15 @@ function withoutBrand(items: PlanItem[] | undefined, name: string, domain: strin
   });
 }
 
+/** A two-letter language code: the plan's own, else the website's, else English. */
+function languageOf(...candidates: (string | undefined)[]): string {
+  for (const c of candidates) {
+    const m = /^([a-z]{2})(?:[-_]|$)/i.exec((c ?? "").trim());
+    if (m) return m[1].toLowerCase();
+  }
+  return "en";
+}
+
 /**
  * Makes any plan safe to draw. Throws UnusablePlanError when too little of
  * it survives.
@@ -293,6 +313,7 @@ export function normalizePlan(raw: Partial<Plan> & { scenes?: PlanScene[] }, inp
   const p = {} as Plan;
   p.angle = fitText(raw.angle, 200);
   p.caption = fitText(raw.caption, 220);
+  p.language = languageOf(raw.language, input.site?.lang);
   p.brand = fitText(raw.brand, 32);
   if (aboutPlatform(input) && squash(p.brand) === "oneapi") p.brand = "OneAPI";
   p.brand ||= fitText(input.site?.name, 32);

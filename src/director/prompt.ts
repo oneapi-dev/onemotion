@@ -68,7 +68,15 @@ Music: drive (steady, confident), bright (upbeat, happy), calm (soft, elegant), 
 Fonts: display from [${DISPLAY_FONTS.join(", ")}], body from [${BODY_FONTS.join(", ")}].
 
 Reply with ONLY a JSON object, no prose and no code fence:
-{"archetype": "...", "angle": "one sentence: the story this video tells", "brand": "the name of the product or company the video is about", "look": "...", "path": "...", "tone": "...", "caption": "a post caption for social media in the brief's language, max 220 chars, may include 1 to 3 hashtags", "fonts": {"display": "...", "body": "..."}, "music": "...", "scenes": [{"type": "hook", "duration": 2.6, "title": "..."}, ...]}`;
+{"archetype": "...", "language": "ISO 639-1 code of the brief's language, e.g. id or en", "angle": "one sentence: the story this video tells", "brand": "the name of the product or company the video is about", "look": "...", "path": "...", "tone": "...", "caption": "a post caption for social media in the brief's language, max 220 chars, may include 1 to 3 hashtags", "fonts": {"display": "...", "body": "..."}, "music": "...", "scenes": [{"type": "hook", "duration": 2.6, "title": "..."}, ...]}`;
+
+/** Asked for when the person wants a voiceover. */
+export const NARRATION_BRIEF = `NARRATION: give every scene a "narration" field: what a voiceover says while that scene is on screen.
+- Write it in one language only, the brief's language. In an Indonesian video every word is Indonesian except brand and product names; in an English video every word is English. No mixing (not "usage" in Indonesian: "pemakaian").
+- Spoken, not written: short natural sentences a presenter would say, adding to the card rather than reading it out word for word.
+- Numbers exactly as the sources write them ("$5", "5x", "1M", "40%"); they are read out for you. The same fact rules apply: a number no source states is cut.
+- Say web addresses as they sound: "oneapi.id" may stay as written.
+- Length: about 2.3 words per second of the scene's duration; the hook names the subject, the cta says the action and where.`;
 
 /** Room for reasoning models, which spend tokens thinking before they answer. */
 export const MAX_TOKENS = 6000;
@@ -87,6 +95,7 @@ export function userMessage(input: DirectInput): string {
     lines.push(`The person's recent videos used (newest first): ${input.recent.map((r) => `[look ${r.look}, path ${r.path}, music ${r.music}]`).join(" ")}. Pick a look, path and music they have not seen lately.`);
   }
   lines.push(`Variation seed: ${input.variation ?? 0} (use it to pick among equally good options).`);
+  if (input.narration) lines.push("", NARRATION_BRIEF);
 
   if (aboutPlatform(input)) lines.push("", `PLATFORM facts: ${PLATFORM_FACTS}`);
   if (aboutPlatform(input) && !input.models?.length && input.knownModels?.length) {

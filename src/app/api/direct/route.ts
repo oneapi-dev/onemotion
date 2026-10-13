@@ -37,6 +37,7 @@ export async function POST(req: Request) {
     previous: body.previous,
     recent: Array.isArray(body.recent) ? body.recent.slice(0, 3) : [],
     variation: Math.floor(Math.random() * 10000),
+    narration: body.narration === true,
   };
 
   const started = Date.now();

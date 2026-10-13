@@ -153,7 +153,9 @@ export function enforceFacts<T extends { scenes: PlanScene[]; caption?: string }
     if (!s || typeof s !== "object") continue;
     const head = [s.eyebrow, s.title, s.value, s.left, s.right, s.type === "code" ? "" : s.body].filter(Boolean).join(" ");
     if (!facts.allows(head)) continue;
-    scenes.push({ ...s, items: s.items?.filter((it) => facts.allows(`${it?.title ?? ""} ${it?.body ?? ""}`)) });
+    // A spoken number nobody stated silences the line, not the card.
+    const narration = typeof s.narration === "string" && facts.allows(s.narration) ? s.narration : undefined;
+    scenes.push({ ...s, narration, items: s.items?.filter((it) => facts.allows(`${it?.title ?? ""} ${it?.body ?? ""}`)) });
   }
   return { ...plan, scenes, caption: plan.caption && facts.allows(plan.caption) ? plan.caption : "" };
 }

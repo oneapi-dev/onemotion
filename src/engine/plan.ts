@@ -71,6 +71,10 @@ export type PlanScene = {
   /** Index into the video's screenshots. */
   shot?: number;
   motion?: "scroll" | "zoom" | "pan";
+  /** The voiceover line spoken over this scene, in the plan's language, numbers as on screen. */
+  narration?: string;
+  /** How long the recorded line runs, once a voice has read it: the scene holds at least that long. */
+  narration_seconds?: number;
 };
 
 export type Plan = {
@@ -84,6 +88,8 @@ export type Plan = {
   path: CameraPath;
   tone: Tone;
   caption: string;
+  /** The language the plan is written and narrated in (ISO 639-1, e.g. "id", "en"). */
+  language?: string;
   fonts: { display: string; body: string };
   /** The bed a plan was made with before scores existed; it picks the genre when `score` is missing. */
   music: Music;

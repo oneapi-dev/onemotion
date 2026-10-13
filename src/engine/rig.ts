@@ -11,6 +11,9 @@ import { FPS, type CameraPath, type Plan } from "./plan";
  * beat, where the music hits.
  */
 
+/** Seconds after a card lands before its voiceover line starts: the hit first, then the voice. */
+export const VOICE_LEAD = 0.2;
+
 export type Timing = {
   /** Beats per minute, and frames per beat (fractional). */
   bpm: number;
@@ -39,7 +42,9 @@ export function planTiming(plan: Plan): Timing {
     // A flythrough moves on; a held card reads in less time than a full
     // frame of text. Demos (code, chat) keep their length.
     const cap = s.type === "code" || s.type === "chat" ? 7 : i === n - 1 ? 4.2 : 4.4;
-    const b = Math.max(i === n - 1 ? 8 : 4, Math.round((Math.min(s.duration, cap) * FPS) / beat));
+    // A recorded voiceover line is spoken in full before the camera moves on.
+    const voiced = s.narration_seconds ? Math.ceil(((s.narration_seconds + VOICE_LEAD + 0.4) * FPS) / beat) : 0;
+    const b = Math.max(i === n - 1 ? 8 : 4, Math.round((Math.min(s.duration, cap) * FPS) / beat), voiced);
     return i === n - 1 ? b : b + (b % 2);
   });
   if (n > 1) {

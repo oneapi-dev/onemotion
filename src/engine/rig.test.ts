@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CameraPath, Plan } from "./plan";
-import { PERSPECTIVE, cameraAt, moveWindow, planTiming, projector, stations } from "./rig";
+import { PERSPECTIVE, VOICE_LEAD, cameraAt, moveWindow, planTiming, projector, stations } from "./rig";
 
 const plan: Plan = {
   angle: "test",
@@ -46,4 +46,17 @@ describe("cameraAt", () => {
       });
     }
   }
+});
+
+describe("planTiming with a voiceover", () => {
+  it("holds each scene for its recorded line, past the usual cap", () => {
+    const voiced: Plan = {
+      ...plan,
+      scenes: plan.scenes.map((s, i) => (i === 2 ? { ...s, duration: 3, narration: "x", narration_seconds: 5.5 } : s)),
+    };
+    const t = planTiming(voiced);
+    expect(t.frames[2]).toBeGreaterThanOrEqual(Math.ceil((5.5 + VOICE_LEAD + 0.4) * 30));
+    // Scenes without a recorded line keep their timing.
+    expect(t.frames[1]).toBe(planTiming(plan).frames[1]);
+  });
 });

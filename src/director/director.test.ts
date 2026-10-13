@@ -178,3 +178,48 @@ describe("prompt", () => {
     expect(() => parseAnswer({ choices: [{ finish_reason: "length", message: { content: null } }] }, input())).toThrow(TruncatedAnswerError);
   });
 });
+
+describe("narration", () => {
+  const scenes = [
+    sc("hook", { title: "Satu key untuk semua model", narration: "OneAPI dot id, satu key untuk semua model." }),
+    sc("stat", { value: "$5", title: "saldo akun baru", narration: "Akun baru langsung dapat $5." }),
+    sc("statement", { title: "Lebih hemat", narration: "Hemat sampai 90% dari harga resmi." }),
+    sc("cta", { title: "Coba sekarang", narration: "Coba sekarang di oneapi.id." }),
+  ];
+
+  it("keeps lines whose numbers a source states and drops the voice of a made-up one, not the card", () => {
+    const got = enforceFacts(plan(scenes), input({ prompt: "Akun baru OneAPI dapat $5" }));
+    expect(got.scenes.map((s) => s.narration)).toEqual([
+      "OneAPI dot id, satu key untuk semua model.",
+      "Akun baru langsung dapat $5.",
+      undefined,
+      "Coba sekarang di oneapi.id.",
+    ]);
+    expect(got.scenes).toHaveLength(4);
+  });
+
+  it("clips a line, keeps a measured length and gives a scene time to speak it", () => {
+    const long = "Kalimat narasi yang sangat panjang sekali untuk satu kartu saja, terus berlanjut tanpa henti sampai pembaca lelah, lalu masih terus dan terus berjalan lagi ke depan tanpa titik sama sekali, hingga akhirnya selesai.";
+    const p = normalizePlan(
+      plan([sc("hook", { title: "Halo", narration: long, narration_seconds: 4.2 }), sc("statement", { title: "Dua", narration: "  " }), sc("cta", { title: "Coba" })], { language: "id" }),
+      input({ prompt: "video 20 detik" }),
+    );
+    expect([...(p.scenes[0].narration ?? "")].length).toBeLessThanOrEqual(220);
+    expect(p.scenes[0].narration_seconds).toBe(4.2);
+    expect(p.scenes[1].narration).toBeUndefined();
+    expect(p.scenes[0].duration).toBeGreaterThanOrEqual(5);
+    expect(p.language).toBe("id");
+  });
+
+  it("knows the script's language, from the plan or else the website", () => {
+    expect(normalizePlan(plan([sc("hook", { title: "a" }), sc("statement", { title: "b" }), sc("cta", { title: "c" })], { language: "EN-us" }), input()).language).toBe("en");
+    expect(normalizePlan(plan([sc("hook", { title: "a" }), sc("statement", { title: "b" }), sc("cta", { title: "c" })]), input({ site: { lang: "id-ID" } as never })).language).toBe("id");
+  });
+
+  it("asks for a voiceover only when the person wants one", () => {
+    expect(userMessage(input({ prompt: "promo" }))).not.toContain("NARRATION");
+    const msg = userMessage(input({ prompt: "promo", narration: true }));
+    expect(msg).toContain("NARRATION");
+    expect(msg).toContain("one language");
+  });
+});

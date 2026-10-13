@@ -58,4 +58,6 @@ export type DirectInput = {
   variation?: number;
   /** An edit keeps the plan's own brand color. */
   keepBrandColor?: boolean;
+  /** Write a voiceover line for every scene. */
+  narration?: boolean;
 };
