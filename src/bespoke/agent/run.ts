@@ -85,7 +85,7 @@ const refParts = (refs: string[]): Part[] =>
     { type: "image_url", image_url: { url } },
   ]);
 
-async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; signal?: AbortSignal }) {
+async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; signal?: AbortSignal; onActivity?: (text: string) => void }) {
   const { concept: system } = await loadPrompts();
   const user = [
     `BRIEF:\n${o.brief || "(none: make a launch film for the website)"}`,
@@ -97,7 +97,7 @@ async function makeConcept(o: { key: string; model: string; brief: string; site:
   ]
     .filter(Boolean)
     .join("\n\n");
-  const r = await jsonStep({ key: o.key, model: o.model, messages: [{ role: "system", content: system }, { role: "user", content: o.refs?.length ? [{ type: "text", text: user }, ...refParts(o.refs)] : user }], temperature: 1, maxTokens: 8000, signal: o.signal });
+  const r = await jsonStep({ key: o.key, model: o.model, messages: [{ role: "system", content: system }, { role: "user", content: o.refs?.length ? [{ type: "text", text: user }, ...refParts(o.refs)] : user }], temperature: 1, maxTokens: 8000, signal: o.signal, onProgress: (p) => o.onActivity?.(`the art director is ${p.chars ? `writing the concept (${(p.chars / 1000).toFixed(1)}k characters)` : "thinking about the concept"}`) });
   return { concept: normalizeConcept(r.value), usage: r.usage };
 }
 
@@ -122,11 +122,14 @@ export async function makeFilm(o: {
   voice?: FilmVoice & { apiKey: string };
   onVoice?: (clips: Record<number, Blob>) => void;
   onMusic?: (music: Blob) => void;
+  /** What is happening right now, for the person to see. */
+  onActivity?: (text: string) => void;
   onConcept: (film: FilmState) => void;
   update: (film: FilmState) => void;
   signal?: AbortSignal;
 }): Promise<FilmState> {
   const price = priceOf(o.models, o.model);
+  o.onActivity?.("the art director is thinking about the concept");
   const { concept, usage } = await makeConcept(o);
   let spec = filmSpecOf(concept, o.format, o.site, Math.floor(Math.random() * 1e6), o.recent.flatMap((r) => (r.track ? [r.track] : [])));
   let film: FilmState = { concept, spec, files: {}, modules: null, status: "building", summary: "", spend: addUsage(NO_SPEND, usage, price), log: [], reviews: [] };
@@ -135,7 +138,8 @@ export async function makeFilm(o: {
   // The voice is the clock: record it first, so the beats and every word cue follow the real lines.
   if (o.voice && spec.beats.some((b) => b.voice)) {
     try {
-      const rec = await recordFilmVoice({ spec, language: concept.language, apiKey: o.voice.apiKey, voice: o.voice, signal: o.signal });
+      o.onActivity?.(`recording the voice-over with ${o.voice.voiceName}`);
+      const rec = await recordFilmVoice({ spec, language: concept.language, apiKey: o.voice.apiKey, voice: o.voice, signal: o.signal, onLine: (done, total) => o.onActivity?.(`recording the voice-over: line ${done} of ${total}`) });
       spec = rec.spec;
       film = { ...film, spec, voice: { voiceId: o.voice.voiceId, voiceName: o.voice.voiceName }, log: [...film.log, { kind: "tool", text: `voice-over: ${Object.keys(rec.clips).length} lines recorded with ${o.voice.voiceName}` }] };
       o.onVoice?.(rec.clips);
@@ -151,6 +155,7 @@ export async function makeFilm(o: {
   if (o.voice) {
     try {
       const seconds = filmTiming(spec.beats, spec.score).timing.total / 30 + 1;
+      o.onActivity?.("asking ElevenLabs Music for a bed");
       const m = await filmMusic({ apiKey: o.voice.apiKey, prompt: musicPrompt({ style: concept.style, metaphor: concept.metaphor, genre: spec.score.genre, bpm: spec.score.bpm }), seconds, signal: o.signal });
       film = { ...film, musicKey: m.key, log: [...film.log, { kind: "tool", text: "music: made with ElevenLabs Music for this film" }] };
       o.onMusic?.(m.blob);
@@ -187,7 +192,7 @@ export async function makeFilm(o: {
   ];
   const tools = sceneTools(ws, sandbox, () => push({}), o.signal);
   const agent = (maxSteps: number) =>
-    runAgent({ key: o.key, model: o.model, messages, tools, maxSteps, budgetUsd: o.budgetUsd, price, spend: film.spend, onEvent: say, onStep: (_, spend) => push({ spend }), signal: o.signal });
+    runAgent({ key: o.key, model: o.model, messages, tools, maxSteps, budgetUsd: o.budgetUsd, price, spend: film.spend, onEvent: say, onStep: (_, spend) => push({ spend }), onActivity: o.onActivity, signal: o.signal });
   let r = await agent(MAX_STEPS);
 
   // The art director looks with fresh eyes; the same agent session fixes what it finds.
@@ -199,6 +204,7 @@ export async function makeFilm(o: {
       ws.dirty = false;
     }
     say({ kind: "tool", text: `review ${round}: the art director is looking at the frames` });
+    o.onActivity?.(`review ${round}: rendering labelled frames, then the art director looks at them`);
     const { review, usage: used } = await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: ws.modules, concept, facts, sandbox, refs: o.refs, signal: o.signal });
     push({ spend: addUsage(film.spend, used, price), reviews: [...film.reviews, review] });
     say({ kind: "say", text: `Review ${round}: ${review.score}/10${review.pass ? ", ready to ship" : ""}. ${review.summary}` });

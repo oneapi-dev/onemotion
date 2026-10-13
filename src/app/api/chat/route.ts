@@ -1,4 +1,4 @@
-import { chatStreamed, OneAPIError } from "@/server/oneapi";
+import { chatResilient, OneAPIError } from "@/server/oneapi";
 
 // One step of the bespoke agent: a reply may take a few minutes on a reasoning model.
 export const maxDuration = 300;
@@ -31,15 +31,33 @@ export async function POST(req: Request) {
   if (Array.isArray(body.tools) && body.tools.length) request.tools = body.tools;
   if (typeof body.temperature === "number") request.temperature = Math.max(0, Math.min(2, body.temperature));
   if (typeof body.max_tokens === "number") request.max_tokens = Math.max(256, Math.min(64_000, Math.round(body.max_tokens)));
-  try {
-    return Response.json(await chatStreamed(key, request, AbortSignal.timeout(STEP_TIMEOUT)));
-  } catch (err) {
-    // The provider's status passes through, so the browser knows a timeout or a rate limit is worth retrying.
-    if (err instanceof OneAPIError) return Response.json({ error: err.message }, { status: [401, 402, 429, 500, 502, 503, 504].includes(err.status) ? err.status : 502 });
-    if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
-      return Response.json({ error: "The model took too long on this step." }, { status: 504 });
-    }
-    console.error("chat step failed", err);
-    return Response.json({ error: "The step failed. Try again." }, { status: 500 });
-  }
+  // The answer comes back as lines of JSON (NDJSON): progress while the model writes, then the answer or the error.
+  // The person sees the step move, and the connection is never idle.
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(ctrl) {
+      const send = (line: unknown) => ctrl.enqueue(encoder.encode(`${JSON.stringify(line)}\n`));
+      let last = 0;
+      try {
+        const answer = await chatResilient(key, request, AbortSignal.any([AbortSignal.timeout(STEP_TIMEOUT), req.signal]), (p) => {
+          const now = Date.now();
+          if (now - last < 400 && !p.note) return;
+          last = now;
+          send({ type: "progress", ...p });
+        });
+        send({ type: "done", answer });
+      } catch (err) {
+        // The provider's status passes through, so the browser knows a timeout or a rate limit is worth retrying.
+        if (err instanceof OneAPIError) send({ type: "error", status: [401, 402, 429, 500, 502, 503, 504].includes(err.status) ? err.status : 502, error: err.message });
+        else if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) send({ type: "error", status: 504, error: "The model took too long on this step." });
+        else {
+          console.error("chat step failed", err);
+          send({ type: "error", status: 500, error: "The step failed. Try again." });
+        }
+      } finally {
+        ctrl.close();
+      }
+    },
+  });
+  return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" } });
 }

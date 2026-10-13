@@ -28,7 +28,10 @@ type Choice = { message?: { content?: string | Part[] | null; tool_calls?: ToolC
  * models answer 400), so JSON is asked for in the prompt and parsed
  * leniently (see jsonStep).
  */
-type StepInput = { key: string; model: string; messages: Msg[]; tools?: ToolSpec[]; temperature?: number; maxTokens?: number; signal?: AbortSignal; onRetry?: (message: string) => void };
+/** How far a reply has come while it streams: characters so far, the tool call being written and its file. */
+export type StepProgress = { chars: number; tool?: string; path?: string; note?: string };
+
+type StepInput = { key: string; model: string; messages: Msg[]; tools?: ToolSpec[]; temperature?: number; maxTokens?: number; signal?: AbortSignal; onRetry?: (message: string) => void; onProgress?: (p: StepProgress) => void };
 
 /** Statuses worth trying again: a rate limit, a provider that timed out or fell over, a gateway hiccup. */
 export const TRANSIENT = new Set([429, 500, 502, 503, 504]);
@@ -71,15 +74,44 @@ async function chatOnce(o: StepInput) {
     }),
     signal: o.signal,
   });
-  const body = (await res.json().catch(() => null)) as { error?: string | { message?: string }; choices?: Choice[]; usage?: Usage } | null;
-  if (!res.ok || !body) {
-    const said = typeof body?.error === "string" ? body.error : body?.error?.message;
-    throw new ChatError(res.status, said ?? `The model step failed (${res.status}).`);
+  type Answer = { error?: string | { message?: string }; choices?: Choice[]; usage?: Usage };
+  let body: Answer | null = null;
+  if ((res.headers.get("content-type") ?? "").includes("ndjson") && res.body) {
+    // Progress lines while the model writes, then the answer or the error.
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    const line = (l: string) => {
+      if (!l.trim()) return;
+      const m = JSON.parse(l) as { type: string; answer?: Answer; status?: number; error?: string } & StepProgress;
+      if (m.type === "progress") o.onProgress?.({ chars: m.chars, tool: m.tool, path: m.path, note: m.note });
+      else if (m.type === "done") body = m.answer ?? null;
+      else if (m.type === "error") throw new ChatError(m.status ?? 502, m.error ?? "The model step failed.");
+    };
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buffer.indexOf("\n")) >= 0) {
+        line(buffer.slice(0, nl));
+        buffer = buffer.slice(nl + 1);
+      }
+    }
+    line(buffer);
+    if (!body) throw new ChatError(502, "The step ended without an answer.");
+  } else {
+    body = (await res.json().catch(() => null)) as Answer | null;
+    if (!res.ok || !body) {
+      const said = typeof body?.error === "string" ? body.error : body?.error?.message;
+      throw new ChatError(res.status, said ?? `The model step failed (${res.status}).`);
+    }
   }
-  const choice = body.choices?.[0];
+  const answer: Answer = body;
+  const choice = answer.choices?.[0];
   const content = choice?.message?.content;
   const text = typeof content === "string" ? content : Array.isArray(content) ? content.map((p) => (p.type === "text" ? p.text : "")).join("") : "";
-  return { text, toolCalls: choice?.message?.tool_calls ?? [], usage: body.usage ?? {}, finish: choice?.finish_reason ?? "" };
+  return { text, toolCalls: choice?.message?.tool_calls ?? [], usage: answer.usage ?? {}, finish: choice?.finish_reason ?? "" };
 }
 
 /** The JSON object in a model's reply, tolerating a fence or prose around it. */

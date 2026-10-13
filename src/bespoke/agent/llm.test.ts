@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChatError, chatStep, jsonStep } from "./llm";
+import { describeProgress } from "./loop";
 
 const reply = (content: string, tokens = 10) => new Response(JSON.stringify({ choices: [{ message: { content } }], usage: { prompt_tokens: tokens, completion_tokens: 1 } }), { status: 200 });
 
@@ -39,6 +40,38 @@ describe("chatStep", () => {
       await expect(chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] })).rejects.toBeInstanceOf(ChatError);
       expect(fetch).toHaveBeenCalledTimes(1);
     }
+  });
+});
+
+const ndjson = (lines: unknown[]) => new Response(lines.map((l) => `${JSON.stringify(l)}\n`).join(""), { status: 200, headers: { "Content-Type": "application/x-ndjson" } });
+
+describe("chatStep over NDJSON", () => {
+  it("reports progress while the model writes, then returns the answer", async () => {
+    const answer = { choices: [{ message: { content: "", tool_calls: [{ id: "c1", type: "function", function: { name: "write_file", arguments: '{"path":"scene/index.tsx"}' } }] }, finish_reason: "tool_calls" }], usage: { prompt_tokens: 9 } };
+    vi.stubGlobal("fetch", vi.fn(async () => ndjson([{ type: "progress", chars: 1200, tool: "write_file", path: "scene/index.tsx" }, { type: "progress", chars: 4100, tool: "write_file", path: "scene/index.tsx" }, { type: "done", answer }])));
+    const seen: number[] = [];
+    const r = await chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }], onProgress: (p) => seen.push(p.chars) });
+    expect(seen).toEqual([1200, 4100]);
+    expect(r.toolCalls[0].function.name).toBe("write_file");
+    expect(r.usage).toEqual({ prompt_tokens: 9 });
+  });
+
+  it("turns an error line into a retry for a broken upstream stream", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockResolvedValueOnce(ndjson([{ type: "progress", chars: 10 }, { type: "error", status: 502, error: "OneAPI: The upstream stream failed." }])).mockResolvedValueOnce(ndjson([{ type: "done", answer: { choices: [{ message: { content: "ok" } }] } }]));
+    vi.stubGlobal("fetch", fetch);
+    const p = chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] });
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect((await p).text).toBe("ok");
+    vi.useRealTimers();
+  });
+});
+
+describe("describeProgress", () => {
+  it("says what the reply is doing", () => {
+    expect(describeProgress({ chars: 4100, tool: "write_file", path: "scene/components/Pen.tsx" })).toBe("writing scene/components/Pen.tsx (4.1k characters)");
+    expect(describeProgress({ chars: 0 })).toBe("thinking");
+    expect(describeProgress({ chars: 300 })).toBe("writing its reply (300 characters)");
   });
 });
 

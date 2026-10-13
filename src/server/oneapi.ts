@@ -1,6 +1,6 @@
 import "server-only";
 import type { CatalogModel } from "@/director/input";
-import { SseAssembler, StreamError, type Assembled } from "./sse";
+import { SseAssembler, StreamError, type Assembled, type Progress } from "./sse";
 
 /**
  * Everything this app asks of OneAPI: the director's chat completions, sent
@@ -13,6 +13,8 @@ const CATALOG_URL = process.env.ONEAPI_CATALOG_URL ?? "https://oneapi.id/api/pub
 
 /** OneAPI's own words when a call fails, for the person to read. */
 export class OneAPIError extends Error {
+  /** The stream broke after it started: asking again without streaming may get through. */
+  midStream = false;
   constructor(
     public status: number,
     message: string,
@@ -108,7 +110,7 @@ function failure(status: number, said: string | undefined): OneAPIError {
  * reply (a big file, a model that thinks first) keeps its connection alive
  * instead of being cut off as an idle request.
  */
-export async function chatStreamed(key: string, body: Record<string, unknown>, signal: AbortSignal): Promise<Assembled> {
+export async function chatStreamed(key: string, body: Record<string, unknown>, signal: AbortSignal, onProgress?: (p: Progress) => void): Promise<Assembled> {
   const send = (extra: Record<string, unknown>) =>
     fetch(`${BASE_URL}/chat/completions`, {
       method: "POST",
@@ -142,10 +144,21 @@ export async function chatStreamed(key: string, body: Record<string, unknown>, s
       const { value, done } = await reader.read();
       if (done) break;
       sse.push(decoder.decode(value, { stream: true }));
+      onProgress?.(sse.progress());
       if (sse.done) break;
     }
   } catch (err) {
-    if (err instanceof StreamError) throw new OneAPIError(502, `OneAPI: ${err.message}`);
+    if (err instanceof StreamError) {
+      const e = new OneAPIError(502, `OneAPI: ${err.message}`);
+      e.midStream = true;
+      throw e;
+    }
+    // The connection dropped mid-reply.
+    if (err instanceof TypeError) {
+      const e = new OneAPIError(502, "The connection to OneAPI dropped mid-reply.");
+      e.midStream = true;
+      throw e;
+    }
     throw err;
   }
   return sse.result();
@@ -159,3 +172,18 @@ const errorOf = (text: string): string | undefined => {
     return text.slice(0, 200) || undefined;
   }
 };
+
+/**
+ * A completion streamed when it can be: a stream that breaks after it
+ * started is asked again once, without streaming, since some providers
+ * behind the gateway stream unreliably.
+ */
+export async function chatResilient(key: string, body: Record<string, unknown>, signal: AbortSignal, onProgress?: (p: Progress & { note?: string }) => void): Promise<Assembled> {
+  try {
+    return await chatStreamed(key, body, signal, onProgress);
+  } catch (err) {
+    if (!(err instanceof OneAPIError && err.midStream) || signal.aborted) throw err;
+    onProgress?.({ chars: 0, note: "the stream broke; asking again without streaming" });
+    return (await chat(key, body, signal)) as Assembled;
+  }
+}

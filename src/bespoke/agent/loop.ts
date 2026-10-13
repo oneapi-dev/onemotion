@@ -1,6 +1,6 @@
 "use client";
 
-import { ChatError, chatStep, type Msg, type Part, type ToolSpec, type Usage } from "./llm";
+import { ChatError, chatStep, type Msg, type Part, type StepProgress, type ToolSpec, type Usage } from "./llm";
 import type { AgentTool, ToolResult } from "./tools";
 
 /**
@@ -33,6 +33,27 @@ function pruneImages(messages: Msg[]) {
 
 const short = (s: string, n = 160) => (s.length > n ? `${s.slice(0, n)}…` : s).replace(/\n/g, " ");
 
+const kchars = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+
+/** What a streaming reply is doing, in words: "writing scene/index.tsx (4.1k characters)". */
+export function describeProgress(p: StepProgress): string {
+  if (p.note) return p.note;
+  const size = p.chars ? ` (${kchars(p.chars)} characters)` : "";
+  if (p.tool === "write_file") return `writing ${p.path ?? "a file"}${size}`;
+  if (p.tool === "edit_file") return `editing ${p.path ?? "a file"}${size}`;
+  if (p.tool) return `calling ${p.tool}${size}`;
+  return p.chars ? `writing its reply${size}` : "thinking";
+}
+
+/** What a tool call is doing while it runs. */
+const TOOL_ACTIVITY: Record<string, string> = {
+  check: "checking the code (TypeScript and scene rules)",
+  render_frames: "rendering frames to look at",
+  contact_sheet: "rendering a contact sheet to look at",
+  write_file: "saving a file",
+  edit_file: "editing a file",
+};
+
 export function addUsage(s: Spend, u: Usage, price: Price): Spend {
   const input = u.prompt_tokens ?? 0;
   const output = u.completion_tokens ?? 0;
@@ -52,6 +73,8 @@ export async function runAgent(o: {
   spend: Spend;
   onEvent: (e: AgentEvent) => void;
   onStep: (messages: Msg[], spend: Spend) => void;
+  /** What is happening right now, for the person to see. */
+  onActivity?: (text: string) => void;
   signal?: AbortSignal;
 }): Promise<{ done: boolean; summary: string; spend: Spend }> {
   const { messages } = o;
@@ -66,9 +89,20 @@ export async function runAgent(o: {
       return { done: false, summary: "budget reached", spend };
     }
     pruneImages(messages);
-    let step: Awaited<ReturnType<typeof chatStep>>;
+    let reply: Awaited<ReturnType<typeof chatStep>>;
     try {
-      step = await chatStep({ key: o.key, model: o.model, messages, tools: specs, temperature: 0.6, signal: o.signal, onRetry: (m) => o.onEvent({ kind: "error", text: m }) });
+      const at = `step ${step} of ${o.maxSteps}`;
+      o.onActivity?.(`${at}: the model is thinking`);
+      reply = await chatStep({
+        key: o.key,
+        model: o.model,
+        messages,
+        tools: specs,
+        temperature: 0.6,
+        signal: o.signal,
+        onRetry: (m) => o.onEvent({ kind: "error", text: m }),
+        onProgress: (p) => o.onActivity?.(`${at}: the model is ${describeProgress(p)}`),
+      });
     } catch (err) {
       // Still timing out after the retries: most often one reply grew too long. Ask for smaller ones and go on.
       if (!(err instanceof ChatError && err.status === 504) || ++timeouts > MAX_TIMEOUTS) throw err;
@@ -77,7 +111,7 @@ export async function runAgent(o: {
       o.onStep(messages, spend);
       continue;
     }
-    const { text, toolCalls, usage, finish } = step;
+    const { text, toolCalls, usage, finish } = reply;
     spend = addUsage(spend, usage, o.price);
     // An assistant turn with neither text nor tool calls is refused by some providers behind the gateway.
     messages.push({ role: "assistant", content: text || (toolCalls.length ? null : "(no reply)"), ...(toolCalls.length ? { tool_calls: toolCalls } : {}) });
@@ -105,6 +139,7 @@ export async function runAgent(o: {
         // A reply cut off mid tool call: keep the history valid for the next step.
         c.function.arguments = "{}";
       }
+      o.onActivity?.(`step ${step} of ${o.maxSteps}: ${TOOL_ACTIVITY[c.function.name] ?? `running ${c.function.name}`}`);
       try {
         res = args === null ? { text: "This tool call was cut off before it finished; nothing was done. Send smaller replies: at most 3 files per reply." } : tool ? await tool.run(args) : { text: `unknown tool "${c.function.name}"` };
       } catch (err) {

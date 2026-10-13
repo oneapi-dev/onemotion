@@ -2,7 +2,7 @@ import type { DirectInput } from "@/director/input";
 import { matchModels } from "@/director/facts";
 import { directRequest, parseAnswer, TruncatedAnswerError } from "@/director/prompt";
 import { UnusablePlanError } from "@/director/rules";
-import { catalog, chatStreamed, OneAPIError } from "@/server/oneapi";
+import { catalog, chatResilient, OneAPIError } from "@/server/oneapi";
 
 // Reasoning models can think for a minute or two before they answer.
 export const maxDuration = 300;
@@ -43,14 +43,14 @@ export async function POST(req: Request) {
   const started = Date.now();
   try {
     const request = directRequest(model, input) as Record<string, unknown>;
-    let answer: Awaited<ReturnType<typeof chatStreamed>>;
+    let answer: Awaited<ReturnType<typeof chatResilient>>;
     try {
-      answer = await chatStreamed(key, request, AbortSignal.timeout(170_000));
+      answer = await chatResilient(key, request, AbortSignal.timeout(170_000));
     } catch (err) {
       // A provider that timed out or fell over gets one more try while the request has time left.
       if (!(err instanceof OneAPIError && [429, 500, 502, 503, 504].includes(err.status)) || Date.now() - started > 100_000) throw err;
       await new Promise((r) => setTimeout(r, 3000));
-      answer = await chatStreamed(key, request, AbortSignal.timeout(Math.max(30_000, 280_000 - (Date.now() - started))));
+      answer = await chatResilient(key, request, AbortSignal.timeout(Math.max(30_000, 280_000 - (Date.now() - started))));
     }
     const plan = parseAnswer(answer as Parameters<typeof parseAnswer>[0], input);
     return Response.json({ plan, seconds: Math.round((Date.now() - started) / 1000) });

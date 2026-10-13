@@ -21,6 +21,8 @@ export type Assembled = {
   usage: Record<string, unknown>;
 };
 
+export type Progress = { chars: number; tool?: string; path?: string };
+
 export class StreamError extends Error {
   constructor(message: string) {
     super(message);
@@ -77,6 +79,14 @@ export class SseAssembler {
         this.tools.set(i, cur);
       }
     }
+  }
+
+  /** How far the reply has come: characters received, and the tool call being written (with its file, once its path has arrived). */
+  progress(): Progress {
+    const last = [...this.tools.values()].at(-1);
+    const chars = this.content.length + [...this.tools.values()].reduce((a, t) => a + t.args.length, 0);
+    const path = last ? /"path"\s*:\s*"([^"]+)"/.exec(last.args)?.[1] : undefined;
+    return { chars, tool: last?.name || undefined, path };
   }
 
   /** The completion so far, as a non-streamed response. */

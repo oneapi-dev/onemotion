@@ -105,6 +105,9 @@ export function Studio() {
   }, []);
   const onFilmError = useCallback((m: string) => setError(`The preview hit an error: ${m}`), []);
   const running = useRef<AbortController | null>(null);
+  // What a bespoke run is doing right now, and the run second it started (so its own time can show).
+  const [activity, setActivity] = useState<{ text: string; key: string; at: number } | null>(null);
+  const runStarted = useRef(0);
   // Screenshots of the real product for a bespoke video, as image data URLs.
   const [refs, setRefs] = useState<string[]>([]);
   // A bespoke video's recorded voice-over lines, by beat.
@@ -309,6 +312,7 @@ export function Studio() {
       try {
         const site = await findSite(opts);
         setStage("film");
+        runStarted.current = Date.now();
         const base: Project = { id: opts.replace?.id ?? newId(), createdAt: new Date().toISOString(), brief: opts.brief, website: opts.website, format, tone, site };
         setCurrent(base);
         const keep = (film: FilmState) => {
@@ -331,6 +335,12 @@ export function Studio() {
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName } : undefined,
           onVoice: (clips) => setFilmClips({ projectId: base.id, clips }),
           onMusic: (blob) => setFilmMusic({ projectId: base.id, blob }),
+          onActivity: (text) => {
+            // A new activity restarts its clock; the same one with a new character count keeps it.
+            const key = text.replace(/\s*\([^)]*\)/g, "");
+            const at = Math.round((Date.now() - runStarted.current) / 1000);
+            setActivity((a) => (a?.key === key ? { ...a, text } : { text, key, at }));
+          },
           onConcept: keep,
           update: keep,
           signal: ctrl.signal,
@@ -340,6 +350,7 @@ export function Studio() {
         if (!ctrl.signal.aborted) setError(err instanceof Error ? err.message : String(err));
       } finally {
         running.current = null;
+        setActivity(null);
         setStage(null);
       }
     },
@@ -591,6 +602,13 @@ export function Studio() {
                   </p>
                 ) : null}
               </div>
+              {stage === "film" && activity ? (
+                <p className="activity" role="status">
+                  <span className="pulse" aria-hidden="true" />
+                  Now: {activity.text}
+                  <span className="activity-time">{Math.max(0, seconds - activity.at)}s</span>
+                </p>
+              ) : null}
               {film?.log.length ? (
                 <ol className="agent-log" aria-label="What the AI is doing">
                   {film.log
