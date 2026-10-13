@@ -42,7 +42,12 @@ export default function BespokeLab() {
         return;
       }
       const score = normalizeScore(ex.film.score, ex.film.beats.length, "house", 7);
-      const spec: FilmSpec = { format: ex.film.format, brand: ex.film.brand, beats: ex.film.beats, score };
+      // ?captions=1 times every line as if it had been recorded (0.38 s a word), to check captions without a voice key.
+      const fake = new URLSearchParams(window.location.search).get("captions") === "1";
+      const beats = fake
+        ? ex.film.beats.map((b) => ({ ...b, words: (b.voice ?? "").split(" ").filter(Boolean).map((text, i) => ({ text, start: i * 0.38, end: i * 0.38 + 0.32 })) }))
+        : ex.film.beats;
+      const spec: FilmSpec = { format: ex.film.format, brand: ex.film.brand, beats, score };
       const wire = { spec, modules: checked.modules };
       setFilm(wire);
       sb.show(wire);

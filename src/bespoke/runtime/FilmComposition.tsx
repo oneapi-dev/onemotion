@@ -13,6 +13,7 @@ import * as Kit from "../kit";
 import { FilmProvider, makeCue, type Film } from "../kit/film";
 import { loadFonts } from "../kit/fonts";
 import { FILM_FPS, VOICE_LEAD, filmTiming } from "../timing";
+import { Captions } from "./Captions";
 import { loadScene } from "./modules";
 import { QaProbe } from "./qa";
 
@@ -39,6 +40,7 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover,
   const { timing, beats } = useMemo(() => filmTiming(spec.beats, spec.score), [spec.beats, spec.score]);
   const film = useMemo<Film>(() => {
     const P = H > W;
+    const voiced = beats.some((b) => b.spoken);
     return {
       fps: FILM_FPS,
       W,
@@ -50,7 +52,10 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover,
       beat: (id) => (typeof id === "number" ? beats[id] : beats.find((b) => b.id === id)) ?? beats[0],
       cue: makeCue(beats, timing.total, FILM_FPS),
       brand: spec.brand,
-      safe: P ? { top: Math.round(H * 0.07), bottom: Math.round(H * 0.86), left: 60, right: W - 60 } : { top: 70, bottom: H - 90, left: 100, right: W - 100 },
+      // With a recorded voice, the captions take the bottom band.
+      safe: P
+        ? { top: Math.round(H * 0.07), bottom: Math.round(H * (voiced ? 0.78 : 0.86)), left: 60, right: W - 60 }
+        : { top: 70, bottom: H - (voiced ? 180 : 90), left: 100, right: W - 100 },
     };
   }, [W, H, spec.format, spec.brand, timing.total, beats]);
 
@@ -63,6 +68,7 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover,
           <Scene />
         </FilmProvider>
       ) : null}
+      {ready && scene.captions !== false ? <Captions beats={beats} W={W} H={H} style={scene.captionStyle} /> : null}
       {ready ? <QaProbe root={root} width={W} on={Boolean(qa)} /> : null}
       <FilmSound input={{ spec, modules, voiceover }} timing={timing} />
     </AbsoluteFill>

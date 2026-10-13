@@ -4,6 +4,7 @@ import { describeModel, matchModels, mentions } from "@/director/facts";
 import type { CatalogModel, SiteInfo } from "@/director/input";
 import type { FilmFormat, FilmSpec } from "../film";
 import type { Sandbox } from "../host";
+import { recordFilmVoice, type FilmVoice } from "../voice";
 import { filmSpecOf, normalizeConcept, type Concept } from "./concept";
 import { chatStep, parseJson, type Msg } from "./llm";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
@@ -21,6 +22,8 @@ export type FilmState = {
   summary: string;
   spend: Spend;
   log: AgentEvent[];
+  /** The voice that read the voice-over, when it was recorded. */
+  voice?: FilmVoice;
   /** The art director's reviews, oldest first. */
   reviews: Review[];
 };
@@ -102,15 +105,33 @@ export async function makeFilm(o: {
   recent: RecentFilm[];
   budgetUsd: number;
   sandbox: () => Sandbox | null;
+  /** The person's ElevenLabs key and voice, to record the voice-over before the scene is built. */
+  voice?: FilmVoice & { apiKey: string };
+  onVoice?: (clips: Record<number, Blob>) => void;
   onConcept: (film: FilmState) => void;
   update: (film: FilmState) => void;
   signal?: AbortSignal;
 }): Promise<FilmState> {
   const price = priceOf(o.models, o.model);
   const { concept, usage } = await makeConcept(o);
-  const spec = filmSpecOf(concept, o.format, o.site, Math.floor(Math.random() * 1e6));
+  let spec = filmSpecOf(concept, o.format, o.site, Math.floor(Math.random() * 1e6));
   let film: FilmState = { concept, spec, files: {}, modules: null, status: "building", summary: "", spend: addUsage(NO_SPEND, usage, price), log: [], reviews: [] };
   o.onConcept(film);
+
+  // The voice is the clock: record it first, so the beats and every word cue follow the real lines.
+  if (o.voice && spec.beats.some((b) => b.voice)) {
+    try {
+      const rec = await recordFilmVoice({ spec, language: concept.language, apiKey: o.voice.apiKey, voice: o.voice, signal: o.signal });
+      spec = rec.spec;
+      film = { ...film, spec, voice: { voiceId: o.voice.voiceId, voiceName: o.voice.voiceName }, log: [...film.log, { kind: "tool", text: `voice-over: ${Object.keys(rec.clips).length} lines recorded with ${o.voice.voiceName}` }] };
+      o.onVoice?.(rec.clips);
+      o.update(film);
+    } catch (err) {
+      if (o.signal?.aborted) throw err;
+      film = { ...film, log: [...film.log, { kind: "error", text: `The voice-over could not be recorded (${err instanceof Error ? err.message : String(err)}); the film is built without it.` }] };
+      o.update(film);
+    }
+  }
 
   const sandbox = o.sandbox();
   if (!sandbox) throw new Error("The preview is not ready.");

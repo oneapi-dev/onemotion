@@ -68,3 +68,43 @@ export async function speak(key: string, voiceId: string, text: string, language
   if (!res.ok) throw await failure(res);
   return res.blob();
 }
+
+/** A word of a recorded line and when it is spoken, in seconds from the start of the audio. */
+export type SpokenWord = { text: string; start: number; end: number };
+
+/** Characters and their times as ElevenLabs aligns them, grouped into words at whitespace. */
+export function wordsOf(alignment: { characters: string[]; character_start_times_seconds: number[]; character_end_times_seconds: number[] }): SpokenWord[] {
+  const words: SpokenWord[] = [];
+  let cur: SpokenWord | null = null;
+  alignment.characters.forEach((ch, i) => {
+    if (/\s/.test(ch)) {
+      if (cur) words.push(cur);
+      cur = null;
+      return;
+    }
+    const start = alignment.character_start_times_seconds[i] ?? 0;
+    const end = alignment.character_end_times_seconds[i] ?? start;
+    if (!cur) cur = { text: ch, start, end };
+    else {
+      cur.text += ch;
+      cur.end = end;
+    }
+  });
+  if (cur) words.push(cur);
+  return words.map((w) => ({ text: w.text, start: Math.round(w.start * 1000) / 1000, end: Math.round(w.end * 1000) / 1000 }));
+}
+
+/** One line read aloud, as MP3, with the time of every word (for captions and for syncing the picture to the voice). */
+export async function speakTimed(key: string, voiceId: string, text: string, language: string, signal?: AbortSignal): Promise<{ audio: Blob; words: SpokenWord[] }> {
+  const res = await fetch(`${API}/v1/text-to-speech/${encodeURIComponent(voiceId)}/with-timestamps?output_format=mp3_44100_128`, {
+    method: "POST",
+    headers: { "xi-api-key": key, "Content-Type": "application/json" },
+    body: JSON.stringify({ text, model_id: VOICE_MODEL, language_code: language }),
+    signal,
+  });
+  if (!res.ok) throw await failure(res);
+  const body = (await res.json()) as { audio_base64?: string; alignment?: Parameters<typeof wordsOf>[0] | null };
+  if (!body.audio_base64) throw new VoiceError("ElevenLabs sent no audio.");
+  const bytes = Uint8Array.from(atob(body.audio_base64), (c) => c.charCodeAt(0));
+  return { audio: new Blob([bytes], { type: "audio/mpeg" }), words: body.alignment ? wordsOf(body.alignment) : [] };
+}

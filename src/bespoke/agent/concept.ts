@@ -16,7 +16,7 @@ export type Concept = {
   typography: { display: string; text: string; mono: string | null };
   palette: { bg: string; ink: string; accent: string; support: string };
   brand: { name: string; url: string };
-  beats: { id: string; says: string; shows: string; seconds: number }[];
+  beats: { id: string; says: string; shows: string; voice: string; seconds: number }[];
   score: unknown;
   whyDifferent: string;
 };
@@ -52,6 +52,7 @@ export function normalizeConcept(raw: unknown): Concept {
     id: `b${i + 1}`,
     says: str(b.says, 120),
     shows: str(b.shows, 400),
+    voice: str(b.voice, 200),
     seconds: Math.min(12, Math.max(0.8, typeof b.seconds === "number" && Number.isFinite(b.seconds) ? b.seconds : 2.5)),
   }));
   beats[beats.length - 1].seconds = Math.max(CLOSE_SECONDS, beats[beats.length - 1].seconds);

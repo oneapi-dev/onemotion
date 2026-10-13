@@ -37,7 +37,8 @@ const Label = ({ x, y, w, h, show, children, size = 46, font = "Kalam" }: Box & 
 export const World = ({ t, accent }: { t: number; accent: string }) => {
   const { cue } = useFilm();
   const [b2, b3, b4] = [cue("b2"), cue("b3"), cue("b4")];
-  const switchAt = b4 + 44;
+  // The switch lands on the word: the voice says "switch", the model changes.
+  const switchAt = cue("b4:switch");
 
   const strokes: Stroke[] = [
     { d: path.rect(APP.x, APP.y, APP.w, APP.h, 18), at: 0, dur: 14, width: 7, fill: "#ffffff" },

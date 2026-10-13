@@ -80,7 +80,10 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
         return {
           text: [
             `Format ${ws.spec.format}: ${W} x ${H} at 30 fps, ${total} frames (${(total / 30).toFixed(1)} s).`,
-            ...beats.map((b) => `${b.id}: frames ${b.start} to ${b.end} | says "${b.says}" | shows: ${b.shows}`),
+            ...beats.map(
+              (b) =>
+                `${b.id}: frames ${b.start} to ${b.end} | says "${b.says}" | shows: ${b.shows}${b.voice ? ` | voice (${b.spoken ? "recorded, captioned" : "not recorded: estimated times"}): "${b.voice}" | words: ${b.words.map((w) => `${w.text}@${w.at}`).join(" ")}` : ""}`,
+            ),
             `Safe area: ${safe}.`,
             `Brand: ${JSON.stringify({ ...ws.spec.brand, logo: ws.spec.brand.logo ? "(an image; draw it with <Mark/>)" : null })}`,
             `Music: ${ws.spec.score.genre} at ${ws.spec.score.bpm} bpm; beats start on its beat grid, so hits on beat starts land with the music.`,

@@ -1,11 +1,15 @@
 import type { ComponentType } from "react";
 import { SCENE_ENTRY } from "../film";
 import type { FontRequest } from "../kit/fonts";
+import type { CaptionStyle } from "./Captions";
 
 export type SceneModule = {
   default: ComponentType;
   fonts?: FontRequest;
   background?: string;
+  /** false hides the voice-over captions. */
+  captions?: boolean;
+  captionStyle?: CaptionStyle;
 };
 
 const EXTENSIONS = ["", ".tsx", ".ts", "/index.tsx", "/index.ts"];

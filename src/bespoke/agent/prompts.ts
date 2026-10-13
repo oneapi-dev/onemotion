@@ -46,7 +46,7 @@ Reply with ONE JSON object and nothing else:
   "typography": { "display": "<font>", "text": "<font>", "mono": "<font or null>" },
   "palette": { "bg": "#hex", "ink": "#hex", "accent": "#hex", "support": "#hex" },
   "brand": { "name": "the product or company the film is about", "url": "its domain, e.g. oneapi.id, or empty" },
-  "beats": [ { "id": "b1", "says": "the on-screen words of this beat (short)", "shows": "what the viewer sees", "seconds": 2.5 } ],
+  "beats": [ { "id": "b1", "says": "the on-screen words of this beat (short)", "voice": "the voice-over line of this beat, as it is spoken", "shows": "what the viewer sees", "seconds": 2.5 } ],
   "score": { "genre": "one of ${GENRES.join(", ")}", "bpm": 110, "key": "C", "mode": "major or minor", "energy": [1, 1, 2] },
   "why_different": "how this differs from the recent films"
 }
@@ -55,6 +55,7 @@ Rules:
 - The brief is the boss: its subject, language, length, call to action and things to avoid. A brief in Indonesian gets Indonesian on-screen text.
 - Facts: every number, price, model name, feature or claim on screen must come from the brief or the FACTS in the message. Never invent clients, statistics, benchmarks, savings, testimonials or features. When unsure, show it as a metaphor, not a claim.
 - Beats: 4 to 8, ids b1, b2, ... in order. "says" is at most 7 words: one idea per beat, very little text at once. The last beat is the brand close: the brand name, its line and its URL, calm, held at least 3 seconds.
+- Voice: every beat has a voice-over line in the brief's language, at most 12 words, written as it is spoken: numbers, prices and symbols in words ("dua dolar", "five times"), names as they sound, the brand name at the END of a line (mid-sentence it gets mispronounced). The lines read as one script; the first names what this is. When the person records a voice, beats stretch to fit their lines; otherwise the lines time the picture and are not heard.
 - Length: the brief's target if it gives one; otherwise what the story needs (a punchy launch 12 to 20 s, a feature story 20 to 30 s, a tutorial up to 45 s). Beat seconds add up to it.
 - If the film is about a software product, at least one beat shows it being USED (a UI moment, code, a terminal), designed fresh for this film.
 - Brand colours may lead the palette (the message gives them when known), but the world and the metaphor must be new.
@@ -69,7 +70,9 @@ const KIT_DOC = `# @kit (import from "@kit"): the clock is required, the rest ar
 ## Clock
 - useFilm(): { fps (30), W, H, P (portrait), format, total, beats, beat(id), cue(c), brand, safe }
   - cue("b3") is the first frame of beat b3; "b3+0.4" / "b3-0.25" add or subtract seconds; "b3.end" is its end; "b3@0.5" is halfway through it; "end" is the last frame.
-  - beats[i] = { id, says, shows, start, end } in frames. brand = { name, url, logo (image URL or null), colors }. safe = the box to keep key content in.
+  - cue("b3:word") is the frame the voice-over says that word in beat b3 ("b3:word#2" its second time; offsets work too: "b3:word-0.1"). Use words that are literally in the beat's voice line (the timing tool lists them). Recorded lines give exact times; without a recording the times are estimates spread over the beat.
+  - beats[i] = { id, says, shows, voice, spoken, start, end, words: [{ text, at, end }] } in frames.
+  - Captions: when the voice-over is recorded, the film draws it as captions in the bottom band (outside \`safe\`). Style them to fit your palette with \`export const captionStyle = { bg, fg, hot, font }\`, or turn them off with \`export const captions = false\` only when your own type already shows every word. brand = { name, url, logo (image URL or null), colors }. safe = the box to keep key content in.
 - useCurrentFrame() from "remotion" is the frame. Everything is a pure function of it.
 
 ## Motion math
@@ -114,7 +117,7 @@ Do not re-read files you just wrote. Do not render frames you do not need.
 # Hard rules (checked; violations come back to you)
 1. Imports only from "react", "remotion", "@kit" and your own files in scene/ (relative). No other packages, assets, fetch, Date, Math.random (use seeded(n)), timers, window or document. Everything is a pure function of useCurrentFrame().
 2. scene/index.tsx exports \`default function Scene()\`, \`fonts\` (families from the list, with weights: { "Space Grotesk": ["500", "700"] }) and \`background\` (a CSS colour).
-3. Time everything with cue() on the beats: the viewer sees each beat's "says" during that beat. Use the beats' order and lengths as given.
+3. The voice-over is the clock. Time everything with cue(), and put every visual event on the word that names it (cue("b2:gateway")), so the viewer SEES what the voice SAYS at the moment it says it. Each beat shows its "says" during that beat. Use the beats' order and lengths as given.
 4. Facts: any number, price, model name or claim on screen must be in the brief or the FACTS. Do not invent features, statistics, clients or rankings.
 5. One format: W x H from useFilm(). Lay out for it (portrait: stack vertically, bigger type, content low-middle; landscape: use the width). Key content stays inside \`safe\`.
 6. Text never overflows: big lines go through <Fit> or fit(); long text wraps in a fixed width. Nothing touches the frame edge unless it deliberately bleeds off as a graphic.
