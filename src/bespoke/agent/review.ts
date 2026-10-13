@@ -54,6 +54,8 @@ export async function reviewFilm(o: {
   concept: Concept;
   facts: string;
   sandbox: Sandbox;
+  /** The person's product screenshots: the film's UI should match them. */
+  refs?: string[];
   signal?: AbortSignal;
 }): Promise<{ review: Review; usage: Usage; warnings: string[] }> {
   const tiles = reviewTiles(o.spec);
@@ -74,6 +76,10 @@ export async function reviewFilm(o: {
     ...tiles.flatMap((t, i): Part[] => [
       { type: "text", text: `${t.id}: frame ${t.frame}, ${t.label}` },
       { type: "image_url", image_url: { url: urls[i] } },
+    ]),
+    ...(o.refs ?? []).flatMap((url, i): Part[] => [
+      { type: "text", text: `REF ${i + 1}: the real product UI. Where the film shows this UI, check that it matches (layout, copy, colours); invented UI or data is "high".` },
+      { type: "image_url", image_url: { url } },
     ]),
   ];
   const r = await chatStep({ key: o.key, model: o.model, messages: [{ role: "system", content: o.system }, { role: "user", content: parts }], temperature: 0.2, maxTokens: 6000, json: true, signal: o.signal });

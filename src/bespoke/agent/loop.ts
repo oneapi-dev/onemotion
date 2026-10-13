@@ -20,7 +20,9 @@ const KEEP_IMAGE_MESSAGES = 2;
 const NUDGES = 2;
 
 function pruneImages(messages: Msg[]) {
-  const withImages = messages.flatMap((m, i) => (m.role === "user" && Array.isArray(m.content) && m.content.some((p) => p.type === "image_url") ? [i] : []));
+  // The task (the first user message) keeps its reference screenshots; only renders are pruned.
+  const task = messages.findIndex((m) => m.role === "user");
+  const withImages = messages.flatMap((m, i) => (i !== task && m.role === "user" && Array.isArray(m.content) && m.content.some((p) => p.type === "image_url") ? [i] : []));
   for (const i of withImages.slice(0, -KEEP_IMAGE_MESSAGES)) {
     const m = messages[i] as Extract<Msg, { role: "user" }>;
     m.content = (m.content as Part[]).map((p) => (p.type === "image_url" ? { type: "text", text: "[an earlier render, removed to save context; render again if you need it]" } : p));

@@ -6,7 +6,7 @@ import type { FilmFormat, FilmSpec } from "../film";
 import type { Sandbox } from "../host";
 import { recordFilmVoice, type FilmVoice } from "../voice";
 import { filmSpecOf, normalizeConcept, type Concept } from "./concept";
-import { chatStep, parseJson, type Msg } from "./llm";
+import { chatStep, parseJson, type Msg, type Part } from "./llm";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
 import { reviewFilm, type Review } from "./review";
 import { compile, sceneTools, type Workspace } from "./tools";
@@ -75,18 +75,26 @@ function factsOf(brief: string, site: SiteInfo | null, models: CatalogModel[]): 
 }
 
 /** The creative director's concept: one call. */
-async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; models: CatalogModel[]; recent: RecentFilm[]; signal?: AbortSignal }) {
+/** The person's product screenshots as message parts, each labelled as UI to remake faithfully. */
+const refParts = (refs: string[]): Part[] =>
+  refs.flatMap((url, i): Part[] => [
+    { type: "text", text: `REF ${i + 1}: a screenshot of the real product UI. Where the film shows this UI, remake it faithfully (layout, copy, colours) at a size that reads on a phone; never invent menu items or data it does not show.` },
+    { type: "image_url", image_url: { url } },
+  ]);
+
+async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; signal?: AbortSignal }) {
   const { concept: system } = await loadPrompts();
   const user = [
     `BRIEF:\n${o.brief || "(none: make a launch film for the website)"}`,
     `FACTS:\n${factsOf(o.brief, o.site, o.models)}`,
     o.site?.accent ? `BRAND COLOUR: ${o.site.accent}` : "",
     `RECENT FILMS (do not repeat their style, metaphor, world or music):\n${o.recent.length ? o.recent.map((r) => `- style "${r.style}", metaphor "${r.metaphor}", world "${r.world}", music ${r.genre}`).join("\n") : "(none)"}`,
+    o.refs?.length ? `The person gave ${o.refs.length} screenshot(s) of the real product (REF images below): build at least one beat around remaking it.` : "",
     "Return the concept JSON.",
   ]
     .filter(Boolean)
     .join("\n\n");
-  const r = await chatStep({ key: o.key, model: o.model, messages: [{ role: "system", content: system }, { role: "user", content: user }], temperature: 1, maxTokens: 8000, json: true, signal: o.signal });
+  const r = await chatStep({ key: o.key, model: o.model, messages: [{ role: "system", content: system }, { role: "user", content: o.refs?.length ? [{ type: "text", text: user }, ...refParts(o.refs)] : user }], temperature: 1, maxTokens: 8000, json: true, signal: o.signal });
   return { concept: normalizeConcept(parseJson(r.text)), usage: r.usage };
 }
 
@@ -104,6 +112,8 @@ export async function makeFilm(o: {
   models: CatalogModel[];
   recent: RecentFilm[];
   budgetUsd: number;
+  /** Screenshots of the real product, as image data URLs: UI the film remakes faithfully. */
+  refs?: string[];
   sandbox: () => Sandbox | null;
   /** The person's ElevenLabs key and voice, to record the voice-over before the scene is built. */
   voice?: FilmVoice & { apiKey: string };
@@ -147,7 +157,13 @@ export async function makeFilm(o: {
     { role: "system", content: system },
     {
       role: "user",
-      content: [`BRIEF:\n${o.brief}`, `FACTS (the only numbers and claims allowed on screen):\n${factsOf(o.brief, o.site, o.models)}`, `CONCEPT:\n${JSON.stringify({ ...concept, score: spec.score }, null, 1)}`, "Build the film in scene/. Start with `timing`."].join("\n\n"),
+      content: [
+        {
+          type: "text",
+          text: [`BRIEF:\n${o.brief}`, `FACTS (the only numbers and claims allowed on screen):\n${factsOf(o.brief, o.site, o.models)}`, `CONCEPT:\n${JSON.stringify({ ...concept, score: spec.score }, null, 1)}`, "Build the film in scene/. Start with `timing`."].join("\n\n"),
+        },
+        ...refParts(o.refs ?? []),
+      ],
     },
   ];
   const tools = sceneTools(ws, sandbox, () => push({}), o.signal);
@@ -164,7 +180,7 @@ export async function makeFilm(o: {
       ws.dirty = false;
     }
     say({ kind: "tool", text: `review ${round}: the art director is looking at the frames` });
-    const { review, usage: used } = await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: ws.modules, concept, facts, sandbox, signal: o.signal });
+    const { review, usage: used } = await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: ws.modules, concept, facts, sandbox, refs: o.refs, signal: o.signal });
     push({ spend: addUsage(film.spend, used, price), reviews: [...film.reviews, review] });
     say({ kind: "say", text: `Review ${round}: ${review.score}/10${review.pass ? ", ready to ship" : ""}. ${review.summary}` });
     const todo = review.issues.filter((i) => i.severity !== "low");

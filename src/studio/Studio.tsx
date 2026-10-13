@@ -12,6 +12,7 @@ import { filmTiming } from "@/bespoke/timing";
 import type { Sandbox } from "@/bespoke/host";
 import { makeFilm, type FilmState, type RecentFilm } from "@/bespoke/agent/run";
 import { storedFilmVoice } from "@/bespoke/voice";
+import { scaled } from "@/bespoke/agent/images";
 import { Editor } from "./Editor";
 import { FilmStage } from "./FilmStage";
 import { SettingsDialog } from "./Settings";
@@ -49,6 +50,8 @@ const ARCHETYPE: Record<Plan["archetype"], string> = {
 };
 
 type Stage = "site" | "design" | "voice" | "film" | null;
+/** Product screenshots a bespoke video may remake: each costs the model an image on every step. */
+const MAX_REFS = 4;
 /** Bespoke: the model writes this video's own code (the default). Quick: the director fills a template plan. */
 type Mode = "bespoke" | "plan";
 type PlanProject = Project & { plan: Plan };
@@ -101,6 +104,8 @@ export function Studio() {
   }, []);
   const onFilmError = useCallback((m: string) => setError(`The preview hit an error: ${m}`), []);
   const running = useRef<AbortController | null>(null);
+  // Screenshots of the real product for a bespoke video, as image data URLs.
+  const [refs, setRefs] = useState<string[]>([]);
   // A bespoke video's recorded voice-over lines, by beat.
   const [filmClips, setFilmClips] = useState<{ projectId: string; clips: Record<number, Blob> } | null>(null);
 
@@ -305,6 +310,7 @@ export function Studio() {
           models,
           recent,
           budgetUsd: settings.budgetUsd ?? DEFAULT_BUDGET_USD,
+          refs,
           sandbox: () => sandbox.current,
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName } : undefined,
           onVoice: (clips) => setFilmClips({ projectId: base.id, clips }),
@@ -320,7 +326,7 @@ export function Studio() {
         setStage(null);
       }
     },
-    [ready, projects, format, tone, settings, models, findSite],
+    [ready, projects, format, tone, settings, models, findSite, refs],
   );
 
   function submit(e: FormEvent) {
@@ -419,6 +425,36 @@ export function Studio() {
               <span>Website, if there is one</span>
               <input type="text" inputMode="url" spellCheck={false} value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourbrand.com" disabled={Boolean(stage)} />
             </label>
+            {mode === "bespoke" ? (
+              <div className="field">
+                <span>Screenshots of your product, if you want its real UI in the video</span>
+                <div className="refs">
+                  {refs.map((url, i) => (
+                    <button key={i} type="button" className="ref" title="Remove" onClick={() => setRefs((r) => r.filter((_, k) => k !== i))} disabled={Boolean(stage)}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt={`Screenshot ${i + 1}`} />
+                    </button>
+                  ))}
+                  {refs.length < MAX_REFS ? (
+                    <label className="ref add">
+                      +
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        multiple
+                        disabled={Boolean(stage)}
+                        onChange={async (e) => {
+                          const files = [...(e.target.files ?? [])].slice(0, MAX_REFS - refs.length);
+                          e.target.value = "";
+                          const urls = await Promise.all(files.map((f) => scaled(f, 1280).catch(() => null)));
+                          setRefs((r) => [...r, ...urls.filter((u): u is string => Boolean(u))].slice(0, MAX_REFS));
+                        }}
+                      />
+                    </label>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             <div className="row wrap">
               <div className="seg" role="radiogroup" aria-label="Video size">
                 {FORMATS.map((f) => (
