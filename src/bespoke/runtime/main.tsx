@@ -8,6 +8,7 @@ import type { FilmInput } from "../film";
 import { FILM_FPS } from "../timing";
 import { FilmComposition, filmFrames } from "./FilmComposition";
 import type { FromSandbox, ToSandbox, WireFilm } from "./protocol";
+import { qaWarnings } from "./qa";
 
 /**
  * The sandbox: runs a scene the model wrote, away from the Studio. This page
@@ -44,9 +45,9 @@ const message = (err: unknown) => (err instanceof Error ? err.message : String(e
 const jobs = new Map<string, AbortController>();
 
 async function stills(id: string, film: WireFilm, frames: number[], quality: number) {
-  const input = toInput(film);
+  const input = { ...toInput(film), qa: true };
   const comp = composition(input);
-  const warnings: string[] = [];
+  qaWarnings.length = 0;
   const images: Blob[] = [];
   const ctrl = new AbortController();
   jobs.set(id, ctrl);
@@ -56,7 +57,7 @@ async function stills(id: string, film: WireFilm, frames: number[], quality: num
       const still = await renderStillOnWeb({ composition: comp, inputProps: input, frame: f, signal: ctrl.signal, delayRenderTimeoutInMilliseconds: 120_000 });
       images.push(await still.blob({ format: "jpeg", quality }));
     }
-    post({ type: "stills", id, images, warnings });
+    post({ type: "stills", id, images, warnings: [...new Set(qaWarnings)].slice(0, 30) });
   } catch (err) {
     post({ type: "failed", id, message: message(err) });
   } finally {

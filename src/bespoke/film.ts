@@ -17,6 +17,8 @@ export type FilmInput = {
   spec: FilmSpec;
   modules: Record<string, string>;
   voiceover?: Record<number, string>;
+  /** A still rendered for the model: run the automated QA on it. */
+  qa?: boolean;
 };
 
 /** The module every scene starts from. */

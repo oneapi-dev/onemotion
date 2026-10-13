@@ -46,6 +46,20 @@ describe("checkScene", () => {
     expect(r.errors.some((e) => e.startsWith("scene/index.tsx:"))).toBe(true);
   });
 
+  it("flags numbers on screen that the facts do not state", { timeout: 60_000 }, () => {
+    const scene = minimal("", "").replace("return <AbsoluteFill />;", 'return <AbsoluteFill><div style={{ fontSize: 120 }}>Save 87% today</div><div>{"Step 3"}</div></AbsoluteFill>;');
+    const r = checkScene({ "scene/index.tsx": scene }, "OneAPI: one key for every model.");
+    expect(r.ok).toBe(false);
+    expect(r.errors.join("\n")).toMatch(/shows 87, which is not in the facts/);
+    expect(r.errors.join("\n")).not.toMatch(/shows 120/);
+    expect(checkScene({ "scene/index.tsx": scene }, "Save 87% on every request.").ok).toBe(true);
+  });
+
+  it("passes the example when its model names are in the facts", { timeout: 60_000 }, () => {
+    const facts = "Models on OneAPI: claude-sonnet-5.5, gpt-6.1-sol, gemini-3.8-flash, deepseek-v4.1-flash. Base URL https://api.oneapi.id/v1";
+    expect(checkScene(example("gateway"), facts).errors).toEqual([]);
+  });
+
   it("refuses paths outside scene/", () => {
     const r = checkScene({ "scene/index.tsx": minimal(""), "../evil.ts": "" });
     expect(r.ok).toBe(false);

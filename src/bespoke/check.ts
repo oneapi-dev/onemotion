@@ -2,6 +2,7 @@ import "server-only";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { factNumbers, unknownNumbers } from "./facts";
 import { SCENE_ENTRY } from "./film";
 
 /**
@@ -25,7 +26,12 @@ export type CheckResult = { ok: boolean; errors: string[]; modules: Record<strin
 
 const virtual = (file: string) => path.join(ROOT, "__scene__", file);
 
-export function checkScene(files: Record<string, string>): CheckResult {
+/**
+ * `facts`, when given, is everything the film may state (the brief, the
+ * website's words, real model names and prices): a number on screen that is
+ * not in it is an error.
+ */
+export function checkScene(files: Record<string, string>, facts?: string): CheckResult {
   const errors: string[] = [];
   const names = Object.keys(files);
   if (!names.length) return { ok: false, errors: [`${SCENE_ENTRY} does not exist yet`], modules: {} };
@@ -37,7 +43,8 @@ export function checkScene(files: Record<string, string>): CheckResult {
   if (files[SCENE_ENTRY] === undefined) errors.push(`${SCENE_ENTRY} does not exist yet`);
   if (errors.length) return { ok: false, errors, modules: {} };
 
-  for (const n of names) errors.push(...rules(n, files[n], files));
+  const known = facts === undefined ? null : factNumbers(facts);
+  for (const n of names) errors.push(...rules(n, files[n], files, known));
   const entry = files[SCENE_ENTRY];
   if (!/export\s+default\s/.test(entry)) errors.push(`${SCENE_ENTRY}: missing \`export default function Scene()\``);
   if (!/export\s+const\s+fonts\s*=/.test(entry)) errors.push(`${SCENE_ENTRY}: missing \`export const fonts = { ... }\``);
@@ -56,7 +63,12 @@ export function checkScene(files: Record<string, string>): CheckResult {
   return { ok: true, errors: [], modules };
 }
 
-function rules(name: string, src: string, files: Record<string, string>): string[] {
+/** Text that is style or geometry, not words a viewer reads. */
+const CSSY = /(px|em\b|rem|deg|vh|vw|rgba?\(|hsla?\(|#[0-9a-f]{3,8}\b|translate|rotate|scale\(|blur\(|cubic|gradient|^\s*[MmLlCcQqAaZz][\s\d.,-]|url\(|var\(--|ms\b|^\d+(\.\d+)?%$|^-?\d+(\.\d+)?$|^b\d+([.@+-]|$))/i;
+const STYLE_PROPS = /^(fontFamily|font|transform|transformOrigin|filter|background|backgroundImage|color|fill|stroke|d|points|viewBox|fontWeight|clipPath|boxShadow|id|key|gridTemplateColumns|gridTemplateRows|transition|animation|border\w*|padding|margin|inset|width|height|left|top|right|bottom|letterSpacing|lineHeight|textShadow|name|kind|mode|format)$/;
+const VISIBLE_ATTRS = /^(text|label|title|caption|value|body|alt|placeholder|children|heading|subtitle|kicker|badge|cta|url)$/;
+
+function rules(name: string, src: string, files: Record<string, string>, known: Set<string> | null): string[] {
   const out: string[] = [];
   const sf = ts.createSourceFile(name, src, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const at = (n: ts.Node) => `${name}:${sf.getLineAndCharacterOfPosition(n.getStart()).line + 1}`;
@@ -76,6 +88,18 @@ function rules(name: string, src: string, files: Record<string, string>): string
       if (!isName) out.push(`${at(n)}: "${n.text}" is not available in a scene (everything is a pure function of the frame)`);
     }
     if (ts.isElementAccessExpression(n) && /^(window|globalThis|self)$/.test(n.expression.getText())) out.push(`${at(n)}: global lookups are not allowed`);
+    if (known && n.parent) {
+      let text: string | null = null;
+      if (ts.isJsxText(n)) text = n.getText();
+      else if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n)) text = n.text;
+      const p = n.parent;
+      const styleLike =
+        (ts.isStringLiteral(n) && ((ts.isPropertyAssignment(p) && STYLE_PROPS.test(p.name.getText())) || (ts.isJsxAttribute(p) && !VISIBLE_ATTRS.test(p.name.getText())) || ts.isImportDeclaration(p) || ts.isExportDeclaration(p))) ||
+        (ts.isCallExpression(p) && /(^|\.)cue$/.test(p.expression.getText()));
+      if (text && text.trim() && !CSSY.test(text.trim()) && !styleLike) {
+        for (const num of unknownNumbers(text, known)) out.push(`${at(n)}: on-screen text "${text.trim().slice(0, 40)}" shows ${num}, which is not in the facts`);
+      }
+    }
     ts.forEachChild(n, visit);
   };
   visit(sf);

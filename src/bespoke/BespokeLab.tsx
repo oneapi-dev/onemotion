@@ -63,6 +63,7 @@ export default function BespokeLab() {
     try {
       const r = await box.current.stills(film, frames);
       setStills(r.images.map((b, i) => ({ frame: frames[i], url: URL.createObjectURL(b) })));
+      setErrors(r.warnings.map((w) => `qa: ${w}`));
       setStatus(`${frames.length} stills in ${((performance.now() - t0) / 1000).toFixed(1)} s.`);
     } catch (e) {
       setErrors((x) => [...x, `stills: ${e instanceof Error ? e.message : String(e)}`]);

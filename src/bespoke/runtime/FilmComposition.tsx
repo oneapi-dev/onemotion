@@ -1,6 +1,6 @@
 import { Audio } from "@remotion/media";
 import * as React from "react";
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as JSXRuntime from "react/jsx-runtime";
 import * as Remotion from "remotion";
 import { AbsoluteFill, Sequence, useDelayRender } from "remotion";
@@ -14,6 +14,7 @@ import { FilmProvider, makeCue, type Film } from "../kit/film";
 import { loadFonts } from "../kit/fonts";
 import { FILM_FPS, VOICE_LEAD, filmTiming } from "../timing";
 import { loadScene } from "./modules";
+import { QaProbe } from "./qa";
 
 /** A module namespace as CommonJS code expects it (transpiled `import x from` reads `.default`). */
 const cjs = (ns: object) => Object.assign({ __esModule: true }, ns, { default: (ns as { default?: unknown }).default ?? ns });
@@ -31,7 +32,8 @@ export const filmFrames = (input: FilmInput) => filmTiming(input.spec.beats, inp
  * fonts (loaded before the first frame, since text is measured), the music
  * composed for its beats and the voice-over.
  */
-export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover }) => {
+export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover, qa }) => {
+  const root = useRef<HTMLDivElement>(null);
   const scene = useMemo(() => loadScene(modules, EXTERNALS), [modules]);
   const { width: W, height: H } = DIMENSIONS[spec.format];
   const { timing, beats } = useMemo(() => filmTiming(spec.beats, spec.score), [spec.beats, spec.score]);
@@ -55,12 +57,13 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover 
   const ready = useFonts(scene.fonts ?? {});
   const Scene = scene.default;
   return (
-    <AbsoluteFill style={{ background: scene.background ?? "#ffffff", overflow: "hidden" }}>
+    <AbsoluteFill ref={root} style={{ background: scene.background ?? "#ffffff", overflow: "hidden" }}>
       {ready ? (
         <FilmProvider value={film}>
           <Scene />
         </FilmProvider>
       ) : null}
+      {ready ? <QaProbe root={root} width={W} on={Boolean(qa)} /> : null}
       <FilmSound input={{ spec, modules, voiceover }} timing={timing} />
     </AbsoluteFill>
   );

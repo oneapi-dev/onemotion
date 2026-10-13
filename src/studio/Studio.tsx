@@ -510,8 +510,11 @@ export function Studio() {
                       `${film.spec.score.genre} music`,
                       `${Math.round(filmTiming(film.spec.beats, film.spec.score).timing.total / 30)}s`,
                       film.status === "building" ? "building" : film.status === "done" ? "finished" : film.status === "stopped" ? "stopped early" : "failed",
+                      film.reviews?.length ? `art director ${film.reviews[film.reviews.length - 1].score}/10` : "",
                       film.spend.usd ? `$${film.spend.usd.toFixed(2)} on your key` : `${Math.round((film.spend.input + film.spend.output) / 1000)}k tokens`,
-                    ].join("  ·  ")}
+                    ]
+                      .filter(Boolean)
+                      .join("  ·  ")}
                   </p>
                 ) : null}
               </div>

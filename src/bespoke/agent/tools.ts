@@ -12,6 +12,8 @@ export type AgentTool = { name: string; description: string; parameters: Record<
 /** The scene being built: its files, and the compiled modules of the last version that passed the check. */
 export type Workspace = {
   spec: FilmSpec;
+  /** Everything the film may state: a number on screen that is not in here fails the check. */
+  facts: string;
   files: Record<string, string>;
   modules: Record<string, string> | null;
   /** Files changed since the last check. */
@@ -21,8 +23,8 @@ export type Workspace = {
 export type CheckResult = { ok: boolean; errors: string[]; modules: Record<string, string> };
 
 /** Checks and compiles the files on the server. */
-export async function compile(files: Record<string, string>, signal?: AbortSignal): Promise<CheckResult> {
-  const res = await fetch("/api/scene/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ files }), signal });
+export async function compile(files: Record<string, string>, facts: string, signal?: AbortSignal): Promise<CheckResult> {
+  const res = await fetch("/api/scene/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ files, facts }), signal });
   const body = (await res.json().catch(() => null)) as (CheckResult & { error?: string }) | null;
   if (!res.ok || !body) throw new Error(body?.error ?? `The check failed (${res.status}).`);
   return body;
@@ -56,7 +58,7 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
   /** Compiles when files changed; the preview follows every version that passes. */
   const ensure = async (): Promise<string | null> => {
     if (!ws.dirty && ws.modules) return null;
-    const r = await compile(ws.files, signal);
+    const r = await compile(ws.files, ws.facts, signal);
     if (!r.ok) return `Not rendered. Fix these first:\n- ${r.errors.join("\n- ")}`;
     ws.modules = r.modules;
     ws.dirty = false;
@@ -144,7 +146,7 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
       description: "Run the scene rules (imports, determinism) and the TypeScript compiler. A passing scene shows in the live preview.",
       parameters: { type: "object", properties: {} },
       run: async () => {
-        const r = await compile(ws.files, signal);
+        const r = await compile(ws.files, ws.facts, signal);
         if (!r.ok) return { text: `${r.errors.length} problem(s):\n- ${r.errors.join("\n- ")}` };
         ws.modules = r.modules;
         ws.dirty = false;

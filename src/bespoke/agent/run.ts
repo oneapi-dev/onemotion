@@ -1,12 +1,13 @@
 "use client";
 
-import { describeModel, matchModels } from "@/director/facts";
+import { describeModel, matchModels, mentions } from "@/director/facts";
 import type { CatalogModel, SiteInfo } from "@/director/input";
 import type { FilmFormat, FilmSpec } from "../film";
 import type { Sandbox } from "../host";
 import { filmSpecOf, normalizeConcept, type Concept } from "./concept";
 import { chatStep, parseJson, type Msg } from "./llm";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
+import { reviewFilm, type Review } from "./review";
 import { compile, sceneTools, type Workspace } from "./tools";
 
 /** A film being made or made: what the Studio keeps of a bespoke run. */
@@ -20,6 +21,8 @@ export type FilmState = {
   summary: string;
   spend: Spend;
   log: AgentEvent[];
+  /** The art director's reviews, oldest first. */
+  reviews: Review[];
 };
 
 /** What a recent film was, so the next one is different. */
@@ -27,13 +30,17 @@ export type RecentFilm = { style: string; metaphor: string; world: string; genre
 
 export const NO_SPEND: Spend = { input: 0, output: 0, cached: 0, usd: 0 };
 const MAX_STEPS = 18;
+/** Review rounds after the build, and the steps the agent gets to fix each one. */
+const MAX_REVIEWS = 2;
+const REVISE_STEPS = 8;
 const MAX_LOG = 200;
 
-let prompts: Promise<{ concept: string; agent: string }> | null = null;
+type Prompts = { concept: string; agent: string; review: string };
+let prompts: Promise<Prompts> | null = null;
 const loadPrompts = () => {
   prompts ??= fetch("/api/scene/prompt").then((r) => {
     if (!r.ok) throw new Error("The studio's prompts could not be loaded.");
-    return r.json() as Promise<{ concept: string; agent: string }>;
+    return r.json() as Promise<Prompts>;
   });
   prompts.catch(() => (prompts = null));
   return prompts;
@@ -46,9 +53,13 @@ export const priceOf = (models: CatalogModel[], id: string): Price => {
   return m && Number.isFinite(input) && Number.isFinite(output) ? { input, output } : null;
 };
 
-/** What the film may state: the website's own words and the real models a brief names. */
+/** What the film may state: the website's own words, the real models a brief names, and OneAPI's catalog when the film is about OneAPI. */
 function factsOf(brief: string, site: SiteInfo | null, models: CatalogModel[]): string {
   const lines: string[] = [];
+  if (mentions(brief, "oneapi") || site?.domain.endsWith("oneapi.id")) {
+    const chat = models.filter((m) => m.capabilities.includes("Chat")).map((m) => m.id);
+    if (chat.length) lines.push(`Models available on OneAPI: ${chat.join(", ")}.`, "OneAPI's API base URL: https://api.oneapi.id/v1 (OpenAI-compatible chat completions).");
+  }
   if (site) {
     lines.push(`Website ${site.domain}: "${site.title}". ${site.description}`);
     for (const h of site.headings.slice(0, 8)) lines.push(`- heading: ${h}`);
@@ -98,17 +109,19 @@ export async function makeFilm(o: {
   const price = priceOf(o.models, o.model);
   const { concept, usage } = await makeConcept(o);
   const spec = filmSpecOf(concept, o.format, o.site, Math.floor(Math.random() * 1e6));
-  let film: FilmState = { concept, spec, files: {}, modules: null, status: "building", summary: "", spend: addUsage(NO_SPEND, usage, price), log: [] };
+  let film: FilmState = { concept, spec, files: {}, modules: null, status: "building", summary: "", spend: addUsage(NO_SPEND, usage, price), log: [], reviews: [] };
   o.onConcept(film);
 
   const sandbox = o.sandbox();
   if (!sandbox) throw new Error("The preview is not ready.");
-  const ws: Workspace = { spec, files: {}, modules: null, dirty: false };
+  const facts = `${o.brief}\n${factsOf(o.brief, o.site, o.models)}`;
+  const ws: Workspace = { spec, facts, files: {}, modules: null, dirty: false };
   const push = (patch: Partial<FilmState>) => {
     film = { ...film, files: { ...ws.files }, modules: ws.modules, ...patch };
     o.update(film);
   };
-  const { agent: system } = await loadPrompts();
+  const { agent: system, review: reviewSystem } = await loadPrompts();
+  const say = (e: AgentEvent) => push({ log: [...film.log, e].slice(-MAX_LOG) });
   const messages: Msg[] = [
     { role: "system", content: system },
     {
@@ -116,21 +129,33 @@ export async function makeFilm(o: {
       content: [`BRIEF:\n${o.brief}`, `FACTS (the only numbers and claims allowed on screen):\n${factsOf(o.brief, o.site, o.models)}`, `CONCEPT:\n${JSON.stringify({ ...concept, score: spec.score }, null, 1)}`, "Build the film in scene/. Start with `timing`."].join("\n\n"),
     },
   ];
-  const r = await runAgent({
-    key: o.key,
-    model: o.model,
-    messages,
-    tools: sceneTools(ws, sandbox, () => push({}), o.signal),
-    maxSteps: MAX_STEPS,
-    budgetUsd: o.budgetUsd,
-    price,
-    spend: film.spend,
-    onEvent: (e) => push({ log: [...film.log, e].slice(-MAX_LOG) }),
-    onStep: (_, spend) => push({ spend }),
-    signal: o.signal,
-  });
+  const tools = sceneTools(ws, sandbox, () => push({}), o.signal);
+  const agent = (maxSteps: number) =>
+    runAgent({ key: o.key, model: o.model, messages, tools, maxSteps, budgetUsd: o.budgetUsd, price, spend: film.spend, onEvent: say, onStep: (_, spend) => push({ spend }), signal: o.signal });
+  let r = await agent(MAX_STEPS);
+
+  // The art director looks with fresh eyes; the same agent session fixes what it finds.
+  for (let round = 1; round <= MAX_REVIEWS && r.summary !== "budget reached" && !o.signal?.aborted; round++) {
+    if (ws.dirty || !ws.modules) {
+      const c = await compile(ws.files, facts, o.signal);
+      if (!c.ok) break;
+      ws.modules = c.modules;
+      ws.dirty = false;
+    }
+    say({ kind: "tool", text: `review ${round}: the art director is looking at the frames` });
+    const { review, usage: used } = await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: ws.modules, concept, facts, sandbox, signal: o.signal });
+    push({ spend: addUsage(film.spend, used, price), reviews: [...film.reviews, review] });
+    say({ kind: "say", text: `Review ${round}: ${review.score}/10${review.pass ? ", ready to ship" : ""}. ${review.summary}` });
+    const todo = review.issues.filter((i) => i.severity !== "low");
+    if (review.pass || !todo.length || round === MAX_REVIEWS) break;
+    messages.push({
+      role: "user",
+      content: `The art director reviewed rendered frames of your film with fresh eyes (score ${review.score}/10). Fix these, keep what works, check your fixes with renders, then call finish:\n${todo.map((i) => `- [${i.severity}] ${i.tile ?? ""} ${i.problem} -> ${i.fix}`).join("\n")}`,
+    });
+    r = await agent(REVISE_STEPS);
+  }
   // Whatever the agent did, the film is the last version that passes the check.
-  const final = await compile(ws.files, o.signal);
+  const final = await compile(ws.files, facts, o.signal);
   if (final.ok) ws.modules = final.modules;
   const ok = Boolean(ws.modules);
   push({
