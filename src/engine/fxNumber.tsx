@@ -25,6 +25,8 @@ export function odometerPositions(value: string, frame: number, start: number, e
 }
 
 const STRIP = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
+/** Room on each side of a clipped letter for ink that reaches past its advance. */
+export const BLEED = 0.12;
 
 function Odometer({ value, f, start, end }: { value: string; f: number; start: number; end: number }) {
   const pos = odometerPositions(value, f, start, end);
@@ -35,7 +37,8 @@ function Odometer({ value, f, start, end }: { value: string; f: number; start: n
         if (!/\d/.test(c)) return <span key={i}>{c}</span>;
         const y = pos[col++];
         return (
-          <span key={i} style={{ position: "relative", display: "inline-block", overflow: "hidden", height: "1em" }}>
+          // The clip is wider than the digit's advance: display type's negative tracking would otherwise shave its right edge.
+          <span key={i} style={{ position: "relative", display: "inline-block", overflow: "hidden", height: "1em", padding: `0 ${BLEED}em`, margin: `0 -${BLEED}em` }}>
             <span style={{ opacity: 0 }}>{c}</span>
             <span style={{ position: "absolute", left: 0, right: 0, top: 0, display: "flex", flexDirection: "column", alignItems: "center", transform: `translateY(${-y}em)` }}>
               {STRIP.map((d, k) => (

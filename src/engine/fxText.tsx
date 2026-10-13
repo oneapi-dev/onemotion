@@ -107,7 +107,7 @@ export const CharText: React.FC<CharTextProps> = ({ kind, text, size, at, align 
       case "rolling": {
         const p = spring({ frame: f - i * 1, fps, config: { damping: 12, stiffness: 170, mass: 0.6 } });
         return (
-          <span style={{ ...base, overflow: "hidden", paddingBottom: "0.12em", marginBottom: "-0.12em", verticalAlign: "top" }}>
+          <span style={{ ...base, overflow: "hidden", padding: "0 0.12em 0.12em", margin: "0 -0.12em -0.12em", verticalAlign: "top" }}>
             <span style={{ display: "inline-block", transform: `translateY(${interpolate(p, [0, 1], [115, 0], clamp)}%)`, color: accent ? look.accentA : undefined }}>{c}</span>
           </span>
         );
