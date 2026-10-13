@@ -75,7 +75,7 @@ export function Lab() {
       <header className="top">
         <div className="brand">
           <span className="wordmark">Music lab</span>
-          <span className="by">Motion by OneAPI</span>
+          <span className="by">OneMotion</span>
         </div>
         <Link className="btn ghost small" href="/">
           Back to the studio

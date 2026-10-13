@@ -1,4 +1,4 @@
-# Motion by OneAPI
+# OneMotion
 
 Describe a video in one sentence ("MiMo V2.6 is now on OneAPI", "a 20 second promo for acme.com"). An AI director plans the video: the story, the scenes, the words on screen, the room, the camera path and the music. Your browser then renders it to an MP4. No render server is needed.
 

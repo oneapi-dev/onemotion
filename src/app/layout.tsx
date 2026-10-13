@@ -7,7 +7,7 @@ import "./globals.css";
 const ui = Manrope({ subsets: ["latin"], variable: "--font-ui", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Motion by OneAPI",
+  title: "OneMotion",
   description: "Describe a video in a sentence. An AI director designs it, your browser renders the MP4. Open source, powered by OneAPI.",
 };
 

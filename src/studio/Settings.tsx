@@ -98,7 +98,7 @@ export function SettingsDialog({
       >
         <h2 id="settings-title">Settings</h2>
         <p className="muted">
-          Motion designs each video with a model on OneAPI, billed to your own OneAPI key like any API call. The key stays in this
+          OneMotion designs each video with a model on OneAPI, billed to your own OneAPI key like any API call. The key stays in this
           browser.
         </p>
         <label className="field">

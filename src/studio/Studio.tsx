@@ -263,7 +263,7 @@ export function Studio() {
     <div className="app">
       <header className="top">
         <div className="brand">
-          <span className="wordmark">Motion</span>
+          <span className="wordmark">OneMotion</span>
           <span className="by">
             by{" "}
             <a href="https://oneapi.id" target="_blank" rel="noreferrer">
