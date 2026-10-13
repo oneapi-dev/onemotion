@@ -1,4 +1,4 @@
-import { Cursor, Draw, Ink, Mark, Sfx, Strike, Typewriter, Window, kf, path, pointAt, pop, prog, useFilm, type Stroke } from "@kit";
+import { Annotate, Cursor, Draw, Ink, Mark, Sfx, Strike, Typewriter, Window, kf, path, pointAt, pop, prog, useFilm, type Stroke } from "@kit";
 import { INK } from "./palette";
 
 /** The whole sketch, in world pixels (the camera in index.tsx flies over it). */
@@ -53,10 +53,9 @@ export const World = ({ t, accent }: { t: number; accent: string }) => {
       { d: path.rect(MX, MY(i), MW, MH, 16), at: b3 + i * 4, dur: 12, width: 5, fill: "#ffffff" },
       { d: ROUTE[i], at: b3 + 6 + i * 4, dur: 12, width: 5, arrow: true },
     ]),
-    // The switch: the old model crossed out, the new one circled.
+    // The switch: the old model crossed out (its label is circled below, with Annotate, so the loop fits the text).
     { d: path.line(MX - 20, MY(0) - 10, MX + MW + 20, MY(0) + MH + 10), at: switchAt - 4, dur: 7, width: 10, color: accent },
     { d: path.line(MX + MW + 20, MY(0) - 10, MX - 20, MY(0) + MH + 10), at: switchAt + 2, dur: 7, width: 10, color: accent },
-    { d: path.ellipse(MX + MW / 2, MY(1) + MH / 2, MW * 0.62, MH * 0.85), at: switchAt + 8, dur: 16, width: 7, color: accent },
     { d: path.curve(CODE.x + 400, CODE.y, APP.x + APP.w / 2, APP.y + APP.h, 60), at: b4 - 6, dur: 12, width: 4, dash: [14, 12], color: "#555" },
   ];
 
@@ -82,7 +81,14 @@ export const World = ({ t, accent }: { t: number; accent: string }) => {
       </div>
       {MODELS.map((m, i) => (
         <Label key={m} x={MX} y={MY(i)} w={MW} h={MH} size={40} font="JetBrains Mono" show={prog(t, b3 + 8 + i * 4, b3 + 16 + i * 4) * (i === 0 ? 1 - 0.55 * prog(t, switchAt, switchAt + 8) : 1)}>
-          {m}
+          {i === 1 ? (
+            // Annotate measures the label it wraps: the loop fits it whatever the font or the name.
+            <Annotate kind="circle" at={switchAt + 8} color={accent} width={7}>
+              {m}
+            </Annotate>
+          ) : (
+            m
+          )}
         </Label>
       ))}
 
