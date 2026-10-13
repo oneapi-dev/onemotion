@@ -1,0 +1,12 @@
+{
+  "format": "landscape",
+  "brand": { "name": "OneAPI", "url": "oneapi.id", "logo": null, "colors": ["#FF4F1F"] },
+  "score": { "genre": "house", "bpm": 120, "seed": 7 },
+  "beats": [
+    { "id": "b1", "says": "AI infrastructure gets complicated.", "shows": "providers, SDKs and keys sketched everywhere, tangled lines from the app", "seconds": 3.0 },
+    { "id": "b2", "says": "One gateway.", "shows": "the mess wipes away; one gateway box, one clean line from the app", "seconds": 2.4 },
+    { "id": "b3", "says": "Many models.", "shows": "routes branch from the gateway to model nodes; requests flow as dots", "seconds": 2.6 },
+    { "id": "b4", "says": "Connect once. Switch freely.", "shows": "the app's code: the model string is struck out and changed; the old node crossed out, requests reroute", "seconds": 3.4 },
+    { "id": "b5", "says": "One key. Many models.", "shows": "zoom out on the whole sketch, clear to paper, the brand lockup", "seconds": 3.2 }
+  ]
+}

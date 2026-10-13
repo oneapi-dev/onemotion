@@ -1,0 +1,144 @@
+import "server-only";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import ts from "typescript";
+import { SCENE_ENTRY } from "./film";
+
+/**
+ * The gate a scene passes before any browser runs it: path and size limits,
+ * the scene rules (imports, determinism, no network or storage), its exports,
+ * a real typecheck against the kit, then a transpile to CommonJS modules for
+ * the sandbox. The rules are a lint that keeps scenes deterministic; the
+ * sandbox iframe, not this, is the security boundary.
+ */
+
+const ROOT = process.cwd();
+const KIT = path.join(ROOT, "src", "bespoke", "kit", "index.ts");
+const MAX_FILES = 30;
+const MAX_FILE_BYTES = 80_000;
+const PATH_OK = /^scene\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.tsx?$/;
+const IMPORTS = new Set(["react", "remotion", "@kit"]);
+/** Globals a scene has no use for: time, randomness, network, storage, timers, the page itself. */
+const FORBIDDEN = new Set(["Date", "fetch", "XMLHttpRequest", "WebSocket", "EventSource", "localStorage", "sessionStorage", "indexedDB", "eval", "Function", "setTimeout", "setInterval", "requestAnimationFrame", "globalThis", "window", "self", "parent", "top", "document", "navigator", "importScripts", "Worker", "require", "process", "location", "caches", "cookieStore"]);
+
+export type CheckResult = { ok: boolean; errors: string[]; modules: Record<string, string> };
+
+const virtual = (file: string) => path.join(ROOT, "__scene__", file);
+
+export function checkScene(files: Record<string, string>): CheckResult {
+  const errors: string[] = [];
+  const names = Object.keys(files);
+  if (!names.length) return { ok: false, errors: [`${SCENE_ENTRY} does not exist yet`], modules: {} };
+  if (names.length > MAX_FILES) errors.push(`${names.length} files: keep the scene to ${MAX_FILES} or fewer`);
+  for (const n of names) {
+    if (!PATH_OK.test(n) || n.includes("..")) errors.push(`${n}: files live in scene/ and end in .tsx or .ts`);
+    else if (Buffer.byteLength(files[n]) > MAX_FILE_BYTES) errors.push(`${n}: over ${MAX_FILE_BYTES / 1000} kB; split it into smaller components`);
+  }
+  if (files[SCENE_ENTRY] === undefined) errors.push(`${SCENE_ENTRY} does not exist yet`);
+  if (errors.length) return { ok: false, errors, modules: {} };
+
+  for (const n of names) errors.push(...rules(n, files[n], files));
+  const entry = files[SCENE_ENTRY];
+  if (!/export\s+default\s/.test(entry)) errors.push(`${SCENE_ENTRY}: missing \`export default function Scene()\``);
+  if (!/export\s+const\s+fonts\s*=/.test(entry)) errors.push(`${SCENE_ENTRY}: missing \`export const fonts = { ... }\``);
+  if (!/export\s+const\s+background\s*=/.test(entry)) errors.push(`${SCENE_ENTRY}: missing \`export const background = "#..."\``);
+  errors.push(...typecheck(files));
+  const unique = [...new Set(errors)].slice(0, 40);
+  if (unique.length) return { ok: false, errors: unique, modules: {} };
+
+  const modules: Record<string, string> = {};
+  for (const n of names) {
+    modules[n] = ts.transpileModule(files[n], {
+      fileName: n,
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true, isolatedModules: true },
+    }).outputText;
+  }
+  return { ok: true, errors: [], modules };
+}
+
+function rules(name: string, src: string, files: Record<string, string>): string[] {
+  const out: string[] = [];
+  const sf = ts.createSourceFile(name, src, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
+  const at = (n: ts.Node) => `${name}:${sf.getLineAndCharacterOfPosition(n.getStart()).line + 1}`;
+  const visit = (n: ts.Node) => {
+    if (ts.isImportDeclaration(n) || ts.isExportDeclaration(n)) {
+      const spec = n.moduleSpecifier && ts.isStringLiteral(n.moduleSpecifier) ? n.moduleSpecifier.text : null;
+      if (spec !== null && !IMPORTS.has(spec)) {
+        if (!spec.startsWith(".")) out.push(`${at(n)}: import from "${spec}" is not allowed (react, remotion, @kit, or ./files in scene/)`);
+        else if (!resolves(name, spec, files)) out.push(`${at(n)}: "${spec}" is not a file in scene/`);
+      }
+    }
+    if (ts.isCallExpression(n) && n.expression.kind === ts.SyntaxKind.ImportKeyword) out.push(`${at(n)}: dynamic import() is not allowed`);
+    if (ts.isPropertyAccessExpression(n) && n.getText() === "Math.random") out.push(`${at(n)}: Math.random is not deterministic; use seeded(n) from @kit`);
+    if (ts.isIdentifier(n) && FORBIDDEN.has(n.text)) {
+      const p = n.parent;
+      const isName = (ts.isPropertyAccessExpression(p) && p.name === n) || (ts.isPropertyAssignment(p) && p.name === n) || (ts.isMethodDeclaration(p) && p.name === n) || ts.isJsxAttribute(p) || (ts.isPropertySignature(p) && p.name === n);
+      if (!isName) out.push(`${at(n)}: "${n.text}" is not available in a scene (everything is a pure function of the frame)`);
+    }
+    if (ts.isElementAccessExpression(n) && /^(window|globalThis|self)$/.test(n.expression.getText())) out.push(`${at(n)}: global lookups are not allowed`);
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return out;
+}
+
+function resolves(from: string, spec: string, files: Record<string, string>): boolean {
+  const parts = from.split("/").slice(0, -1);
+  for (const seg of spec.split("/")) {
+    if (seg === "..") parts.pop();
+    else if (seg !== ".") parts.push(seg);
+  }
+  const base = parts.join("/");
+  return ["", ".tsx", ".ts", "/index.tsx", "/index.ts"].some((ext) => files[base + ext] !== undefined);
+}
+
+const OPTIONS: ts.CompilerOptions = {
+  jsx: ts.JsxEmit.ReactJSX,
+  module: ts.ModuleKind.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  target: ts.ScriptTarget.ES2022,
+  strict: true,
+  noImplicitAny: false,
+  noEmit: true,
+  skipLibCheck: true,
+  esModuleInterop: true,
+  allowImportingTsExtensions: true,
+  baseUrl: ROOT,
+  paths: { "@kit": [KIT] },
+  types: [],
+  lib: ["lib.dom.d.ts", "lib.es2022.d.ts"],
+};
+
+/** The TypeScript compiler over the scene's files (held in memory) and the real kit and libraries. */
+function typecheck(files: Record<string, string>): string[] {
+  const byPath = new Map(Object.entries(files).map(([n, src]) => [path.normalize(virtual(n)), src]));
+  const base = ts.createCompilerHost(OPTIONS, true);
+  const host: ts.CompilerHost = {
+    ...base,
+    fileExists: (f) => byPath.has(path.normalize(f)) || base.fileExists(f),
+    readFile: (f) => byPath.get(path.normalize(f)) ?? base.readFile(f),
+    getSourceFile: (f, lang, onError) => {
+      const src = byPath.get(path.normalize(f));
+      if (src !== undefined) return ts.createSourceFile(f, src, lang, true, f.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+      return base.getSourceFile(f, lang, onError);
+    },
+    directoryExists: (d) => [...byPath.keys()].some((k) => k.startsWith(path.normalize(d) + path.sep)) || (base.directoryExists?.(d) ?? existsSync(d)),
+  };
+  const program = ts.createProgram([...byPath.keys()], OPTIONS, host);
+  const out: string[] = [];
+  for (const d of ts.getPreEmitDiagnostics(program)) {
+    if (!d.file) {
+      out.push(ts.flattenDiagnosticMessageText(d.messageText, " "));
+      continue;
+    }
+    const f = path.normalize(d.file.fileName);
+    if (!byPath.has(f)) continue;
+    const { line } = d.file.getLineAndCharacterOfPosition(d.start ?? 0);
+    out.push(`${path.relative(path.join(ROOT, "__scene__"), f).split(path.sep).join("/")}:${line + 1}: ${ts.flattenDiagnosticMessageText(d.messageText, " ")}`);
+  }
+  return out;
+}
+
+/** The kit's source, for the model's system prompt. */
+export const kitSource = () =>
+  ["index.ts", "film.tsx", "motion.ts", "text.tsx", "draw.tsx", "fx.tsx", "ui.tsx", "sound.tsx"].map((f) => `--- @kit/${f} ---\n${readFileSync(path.join(ROOT, "src", "bespoke", "kit", f), "utf8")}`).join("\n\n");

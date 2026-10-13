@@ -1,0 +1,121 @@
+import { Audio } from "@remotion/media";
+import * as React from "react";
+import { useMemo, useState, useEffect } from "react";
+import * as JSXRuntime from "react/jsx-runtime";
+import * as Remotion from "remotion";
+import { AbsoluteFill, Sequence, useDelayRender } from "remotion";
+import { DIMENSIONS } from "../../engine/plan";
+import { composeTrack } from "../../music/render";
+import { hashOf } from "../../music/rng";
+import { useTrack } from "../../music/useTrack";
+import type { FilmInput } from "../film";
+import * as Kit from "../kit";
+import { FilmProvider, makeCue, type Film } from "../kit/film";
+import { loadFonts } from "../kit/fonts";
+import { FILM_FPS, VOICE_LEAD, filmTiming } from "../timing";
+import { loadScene } from "./modules";
+
+/** A module namespace as CommonJS code expects it (transpiled `import x from` reads `.default`). */
+const cjs = (ns: object) => Object.assign({ __esModule: true }, ns, { default: (ns as { default?: unknown }).default ?? ns });
+const EXTERNALS = { react: cjs(React), "react/jsx-runtime": cjs(JSXRuntime), remotion: cjs(Remotion), "@kit": cjs(Kit) };
+
+/** The music bed under the picture, and how far it dips under a voice line (about -8 dB). */
+const MUSIC_LEVEL = 0.65;
+const DUCK = 0.4;
+const DUCK_FRAMES = 6;
+
+export const filmFrames = (input: FilmInput) => filmTiming(input.spec.beats, input.spec.score).timing.total;
+
+/**
+ * A bespoke film: the scene the model wrote, given its clock (useFilm), its
+ * fonts (loaded before the first frame, since text is measured), the music
+ * composed for its beats and the voice-over.
+ */
+export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover }) => {
+  const scene = useMemo(() => loadScene(modules, EXTERNALS), [modules]);
+  const { width: W, height: H } = DIMENSIONS[spec.format];
+  const { timing, beats } = useMemo(() => filmTiming(spec.beats, spec.score), [spec.beats, spec.score]);
+  const film = useMemo<Film>(() => {
+    const P = H > W;
+    return {
+      fps: FILM_FPS,
+      W,
+      H,
+      P,
+      format: spec.format,
+      total: timing.total,
+      beats,
+      beat: (id) => (typeof id === "number" ? beats[id] : beats.find((b) => b.id === id)) ?? beats[0],
+      cue: makeCue(beats, timing.total, FILM_FPS),
+      brand: spec.brand,
+      safe: P ? { top: Math.round(H * 0.07), bottom: Math.round(H * 0.86), left: 60, right: W - 60 } : { top: 70, bottom: H - 90, left: 100, right: W - 100 },
+    };
+  }, [W, H, spec.format, spec.brand, timing.total, beats]);
+
+  const ready = useFonts(scene.fonts ?? {});
+  const Scene = scene.default;
+  return (
+    <AbsoluteFill style={{ background: scene.background ?? "#ffffff", overflow: "hidden" }}>
+      {ready ? (
+        <FilmProvider value={film}>
+          <Scene />
+        </FilmProvider>
+      ) : null}
+      <FilmSound input={{ spec, modules, voiceover }} timing={timing} />
+    </AbsoluteFill>
+  );
+};
+
+/** Holds rendering until the scene's fonts are loaded. */
+function useFonts(req: Record<string, string[]>): boolean {
+  const key = JSON.stringify(req);
+  const { delayRender, continueRender, cancelRender } = useDelayRender();
+  const [state, setState] = useState<{ key: string; ready: boolean }>({ key, ready: false });
+  const [handle] = useState(() => delayRender("Loading the scene's fonts"));
+  useEffect(() => {
+    let live = true;
+    loadFonts(JSON.parse(key)).then(
+      () => {
+        if (live) setState({ key, ready: true });
+        continueRender(handle);
+      },
+      (err: unknown) => cancelRender(err instanceof Error ? err : new Error(String(err))),
+    );
+    return () => {
+      live = false;
+    };
+  }, [key, handle, continueRender, cancelRender]);
+  return state.key === key && state.ready;
+}
+
+const FilmSound: React.FC<{ input: FilmInput; timing: ReturnType<typeof filmTiming>["timing"] }> = ({ input, timing: t }) => {
+  const { spec, voiceover } = input;
+  const key = `film:${hashOf(JSON.stringify(spec.score))}:${t.total}:${t.startBeats.join(",")}`;
+  const track = useTrack(key, () => composeTrack(spec.score, t));
+  const lead = Math.round(VOICE_LEAD * FILM_FPS);
+  const lines = spec.beats.flatMap((b, i) => {
+    const src = voiceover?.[i];
+    if (!src || !b.voiceSeconds) return [];
+    const from = t.starts[i] + lead;
+    return [{ src, from, to: from + Math.ceil(b.voiceSeconds * FILM_FPS) }];
+  });
+  const level = (f: number) => {
+    let dip = 0;
+    for (const l of lines) {
+      const into = Math.min(1, Math.max(0, (f - (l.from - DUCK_FRAMES)) / DUCK_FRAMES));
+      const out = Math.min(1, Math.max(0, (l.to + DUCK_FRAMES - f) / DUCK_FRAMES));
+      dip = Math.max(dip, Math.min(into, out));
+    }
+    return MUSIC_LEVEL * (1 - (1 - DUCK) * dip);
+  };
+  return (
+    <>
+      {track ? <Audio src={track} volume={lines.length ? level : MUSIC_LEVEL} /> : null}
+      {lines.map((l, i) => (
+        <Sequence key={i} from={l.from} durationInFrames={l.to - l.from + 15} layout="none">
+          <Audio src={l.src} volume={1} />
+        </Sequence>
+      ))}
+    </>
+  );
+};

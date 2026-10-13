@@ -1,0 +1,23 @@
+import type { Score } from "../music/score";
+import type { Brand } from "./kit/film";
+import type { FilmBeat } from "./timing";
+
+export type FilmFormat = "landscape" | "portrait" | "square";
+
+/** Everything about a bespoke film except its code: the beats, the brand and the music. */
+export type FilmSpec = {
+  format: FilmFormat;
+  beats: FilmBeat[];
+  brand: Brand;
+  score: Score;
+};
+
+/** What the sandbox renders: the spec, the scene compiled to CommonJS modules by path, and recorded voice lines by beat index. */
+export type FilmInput = {
+  spec: FilmSpec;
+  modules: Record<string, string>;
+  voiceover?: Record<number, string>;
+};
+
+/** The module every scene starts from. */
+export const SCENE_ENTRY = "scene/index.tsx";

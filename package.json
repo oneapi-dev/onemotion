@@ -5,14 +5,17 @@
   "license": "MIT",
   "private": true,
   "scripts": {
+    "predev": "node scripts/build-sandbox.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/build-sandbox.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "audio": "node scripts/make-audio.mjs",
-    "render": "node scripts/render.mjs"
+    "render": "node scripts/render.mjs",
+    "sandbox": "node scripts/build-sandbox.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",
@@ -21,6 +24,7 @@
     "@remotion/player": "4.0.534",
     "@remotion/three": "^4.0.534",
     "@remotion/web-renderer": "4.0.534",
+    "@types/react": "^19",
     "next": "16.2.11",
     "node-html-parser": "^7.0.1",
     "react": "19.2.4",
@@ -28,18 +32,18 @@
     "remotion": "4.0.534",
     "server-only": "^0.0.1",
     "three": "^0.186.1",
+    "typescript": "^5.9.3",
     "undici": "^7.10.0"
   },
   "devDependencies": {
     "@remotion/bundler": "4.0.534",
     "@remotion/renderer": "4.0.534",
     "@types/node": "^20",
-    "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.186.0",
+    "esbuild": "^0.28.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
-    "typescript": "^5",
     "vitest": "^3.2.4"
   }
 }
