@@ -65,7 +65,8 @@ export async function runAgent(o: {
     pruneImages(messages);
     const { text, toolCalls, usage, finish } = await chatStep({ key: o.key, model: o.model, messages, tools: specs, temperature: 0.6, signal: o.signal });
     spend = addUsage(spend, usage, o.price);
-    messages.push({ role: "assistant", content: text || null, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) });
+    // An assistant turn with neither text nor tool calls is refused by some providers behind the gateway.
+    messages.push({ role: "assistant", content: text || (toolCalls.length ? null : "(no reply)"), ...(toolCalls.length ? { tool_calls: toolCalls } : {}) });
     if (text.trim()) o.onEvent({ kind: "say", text: text.trim() });
     if (finish === "length" && !toolCalls.length) {
       messages.push({ role: "user", content: "Your reply was cut off at the length limit. Work in smaller replies: at most 3 files per reply." });

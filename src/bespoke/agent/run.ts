@@ -7,7 +7,7 @@ import type { Sandbox } from "../host";
 import { filmMusic, musicPrompt, recordFilmVoice, type FilmVoice } from "../voice";
 import { filmTiming } from "../timing";
 import { filmSpecOf, normalizeConcept, type Concept } from "./concept";
-import { chatStep, parseJson, type Msg, type Part } from "./llm";
+import { jsonStep, type Msg, type Part } from "./llm";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
 import { reviewFilm, type Review } from "./review";
 import { compile, sceneTools, type Workspace } from "./tools";
@@ -97,8 +97,8 @@ async function makeConcept(o: { key: string; model: string; brief: string; site:
   ]
     .filter(Boolean)
     .join("\n\n");
-  const r = await chatStep({ key: o.key, model: o.model, messages: [{ role: "system", content: system }, { role: "user", content: o.refs?.length ? [{ type: "text", text: user }, ...refParts(o.refs)] : user }], temperature: 1, maxTokens: 8000, json: true, signal: o.signal });
-  return { concept: normalizeConcept(parseJson(r.text)), usage: r.usage };
+  const r = await jsonStep({ key: o.key, model: o.model, messages: [{ role: "system", content: system }, { role: "user", content: o.refs?.length ? [{ type: "text", text: user }, ...refParts(o.refs)] : user }], temperature: 1, maxTokens: 8000, signal: o.signal });
+  return { concept: normalizeConcept(r.value), usage: r.usage };
 }
 
 /**

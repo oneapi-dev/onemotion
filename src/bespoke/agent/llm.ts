@@ -22,8 +22,13 @@ export class ChatError extends Error {
 
 type Choice = { message?: { content?: string | Part[] | null; tool_calls?: ToolCall[]; reasoning_content?: string }; finish_reason?: string };
 
-/** One completion: the reply's text, its tool calls and the tokens it used. */
-export async function chatStep(o: { key: string; model: string; messages: Msg[]; tools?: ToolSpec[]; temperature?: number; maxTokens?: number; json?: boolean; signal?: AbortSignal }) {
+/**
+ * One completion: the reply's text, its tool calls and the tokens it used.
+ * No response_format: OneAPI cannot carry it to every provider (Anthropic
+ * models answer 400), so JSON is asked for in the prompt and parsed
+ * leniently (see jsonStep).
+ */
+export async function chatStep(o: { key: string; model: string; messages: Msg[]; tools?: ToolSpec[]; temperature?: number; maxTokens?: number; signal?: AbortSignal }) {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-OneAPI-Key": o.key },
@@ -33,7 +38,6 @@ export async function chatStep(o: { key: string; model: string; messages: Msg[];
       tools: o.tools,
       temperature: o.temperature,
       max_tokens: o.maxTokens ?? 32_000,
-      response_format: o.json ? { type: "json_object" } : undefined,
     }),
     signal: o.signal,
   });
@@ -56,4 +60,29 @@ export function parseJson<T>(text: string): T {
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) throw new Error("The model's answer had no JSON in it.");
   return JSON.parse(raw.slice(start, end + 1)) as T;
+}
+
+/**
+ * A completion whose answer must be one JSON object: parsed leniently, and
+ * asked for once more when the first answer is not JSON. Usage covers both
+ * calls.
+ */
+export async function jsonStep<T>(o: { key: string; model: string; messages: Msg[]; temperature?: number; maxTokens?: number; signal?: AbortSignal }): Promise<{ value: T; usage: Usage }> {
+  const first = await chatStep(o);
+  try {
+    return { value: parseJson<T>(first.text), usage: first.usage };
+  } catch {
+    const again = await chatStep({
+      ...o,
+      messages: [...o.messages, { role: "assistant", content: first.text || "(no answer)" }, { role: "user", content: "That was not a valid JSON object. Reply with the JSON object only: no prose, no markdown fence." }],
+    });
+    const p = first.usage;
+    const q = again.usage;
+    const usage: Usage = {
+      prompt_tokens: (p.prompt_tokens ?? 0) + (q.prompt_tokens ?? 0),
+      completion_tokens: (p.completion_tokens ?? 0) + (q.completion_tokens ?? 0),
+      prompt_tokens_details: { cached_tokens: (p.prompt_tokens_details?.cached_tokens ?? 0) + (q.prompt_tokens_details?.cached_tokens ?? 0) },
+    };
+    return { value: parseJson<T>(again.text), usage };
+  }
 }

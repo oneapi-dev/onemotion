@@ -5,7 +5,7 @@ import type { Sandbox } from "../host";
 import { filmTiming } from "../timing";
 import type { Concept } from "./concept";
 import { scaled } from "./images";
-import { chatStep, parseJson, type Part, type Usage } from "./llm";
+import { jsonStep, type Part, type Usage } from "./llm";
 
 export type Issue = { tile?: string; severity: "high" | "med" | "low"; problem: string; fix: string };
 export type Review = { score: number; pass: boolean; summary: string; issues: Issue[] };
@@ -82,6 +82,6 @@ export async function reviewFilm(o: {
       { type: "image_url", image_url: { url } },
     ]),
   ];
-  const r = await chatStep({ key: o.key, model: o.model, messages: [{ role: "system", content: o.system }, { role: "user", content: parts }], temperature: 0.2, maxTokens: 6000, json: true, signal: o.signal });
-  return { review: normalizeReview(parseJson(r.text)), usage: r.usage, warnings };
+  const r = await jsonStep({ key: o.key, model: o.model, messages: [{ role: "system", content: o.system }, { role: "user", content: parts }], temperature: 0.2, maxTokens: 6000, signal: o.signal });
+  return { review: normalizeReview(r.value), usage: r.usage, warnings };
 }

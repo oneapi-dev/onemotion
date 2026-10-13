@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (!key) return Response.json({ error: "Add your OneAPI API key in Settings first." }, { status: 401 });
   const raw = await req.text();
   if (raw.length > MAX_BODY) return Response.json({ error: "This step is too large to send." }, { status: 413 });
-  let body: { model?: unknown; messages?: unknown; tools?: unknown; temperature?: unknown; max_tokens?: unknown; response_format?: unknown };
+  let body: { model?: unknown; messages?: unknown; tools?: unknown; temperature?: unknown; max_tokens?: unknown };
   try {
     body = JSON.parse(raw);
   } catch {
@@ -31,7 +31,6 @@ export async function POST(req: Request) {
   if (Array.isArray(body.tools) && body.tools.length) request.tools = body.tools;
   if (typeof body.temperature === "number") request.temperature = Math.max(0, Math.min(2, body.temperature));
   if (typeof body.max_tokens === "number") request.max_tokens = Math.max(256, Math.min(64_000, Math.round(body.max_tokens)));
-  if (body.response_format && typeof body.response_format === "object") request.response_format = body.response_format;
   try {
     return Response.json(await chat(key, request, AbortSignal.timeout(STEP_TIMEOUT)));
   } catch (err) {
