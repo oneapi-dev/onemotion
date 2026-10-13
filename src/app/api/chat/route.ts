@@ -1,4 +1,4 @@
-import { chat, OneAPIError } from "@/server/oneapi";
+import { chatStreamed, OneAPIError } from "@/server/oneapi";
 
 // One step of the bespoke agent: a reply may take a few minutes on a reasoning model.
 export const maxDuration = 300;
@@ -32,9 +32,10 @@ export async function POST(req: Request) {
   if (typeof body.temperature === "number") request.temperature = Math.max(0, Math.min(2, body.temperature));
   if (typeof body.max_tokens === "number") request.max_tokens = Math.max(256, Math.min(64_000, Math.round(body.max_tokens)));
   try {
-    return Response.json(await chat(key, request, AbortSignal.timeout(STEP_TIMEOUT)));
+    return Response.json(await chatStreamed(key, request, AbortSignal.timeout(STEP_TIMEOUT)));
   } catch (err) {
-    if (err instanceof OneAPIError) return Response.json({ error: err.message }, { status: err.status === 401 ? 401 : err.status === 402 ? 402 : 502 });
+    // The provider's status passes through, so the browser knows a timeout or a rate limit is worth retrying.
+    if (err instanceof OneAPIError) return Response.json({ error: err.message }, { status: [401, 402, 429, 500, 502, 503, 504].includes(err.status) ? err.status : 502 });
     if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
       return Response.json({ error: "The model took too long on this step." }, { status: 504 });
     }

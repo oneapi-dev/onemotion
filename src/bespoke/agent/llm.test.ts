@@ -1,9 +1,46 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { jsonStep } from "./llm";
+import { ChatError, chatStep, jsonStep } from "./llm";
 
 const reply = (content: string, tokens = 10) => new Response(JSON.stringify({ choices: [{ message: { content } }], usage: { prompt_tokens: tokens, completion_tokens: 1 } }), { status: 200 });
 
 afterEach(() => vi.unstubAllGlobals());
+
+const failed = (status: number, error: string) => new Response(JSON.stringify({ error }), { status });
+
+describe("chatStep", () => {
+  it("tries a timed-out step again after a pause, and says so", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockResolvedValueOnce(failed(504, "OneAPI answered 504: The upstream provider timed out.")).mockResolvedValueOnce(reply("done"));
+    vi.stubGlobal("fetch", fetch);
+    const notes: string[] = [];
+    const p = chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }], onRetry: (m) => notes.push(m) });
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect((await p).text).toBe("done");
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(notes[0]).toMatch(/504.*trying again in 4 s/);
+    vi.useRealTimers();
+  });
+
+  it("gives up after three attempts", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn(async () => failed(503, "busy"));
+    vi.stubGlobal("fetch", fetch);
+    const p = chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] }).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(await p).toBeInstanceOf(ChatError);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
+
+  it("does not retry what will not pass: a bad key, no balance, a bad request", async () => {
+    for (const status of [400, 401, 402]) {
+      const fetch = vi.fn(async () => failed(status, "no"));
+      vi.stubGlobal("fetch", fetch);
+      await expect(chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] })).rejects.toBeInstanceOf(ChatError);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
+  });
+});
 
 describe("jsonStep", () => {
   it("never sends response_format, which OneAPI cannot carry to every provider", async () => {

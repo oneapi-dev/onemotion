@@ -28,7 +28,37 @@ type Choice = { message?: { content?: string | Part[] | null; tool_calls?: ToolC
  * models answer 400), so JSON is asked for in the prompt and parsed
  * leniently (see jsonStep).
  */
-export async function chatStep(o: { key: string; model: string; messages: Msg[]; tools?: ToolSpec[]; temperature?: number; maxTokens?: number; signal?: AbortSignal }) {
+type StepInput = { key: string; model: string; messages: Msg[]; tools?: ToolSpec[]; temperature?: number; maxTokens?: number; signal?: AbortSignal; onRetry?: (message: string) => void };
+
+/** Statuses worth trying again: a rate limit, a provider that timed out or fell over, a gateway hiccup. */
+export const TRANSIENT = new Set([429, 500, 502, 503, 504]);
+/** Waits before the second and third attempt. */
+const BACKOFF_MS = [4_000, 15_000];
+
+const wait = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(t);
+      reject(new DOMException("Aborted", "AbortError"));
+    });
+  });
+
+/** A step, tried again after a pause when it fails for a reason that passes (timeouts, rate limits, a dropped connection). */
+export async function chatStep(o: StepInput) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await chatOnce(o);
+    } catch (err) {
+      const transient = (err instanceof ChatError && TRANSIENT.has(err.status)) || (err instanceof TypeError && !o.signal?.aborted);
+      if (!transient || attempt >= BACKOFF_MS.length) throw err;
+      o.onRetry?.(`${err instanceof Error ? err.message : String(err)}: trying again in ${BACKOFF_MS[attempt] / 1000} s`);
+      await wait(BACKOFF_MS[attempt], o.signal);
+    }
+  }
+}
+
+async function chatOnce(o: StepInput) {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-OneAPI-Key": o.key },
@@ -67,7 +97,7 @@ export function parseJson<T>(text: string): T {
  * asked for once more when the first answer is not JSON. Usage covers both
  * calls.
  */
-export async function jsonStep<T>(o: { key: string; model: string; messages: Msg[]; temperature?: number; maxTokens?: number; signal?: AbortSignal }): Promise<{ value: T; usage: Usage }> {
+export async function jsonStep<T>(o: StepInput): Promise<{ value: T; usage: Usage }> {
   const first = await chatStep(o);
   try {
     return { value: parseJson<T>(first.text), usage: first.usage };

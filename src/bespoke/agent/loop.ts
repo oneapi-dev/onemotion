@@ -1,6 +1,6 @@
 "use client";
 
-import { chatStep, type Msg, type Part, type ToolSpec, type Usage } from "./llm";
+import { ChatError, chatStep, type Msg, type Part, type ToolSpec, type Usage } from "./llm";
 import type { AgentTool, ToolResult } from "./tools";
 
 /**
@@ -18,6 +18,8 @@ export type Price = { input: number; output: number } | null;
 /** Renders kept in the conversation: older ones are replaced, so the context does not balloon with pictures. */
 const KEEP_IMAGE_MESSAGES = 2;
 const NUDGES = 2;
+/** Steps that may time out at the provider (after their retries) before a run gives up. */
+const MAX_TIMEOUTS = 2;
 
 function pruneImages(messages: Msg[]) {
   // The task (the first user message) keeps its reference screenshots; only renders are pruned.
@@ -56,6 +58,7 @@ export async function runAgent(o: {
   let spend = o.spend;
   const specs: ToolSpec[] = o.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
   let nudges = 0;
+  let timeouts = 0;
   for (let step = 1; step <= o.maxSteps; step++) {
     if (o.signal?.aborted) return { done: false, summary: "stopped", spend };
     if (o.price && spend.usd >= o.budgetUsd) {
@@ -63,7 +66,18 @@ export async function runAgent(o: {
       return { done: false, summary: "budget reached", spend };
     }
     pruneImages(messages);
-    const { text, toolCalls, usage, finish } = await chatStep({ key: o.key, model: o.model, messages, tools: specs, temperature: 0.6, signal: o.signal });
+    let step: Awaited<ReturnType<typeof chatStep>>;
+    try {
+      step = await chatStep({ key: o.key, model: o.model, messages, tools: specs, temperature: 0.6, signal: o.signal, onRetry: (m) => o.onEvent({ kind: "error", text: m }) });
+    } catch (err) {
+      // Still timing out after the retries: most often one reply grew too long. Ask for smaller ones and go on.
+      if (!(err instanceof ChatError && err.status === 504) || ++timeouts > MAX_TIMEOUTS) throw err;
+      o.onEvent({ kind: "error", text: `The provider timed out on this step (${timeouts}/${MAX_TIMEOUTS}); asking for smaller replies.` });
+      messages.push({ role: "user", content: "Your last reply timed out at the provider before it arrived; nothing from it was received. Work in smaller replies: one file per reply, and keep each file focused." });
+      o.onStep(messages, spend);
+      continue;
+    }
+    const { text, toolCalls, usage, finish } = step;
     spend = addUsage(spend, usage, o.price);
     // An assistant turn with neither text nor tool calls is refused by some providers behind the gateway.
     messages.push({ role: "assistant", content: text || (toolCalls.length ? null : "(no reply)"), ...(toolCalls.length ? { tool_calls: toolCalls } : {}) });
