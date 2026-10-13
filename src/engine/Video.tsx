@@ -7,6 +7,7 @@ import type { VideoInput } from "./plan";
 import { PERSPECTIVE, cameraAt, moveWindow, planTiming, projector, stations, type Camera, type Projector, type Station } from "./rig";
 import { Soundtrack } from "./soundtrack";
 import { FxContext } from "./fx";
+import { Confetti } from "./fxConfetti";
 import { Transitions } from "./fxTransition";
 import { Stage3D, type Mote } from "./stage3d";
 
@@ -125,6 +126,7 @@ export const Video: React.FC<VideoInput> = ({ plan, format, brand: site, shots, 
               background: `linear-gradient(180deg, rgba(0,0,0,${look.mode === "dark" ? 0.18 : 0.03}), transparent 30%, transparent 70%, rgba(0,0,0,${look.mode === "dark" ? 0.25 : 0.05}))`,
             }}
           />
+          <Confetti plan={plan} timing={timing} look={look} />
           <Transitions plan={plan} timing={timing} look={look} />
           <Grain look={look} />
           <Soundtrack plan={plan} timing={timing} voiceover={voiceover} />

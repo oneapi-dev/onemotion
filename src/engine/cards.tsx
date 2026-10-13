@@ -5,6 +5,8 @@ import { useLook, type Look } from "./looks";
 import { REVEAL_MASK_PAD, REVEAL_TILT, clamp, easeInOut, easeOut, revealDrop } from "./motion";
 import type { PlanScene, VideoInput } from "./plan";
 import { useFx } from "./fx";
+import { CursorTarget } from "./fxCursor";
+import { AccentMark } from "./fxMark";
 import { Num } from "./fxNumber";
 import { CharText } from "./fxText";
 import { fit, numberIn } from "./text";
@@ -89,6 +91,7 @@ export const Reveal: React.FC<RevealProps> = (props) => {
 
 const MaskReveal: React.FC<RevealProps> = ({ text, size, at, align = "center", maxWidth, weight, color, accentLast = true, per = 3, lineHeight = 1.02, family }) => {
   const look = useLook();
+  const { mark } = useFx();
   const { f, fps } = useSince(at);
   const words = text.split(/\s+/).filter(Boolean);
   return (
@@ -112,7 +115,7 @@ const MaskReveal: React.FC<RevealProps> = ({ text, size, at, align = "center", m
         const p = spring({ frame: f - i * per, fps, config: { damping: 20, stiffness: 130, mass: 0.8 } });
         const last = accentLast && i === words.length - 1 && words.length > 1;
         const fill: CSSProperties = last ? { color: look.accentA } : {};
-        return (
+        const word = (
           <span key={i} style={{ display: "inline-block", overflow: "hidden", paddingBottom: size * REVEAL_MASK_PAD, marginBottom: -size * REVEAL_MASK_PAD, verticalAlign: "top" }}>
             <span
               style={{
@@ -125,6 +128,15 @@ const MaskReveal: React.FC<RevealProps> = ({ text, size, at, align = "center", m
               {w}
             </span>
           </span>
+        );
+        // The mark sits outside the word's mask, which would clip it.
+        return last && mark ? (
+          <span key={i} style={{ position: "relative", display: "inline-block", verticalAlign: "top" }}>
+            {word}
+            <AccentMark at={at + i * per + 14} size={size} chars={[...w].length} />
+          </span>
+        ) : (
+          word
         );
       })}
     </div>
@@ -442,8 +454,8 @@ export const AnnounceCard: React.FC<CardProps> = ({ scene, at, brand }) => {
           {chips.map((c, i) => {
             const p = spring({ frame: f - after - i * 4, fps, config: { damping: 16, stiffness: 150 } });
             return (
+              <CursorTarget key={i} at={i === 0 ? at + after + 14 : Number.POSITIVE_INFINITY}>
               <div
-                key={i}
                 style={{
                   padding: `${14 * u}px ${28 * u}px`,
                   borderRadius: look.card === "ink" || look.card === "outline" ? 6 * u : 999,
@@ -460,6 +472,7 @@ export const AnnounceCard: React.FC<CardProps> = ({ scene, at, brand }) => {
               >
                 {c.title}
               </div>
+              </CursorTarget>
             );
           })}
         </div>
@@ -866,6 +879,7 @@ export const ListCard: React.FC<CardProps> = ({ scene, at, index, count }) => {
                 transform: `translateY(${interpolate(p, [0, 1], [50 * u, 0])}px) rotate(${interpolate(p, [0, 1], [steps ? 0 : 2, 0])}deg)`,
               }}
             >
+              <CursorTarget at={i === 0 ? at + 26 : Number.POSITIVE_INFINITY}>
               <div
                 style={{
                   width: 58 * u,
@@ -884,6 +898,7 @@ export const ListCard: React.FC<CardProps> = ({ scene, at, index, count }) => {
               >
                 {String(i + 1).padStart(2, "0")}
               </div>
+              </CursorTarget>
               <div>
                 <div style={{ fontFamily: look.display, fontWeight: Math.min(800, look.weight), fontSize: fit(it.title, tileW - 60 * u, 40 * u, 2, 0.55), lineHeight: 1.12, color: look.text, letterSpacing: `${look.tracking / 2}em` }}>{it.title}</div>
                 {it.body ? <div style={{ marginTop: 8 * u, fontFamily: look.body, fontWeight: 500, fontSize: 25 * u, lineHeight: 1.4, color: look.textSoft }}>{it.body}</div> : null}
@@ -969,7 +984,9 @@ export const OfferCard: React.FC<CardProps> = ({ scene, at, frames, index, count
           color: look.accentA,
         }}
       >
-        <Num value={scene.value ?? ""} f={f} start={8} end={Math.min(frames - 10, 50)} />
+        <CursorTarget at={at + 36}>
+          <Num value={scene.value ?? ""} f={f} start={8} end={Math.min(frames - 10, 50)} />
+        </CursorTarget>
       </div>
       {scene.body ? (
         <div style={{ marginTop: "auto", borderTop: `${2 * u}px dashed rgba(${look.textRgb},0.2)`, paddingTop: 22 * u }}>
@@ -1040,7 +1057,92 @@ export const ShotCard: React.FC<CardProps> = ({ scene, at, frames, shots, brand 
   );
 };
 
-export const ConvergeCard: React.FC<CardProps> = ({ scene, at, brand }) => {
+export const ConvergeCard: React.FC<CardProps> = (props) => {
+  const fx = useFx();
+  return fx.ticker ? <TickerConverge {...props} /> : <OrbitConverge {...props} />;
+};
+
+/** The labels running past in two rows, opposite ways, around the brand: a wall of integrations. */
+const TickerConverge: React.FC<CardProps> = ({ scene, at, brand }) => {
+  const look = useLook();
+  const u = look.u;
+  const { f, fps } = useSince(at);
+  const items = scene.items ?? [];
+  const width = look.width * 0.92;
+  const font = 34 * u;
+  const pad = 30 * u;
+  const gap = 20 * u;
+  const speed = 2.6 * u;
+  const travel = Math.max(0, f) * speed;
+  // A scene holds at most about 7 s: that is as far as a row moves.
+  const maxTravel = 7 * 30 * speed;
+  // Just enough labels to cover the row and what scrolls in during the scene: each one costs export time.
+  const est = (t: string) => [...t].length * font * 0.56 + pad * 2 + gap;
+  const setW = items.reduce((a, it) => a + est(it.title), 0) || 1;
+  const reps = Math.ceil((width + maxTravel) / setW) + 1;
+  const run = Array.from({ length: reps }, () => items).flat();
+  const rowIn = (k: number) => spring({ frame: f - k * 6, fps, config: { damping: 18, stiffness: 110 } });
+  const hubIn = spring({ frame: f - 10, fps, config: { damping: 12, stiffness: 140 } });
+  const chip = (t: string, key: number) => (
+    <div
+      key={key}
+      style={{
+        flex: "none",
+        padding: `${16 * u}px ${pad}px`,
+        borderRadius: look.card === "ink" || look.card === "outline" ? 6 * u : 999,
+        background: look.mode === "dark" ? "rgba(255,255,255,0.07)" : "#ffffff",
+        border: look.card === "ink" ? `${3 * u}px solid ${look.cardEdge}` : `${1.5 * u}px solid rgba(${look.textRgb},0.12)`,
+        fontFamily: look.body,
+        fontWeight: 600,
+        fontSize: font,
+        color: look.text,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {t}
+    </div>
+  );
+  const row = (k: number, dir: 1 | -1) => {
+    const p = rowIn(k);
+    const x = dir === 1 ? -travel : travel - maxTravel;
+    return (
+      <div style={{ width, overflow: "hidden", opacity: Math.min(1, p * 1.4), transform: `translateY(${(1 - p) * 40 * u}px)` }}>
+        <div style={{ display: "flex", gap, transform: `translateX(${x}px)` }}>{run.map((it, i) => chip(it.title, i))}</div>
+      </div>
+    );
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 34 * u }}>
+      {row(0, 1)}
+      <div style={{ transform: `scale(${interpolate(hubIn, [0, 1], [0.4, 1])})`, opacity: Math.min(1, hubIn * 2) }}>
+        {brand.logo_src || !brand.name ? (
+          <Mark brand={brand} size={150 * u} />
+        ) : (
+          <div
+            style={{
+              padding: `${26 * u}px ${46 * u}px`,
+              borderRadius: look.card === "ink" || look.card === "outline" ? 10 * u : 999,
+              background: look.accentA,
+              color: look.onAccent,
+              fontFamily: look.display,
+              fontWeight: 800,
+              fontSize: fit(brand.name, 420 * u, 64 * u, 1, 0.58),
+              letterSpacing: `${look.tracking}em`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {brand.name}
+          </div>
+        )}
+      </div>
+      {row(1, -1)}
+      {scene.title ? <Reveal text={scene.title} size={fit(scene.title, look.width * 0.7, 72 * u, 2, 0.55)} at={at + 24} maxWidth={look.width * 0.7} /> : null}
+    </div>
+  );
+};
+
+/** The labels flowing in and orbiting the brand. */
+const OrbitConverge: React.FC<CardProps> = ({ scene, at, brand }) => {
   const look = useLook();
   const u = look.u;
   const { f, fps } = useSince(at);
@@ -1161,6 +1263,7 @@ export const CloseCard: React.FC<CardProps> = ({ scene, at, brand }) => {
         </Line>
       ) : null}
       {scene.title && scene.type !== "logo" ? (
+        <CursorTarget at={at + 30}>
         <div
           style={{
             marginTop: 16 * u,
@@ -1179,6 +1282,7 @@ export const CloseCard: React.FC<CardProps> = ({ scene, at, brand }) => {
         >
           {scene.title}
         </div>
+        </CursorTarget>
       ) : null}
     </div>
   );

@@ -246,3 +246,30 @@ describe("effects", () => {
     expect(p.scenes.filter((s) => s.fx?.transition)).toHaveLength(3);
   });
 });
+
+describe("effects, batch 2", () => {
+  const scenes = [
+    sc("hook", { title: "Every model. One key." }),
+    sc("features", { title: "Built for builders", items: [{ title: "a", body: "b" }, { title: "c", body: "d" }] }),
+    sc("converge", { title: "All in one place", items: [{ title: "OpenAI" }, { title: "Anthropic" }, { title: "Google" }] }),
+    sc("offer", { eyebrow: "FREE", title: "Start free", value: "Free" }),
+    sc("cta", { title: "Get your key" }),
+  ];
+
+  it("keeps each effect only where it fits", () => {
+    const fx = { cursor: true, mark: "circle", ticker: true, confetti: true };
+    const p = normalizePlan(plan(scenes.map((s) => ({ ...s, fx })) as PlanScene[]), input());
+    const by = Object.fromEntries(p.scenes.map((s) => [s.type, s.fx]));
+    expect(by.hook).toEqual({ mark: "circle" });
+    expect(by.features).toEqual({ cursor: true, mark: "circle" });
+    expect(by.converge).toEqual({ ticker: true, mark: "circle" });
+    // One confetti a video: the first scene that may have it keeps it.
+    expect(by.offer).toEqual({ cursor: true, confetti: true });
+    expect(by.cta).toEqual({ cursor: true });
+  });
+
+  it("drops a mark it does not know", () => {
+    const p = normalizePlan(plan(scenes.map((s, i) => (i === 0 ? { ...s, fx: { mark: "zigzag" } } : s)) as unknown as PlanScene[]), input());
+    expect(p.scenes[0].fx).toBeUndefined();
+  });
+});

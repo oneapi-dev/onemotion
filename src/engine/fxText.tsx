@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { noise } from "./fx";
+import { noise, useFx } from "./fx";
+import { AccentMark } from "./fxMark";
 import { useLook } from "./looks";
 import { clamp } from "./motion";
 import type { TextFx } from "./plan";
@@ -42,6 +43,7 @@ function typedAt(chars: string[]): number[] {
 
 export const CharText: React.FC<CharTextProps> = ({ kind, text, size, at, align = "center", maxWidth, weight, color, accentLast = true, lineHeight = 1.02, family }) => {
   const look = useLook();
+  const { mark } = useFx();
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const f = frame - at;
@@ -136,10 +138,12 @@ export const CharText: React.FC<CharTextProps> = ({ kind, text, size, at, align 
         const accent = accentLast && wi === words.length - 1 && words.length > 1;
         const start = starts[wi];
         return (
-          <span key={wi} style={{ display: "inline-block", whiteSpace: "nowrap", color: accent ? look.accentA : undefined }}>
+          <span key={wi} style={{ display: "inline-block", whiteSpace: "nowrap", color: accent ? look.accentA : undefined, position: accent && mark ? "relative" : undefined }}>
             {w.split("").map((c, ci) => (
               <span key={ci}>{letter(c, start + ci, accent)}</span>
             ))}
+            {/* The mark draws on once the word's letters have arrived. */}
+            {accent && mark ? <AccentMark at={at + Math.round((start + w.length) * 1.2) + 12} size={size} chars={w.length} /> : null}
           </span>
         );
       })}

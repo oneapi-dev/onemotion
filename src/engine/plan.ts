@@ -56,8 +56,17 @@ export type NumberFx = "count" | "odometer";
 /** A full-screen transition as the camera lands on the scene's card. */
 export type TransitionFx = "wipe" | "iris" | "blinds" | "pixels" | "shutter" | "flash";
 
-/** The effects the director picks for a scene; anything left out uses the default. */
-export type SceneFx = { text?: TextFx; number?: NumberFx; transition?: TransitionFx };
+/** A hand-drawn stroke on the headline's accent word. */
+export type MarkFx = "underline" | "circle";
+
+/**
+ * The effects the director picks for a scene; anything left out uses the default.
+ * cursor: a pointer glides in and clicks the card's button or first item.
+ * mark: a stroke drawn on the headline's accent word.
+ * ticker: a converge scene's labels run past in two rows instead of orbiting.
+ * confetti: a burst as the card lands.
+ */
+export type SceneFx = { text?: TextFx; number?: NumberFx; transition?: TransitionFx; cursor?: boolean; mark?: MarkFx; ticker?: boolean; confetti?: boolean };
 
 export type PlanItem = {
   title: string;

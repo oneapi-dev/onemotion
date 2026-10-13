@@ -1,4 +1,4 @@
-import type { Archetype, CameraPath, LookName, Music, NumberFx, Plan, PlanItem, PlanScene, SceneFx, SceneType, TextFx, Tone, TransitionFx } from "@/engine/plan";
+import type { Archetype, CameraPath, LookName, MarkFx, Music, NumberFx, Plan, PlanItem, PlanScene, SceneFx, SceneType, TextFx, Tone, TransitionFx } from "@/engine/plan";
 import type { DirectInput } from "./input";
 import { clipRunes, firstNonEmpty, fitText, normalizeHex, words } from "./text";
 import { aboutPlatform, squash } from "./facts";
@@ -18,6 +18,13 @@ export const NUMBER_FX: NumberFx[] = ["count", "odometer"];
 export const TRANSITION_FX: TransitionFx[] = ["wipe", "iris", "blinds", "pixels", "shutter", "flash"];
 /** More full-screen transitions than this and the video reads as a slideshow. */
 export const MAX_TRANSITIONS = 3;
+export const MARK_FX: MarkFx[] = ["underline", "circle"];
+/** Cards with something to click: a button, a promotion, a first tile or chip. */
+const CURSOR_ON: SceneType[] = ["cta", "offer", "features", "steps", "announce"];
+/** Cards whose headline has an accent word for a mark to land on. */
+const MARK_ON: SceneType[] = ["hook", "statement", "stat", "features", "steps", "checklist", "specs", "bars", "compare", "converge"];
+/** Cards worth celebrating; one burst a video at most. */
+const CONFETTI_ON: SceneType[] = ["cta", "offer", "stat"];
 export const LOOKS: LookName[] = ["midnight", "graphite", "paper", "sage", "mono", "ember"];
 export const PATHS: CameraPath[] = ["dolly", "serpentine", "staircase"];
 
@@ -204,6 +211,10 @@ function normalizeFx(raw: unknown, s: PlanScene, index: number): SceneFx | undef
   if (has(NUMBER_FX, r.number) && showsNumber(s)) fx.number = r.number;
   // The opening card has nothing before it to transition from.
   if (has(TRANSITION_FX, r.transition) && index > 0) fx.transition = r.transition;
+  if (r.cursor === true && CURSOR_ON.includes(s.type)) fx.cursor = true;
+  if (has(MARK_FX, r.mark) && MARK_ON.includes(s.type) && s.title) fx.mark = r.mark;
+  if (r.ticker === true && s.type === "converge") fx.ticker = true;
+  if (r.confetti === true && CONFETTI_ON.includes(s.type)) fx.confetti = true;
   return Object.keys(fx).length ? fx : undefined;
 }
 
@@ -382,9 +393,11 @@ export function normalizePlan(raw: Partial<Plan> & { scenes?: PlanScene[] }, inp
   scenes = trimToLength(scenes, Math.min(HARD_MAX, hi + HARD_SLACK));
   // Effects last: they depend on where each scene ended up.
   let transitions = 0;
+  let confetti = 0;
   scenes.forEach((s, i) => {
     const fx = normalizeFx(s.fx, s, i);
     if (fx?.transition && ++transitions > MAX_TRANSITIONS) delete fx.transition;
+    if (fx?.confetti && ++confetti > 1) delete fx.confetti;
     if (fx && Object.keys(fx).length) s.fx = fx;
     else delete s.fx;
   });
