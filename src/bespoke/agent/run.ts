@@ -145,7 +145,6 @@ export async function makeFilm(o: {
   format: FilmFormat;
   models: CatalogModel[];
   recent: RecentFilm[];
-  budgetUsd: number;
   /** Screenshots of the real product, as image data URLs: UI the film remakes faithfully. */
   refs?: string[];
   /** Other pages the brief names (pricing, docs, ...), read for facts and images. */
@@ -239,7 +238,6 @@ export async function makeFilm(o: {
       messages,
       tools,
       maxSteps,
-      budgetUsd: o.budgetUsd,
       price,
       spend: NO_SPEND,
       ledger,
@@ -275,7 +273,7 @@ export async function makeFilm(o: {
     files["scene/index.tsx"] = fallbackStage(concept);
     say("lead", { kind: "error", text: "the foundation did not pass the check; the beats build on a plain stage" });
   }
-  if (o.signal?.aborted || foundation.summary === "budget reached") return finish(foundation);
+  if (o.signal?.aborted) return finish(foundation);
 
   // 2. Every beat at once (a few at a time), each agent on its own file, seeing the others' last good versions.
   const shared = Object.fromEntries(Object.entries(files).filter(([p]) => beatOf(p) === null && p !== BEATS_INDEX));
@@ -319,13 +317,13 @@ export async function makeFilm(o: {
     Object.assign(files, good[id]);
   }
   push();
-  if (o.signal?.aborted || ledger.usd >= o.budgetUsd) return finish({ done: false, summary: o.signal?.aborted ? "stopped" : "budget reached" });
+  if (o.signal?.aborted) return finish({ done: false, summary: "stopped" });
 
   // 3. The lead joins the beats into one film, then the art director's rounds.
   lead.dirty = true;
   leadMessages.push({ role: "user", content: LEAD_INTEGRATE });
   let r = await agent("lead", leadMessages, leadTools(true), INTEGRATE_STEPS);
-  for (let round = 1; round <= MAX_REVIEWS && r.summary !== "budget reached" && !o.signal?.aborted; round++) {
+  for (let round = 1; round <= MAX_REVIEWS && !o.signal?.aborted; round++) {
     const c = await compile(files, facts, o.signal);
     if (!c.ok) break;
     shown = c.modules;

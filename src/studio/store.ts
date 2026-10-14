@@ -35,13 +35,9 @@ export type Settings = {
   key: string;
   model: string;
   voice?: VoiceSettings;
-  /** The most one bespoke video may spend on the model, in USD. */
-  budgetUsd?: number;
   /** Let the creative director and the lead search and read the web (OneAPI web search, billed per search). */
   webSearch?: boolean;
 };
-
-export const DEFAULT_BUDGET_USD = 3;
 
 /** Voiceover is wanted and can be recorded. */
 export const voiceReady = (s: Settings): s is Settings & { voice: VoiceSettings } => Boolean(s.voice?.on && s.voice.key && s.voice.voiceId);

@@ -71,14 +71,13 @@ export async function runAgent(o: {
   messages: Msg[];
   tools: AgentTool[];
   maxSteps: number;
-  budgetUsd: number;
   price: Price;
   spend: Spend;
   onEvent: (e: AgentEvent) => void;
   onStep: (messages: Msg[], spend: Spend) => void;
   /** What is happening right now, for the person to see. */
   onActivity?: (text: string) => void;
-  /** Spend shared by agents working in parallel: every step adds to it, and the budget is checked against it. */
+  /** Spend shared by agents working in parallel: every step adds to it. */
   ledger?: Spend;
   signal?: AbortSignal;
 }): Promise<{ done: boolean; summary: string; spend: Spend }> {
@@ -89,10 +88,6 @@ export async function runAgent(o: {
   let timeouts = 0;
   for (let step = 1; step <= o.maxSteps; step++) {
     if (o.signal?.aborted) return { done: false, summary: "stopped", spend };
-    if (o.price && (o.ledger ?? spend).usd >= o.budgetUsd) {
-      o.onEvent({ kind: "error", text: `Budget of $${o.budgetUsd.toFixed(2)} reached; stopping here.` });
-      return { done: false, summary: "budget reached", spend };
-    }
     pruneImages(messages);
     let reply: Awaited<ReturnType<typeof chatStep>>;
     try {

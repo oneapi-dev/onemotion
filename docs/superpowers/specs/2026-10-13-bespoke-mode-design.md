@@ -126,7 +126,7 @@ every step, so a run resumes after a closed tab.
 The model must take images and tools. With Claude Sonnet 5.5 on OneAPI
 ($1.4 / $7 per 1M), a run is roughly 0.3 to 0.6 M input tokens and 30 to 50 k
 output tokens, about $0.7 to $1.2; Opus 5.5 doubles that. The Studio shows
-the running cost and stops at a budget the person sets.
+the running cost; there is no spending cap (removed 2026-10-14, the owner's call).
 
 ## Phases
 

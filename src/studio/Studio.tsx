@@ -18,7 +18,7 @@ import { Editor } from "./Editor";
 
 import { SettingsDialog } from "./Settings";
 import { hasNarration, recordNarration, storedNarration } from "@/voice/narrate";
-import { DEFAULT_BUDGET_USD, deleteProject, loadProjects, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
+import { deleteProject, loadProjects, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
 
 const Preview = dynamic(() => import("./Preview"), { ssr: false, loading: () => <div className="preview-wait" aria-hidden="true" /> });
 const FilmStage = dynamic(() => import("./FilmStage"), { ssr: false, loading: () => <div className="preview-wait" aria-hidden="true" /> });
@@ -352,7 +352,6 @@ export function Studio() {
           format,
           models,
           recent,
-          budgetUsd: settings.budgetUsd ?? DEFAULT_BUDGET_USD,
           refs,
           pages,
           web: settings.webSearch,
