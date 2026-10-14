@@ -18,13 +18,26 @@ describe("chatStep", () => {
     await vi.advanceTimersByTimeAsync(4_000);
     expect((await p).text).toBe("done");
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(notes[0]).toMatch(/504.*trying again in 4 s/);
+    expect(notes[0]).toMatch(/504.*Trying again in 4 s \(attempt 2 of 3\)/);
     vi.useRealTimers();
   });
 
-  it("gives up after three attempts", async () => {
+  it("waits about two minutes for a model that is busy or briefly unavailable, then gives up", async () => {
     vi.useFakeTimers();
-    const fetch = vi.fn(async () => failed(503, "busy"));
+    const fetch = vi.fn(async () => failed(503, "OneAPI answered 503: That model is temporarily unavailable."));
+    vi.stubGlobal("fetch", fetch);
+    const waits: string[] = [];
+    const p = chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }], onProgress: (x) => x.note && waits.push(x.note) }).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(140_000);
+    expect(await p).toBeInstanceOf(ChatError);
+    expect(fetch).toHaveBeenCalledTimes(6);
+    expect(waits[2]).toMatch(/waiting 20 s .*attempt 4 of 6.*busy or briefly unavailable/);
+    vi.useRealTimers();
+  });
+
+  it("tries a timed-out step only three times: it already took minutes", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn(async () => failed(504, "timed out"));
     vi.stubGlobal("fetch", fetch);
     const p = chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] }).catch((e: unknown) => e);
     await vi.advanceTimersByTimeAsync(20_000);

@@ -47,8 +47,14 @@ type StepInput = {
 
 /** Statuses worth trying again: a rate limit, a provider that timed out or fell over, a gateway hiccup. */
 export const TRANSIENT = new Set([429, 500, 502, 503, 504]);
-/** Waits before the second and third attempt. */
-const BACKOFF_MS = [4_000, 15_000];
+/**
+ * Waits before each new attempt. A model that is busy or briefly down
+ * (429, 5xx) gets about two minutes in all; a step that timed out (504)
+ * already took minutes, so it gets two more tries, then the agent loop
+ * asks for smaller replies.
+ */
+const BACKOFF_MS = [4_000, 10_000, 20_000, 40_000, 60_000];
+const TIMEOUT_RETRIES = 2;
 
 const wait = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -59,16 +65,20 @@ const wait = (ms: number, signal?: AbortSignal) =>
     });
   });
 
-/** A step, tried again after a pause when it fails for a reason that passes (timeouts, rate limits, a dropped connection). */
+/** A step, tried again after a pause when it fails for a reason that passes (a busy or unavailable model, a timeout, a dropped connection). */
 export async function chatStep(o: StepInput) {
   for (let attempt = 0; ; attempt++) {
     try {
       return await chatOnce(o);
     } catch (err) {
-      const transient = (err instanceof ChatError && TRANSIENT.has(err.status)) || (err instanceof TypeError && !o.signal?.aborted);
-      if (!transient || attempt >= BACKOFF_MS.length) throw err;
-      o.onRetry?.(`${err instanceof Error ? err.message : String(err)}: trying again in ${BACKOFF_MS[attempt] / 1000} s`);
-      await wait(BACKOFF_MS[attempt], o.signal);
+      const status = err instanceof ChatError ? err.status : 0;
+      const transient = TRANSIENT.has(status) || (err instanceof TypeError && !o.signal?.aborted);
+      const limit = status === 504 ? TIMEOUT_RETRIES : BACKOFF_MS.length;
+      if (!transient || attempt >= limit) throw err;
+      const ms = BACKOFF_MS[attempt];
+      o.onRetry?.(`${err instanceof Error ? err.message : String(err)} Trying again in ${ms / 1000} s (attempt ${attempt + 2} of ${limit + 1}).`);
+      o.onProgress?.({ chars: 0, note: `waiting ${ms / 1000} s to try again (attempt ${attempt + 2} of ${limit + 1}): ${status === 503 ? "the model is busy or briefly unavailable" : status === 429 ? "rate limited" : status === 504 ? "the provider timed out" : "the provider had a hiccup"}` });
+      await wait(ms, o.signal);
     }
   }
 }
