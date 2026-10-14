@@ -137,29 +137,101 @@ async function chatOnce(o: StepInput) {
   return { text, toolCalls: choice?.message?.tool_calls ?? [], usage: answer.usage ?? {}, finish: choice?.finish_reason ?? "" };
 }
 
-/** The JSON object in a model's reply, tolerating a fence or prose around it. */
+/** A reply that should have been JSON and was not, with the text around the place the parser stopped. */
+export class JsonReplyError extends Error {
+  constructor(
+    message: string,
+    public near?: string,
+  ) {
+    super(message);
+    this.name = "JsonReplyError";
+  }
+}
+
+const nextVisible = (s: string, from: number) => {
+  for (let i = from; i < s.length; i++) if (!/\s/.test(s[i])) return s[i];
+  return undefined;
+};
+
+/**
+ * Fixes the slips models make in long JSON: a double quote inside a string
+ * left unescaped, a raw line break inside a string, a comma before a closing
+ * bracket. A quote ends a string only when what follows it could follow a
+ * string (, : } ] or the end); any other quote is part of the text.
+ */
+export function repairJson(raw: string): string {
+  let out = "";
+  let inString = false;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (inString) {
+      if (c === "\\") {
+        out += c + (raw[i + 1] ?? "");
+        i++;
+      } else if (c === '"') {
+        const next = nextVisible(raw, i + 1);
+        if (next === undefined || ",:}]".includes(next)) {
+          inString = false;
+          out += c;
+        } else out += '\\"';
+      } else if (c === "\n") out += "\\n";
+      else if (c === "\r") out += "\\r";
+      else if (c === "\t") out += "\\t";
+      else out += c;
+      continue;
+    }
+    if (c === '"') inString = true;
+    if (c === ",") {
+      const next = nextVisible(raw, i + 1);
+      if (next === "}" || next === "]") continue;
+    }
+    out += c;
+  }
+  return out;
+}
+
+/** The JSON object in a model's reply, tolerating a fence or prose around it and the usual slips inside it. */
 export function parseJson<T>(text: string): T {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
   const raw = fenced ? fenced[1] : text;
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error("The model's answer had no JSON in it.");
-  return JSON.parse(raw.slice(start, end + 1)) as T;
+  if (start < 0 || end <= start) throw new JsonReplyError("the answer had no JSON object in it");
+  const json = raw.slice(start, end + 1);
+  try {
+    return JSON.parse(json) as T;
+  } catch (err) {
+    try {
+      return JSON.parse(repairJson(json)) as T;
+    } catch {
+      const message = err instanceof Error ? err.message : String(err);
+      const at = Number(/position (\d+)/.exec(message)?.[1]);
+      throw new JsonReplyError(message, Number.isFinite(at) ? json.slice(Math.max(0, at - 80), at + 40) : undefined);
+    }
+  }
 }
 
 /**
  * A completion whose answer must be one JSON object: parsed leniently, and
- * asked for once more when the first answer is not JSON. Usage covers both
- * calls.
+ * asked for once more when the first answer is not JSON, saying what was
+ * wrong (or with twice the room when the answer was cut off). Usage covers
+ * both calls.
  */
 export async function jsonStep<T>(o: StepInput): Promise<{ value: T; usage: Usage }> {
   const first = await chatStep(o);
   try {
     return { value: parseJson<T>(first.text), usage: first.usage };
-  } catch {
+  } catch (err) {
+    const cut = first.finish === "length";
+    const what = err instanceof JsonReplyError ? err.message : String(err);
+    const near = err instanceof JsonReplyError && err.near ? ` The parser stopped here: «${err.near}».` : "";
+    const ask = cut
+      ? "Your answer was cut off before the JSON ended. Reply with the complete JSON object again, written more tightly (shorter strings, nothing extra): no prose, no markdown fence."
+      : `That was not a valid JSON object (${what}).${near} Reply with the corrected JSON object only: no prose, no markdown fence. Write a double quote inside a string as \\".`;
     const again = await chatStep({
       ...o,
-      messages: [...o.messages, { role: "assistant", content: first.text || "(no answer)" }, { role: "user", content: "That was not a valid JSON object. Reply with the JSON object only: no prose, no markdown fence." }],
+      maxTokens: cut ? Math.min(32_000, (o.maxTokens ?? 16_000) * 2) : o.maxTokens,
+      messages: [...o.messages, { role: "assistant", content: first.text || "(no answer)" }, { role: "user", content: ask }],
     });
     const p = first.usage;
     const q = again.usage;
@@ -168,6 +240,11 @@ export async function jsonStep<T>(o: StepInput): Promise<{ value: T; usage: Usag
       completion_tokens: (p.completion_tokens ?? 0) + (q.completion_tokens ?? 0),
       prompt_tokens_details: { cached_tokens: (p.prompt_tokens_details?.cached_tokens ?? 0) + (q.prompt_tokens_details?.cached_tokens ?? 0) },
     };
-    return { value: parseJson<T>(again.text), usage };
+    try {
+      return { value: parseJson<T>(again.text), usage };
+    } catch (second) {
+      const said = second instanceof Error ? second.message : String(second);
+      throw new JsonReplyError(`The model answered with broken JSON twice (${said}${again.finish === "length" ? ", cut off at the length limit" : ""}). Try again, or pick another model.`);
+    }
   }
 }

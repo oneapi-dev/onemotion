@@ -121,4 +121,37 @@ describe("jsonStep", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(r.usage.prompt_tokens).toBe(30);
   });
+
+  it("repairs an unescaped quote, a raw line break and a trailing comma without asking again", async () => {
+    const fetch = vi.fn(async () => reply('{"facts": ["The "Go" plan costs $2", "two\nlines",], "title": "x",}'));
+    vi.stubGlobal("fetch", fetch);
+    const r = await jsonStep<{ facts: string[]; title: string }>({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] });
+    expect(r.value).toEqual({ facts: ['The "Go" plan costs $2', "two\nlines"], title: "x" });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells the model what was wrong and where when it asks again", async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(reply('{"beats": [{"says": "a"} {"says": "b"}]}')).mockResolvedValueOnce(reply('{"beats": []}'));
+    vi.stubGlobal("fetch", fetch);
+    await jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] });
+    const again = JSON.parse((fetch.mock.calls[1] as unknown as [string, RequestInit])[1].body as string);
+    const ask = again.messages.at(-1).content as string;
+    expect(ask).toMatch(/Expected ',' or ']' after array element/);
+    expect(ask).toContain('{"says": "a"} {"says"');
+  });
+
+  it("asks again with more room when the answer was cut off", async () => {
+    const cut = new Response(JSON.stringify({ choices: [{ message: { content: '{"beats": [{"says": "a"}, {"says": "b' }, finish_reason: "length" }], usage: {} }), { status: 200 });
+    const fetch = vi.fn().mockResolvedValueOnce(cut).mockResolvedValueOnce(reply('{"beats": []}'));
+    vi.stubGlobal("fetch", fetch);
+    await jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }], maxTokens: 8000 });
+    const again = JSON.parse((fetch.mock.calls[1] as unknown as [string, RequestInit])[1].body as string);
+    expect(again.max_tokens).toBe(16000);
+    expect(again.messages.at(-1).content).toMatch(/cut off/);
+  });
+
+  it("says plainly when the second answer is broken too", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => reply('{"beats": [{"says": "a"} {"says": "b"}]}')));
+    await expect(jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] })).rejects.toThrow(/broken JSON twice.*Expected ',' or ']'/);
+  });
 });

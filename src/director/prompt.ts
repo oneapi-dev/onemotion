@@ -1,3 +1,4 @@
+import { repairJson } from "@/bespoke/agent/llm";
 import type { Plan } from "@/engine/plan";
 import { aboutPlatform, describeModel, enforceFacts, PLATFORM_FACTS } from "./facts";
 import type { DirectInput } from "./input";
@@ -180,11 +181,16 @@ export function parseAnswer(body: ChatResponse, input: DirectInput): Plan {
   const start = content.indexOf("{");
   const end = content.lastIndexOf("}");
   if (start < 0 || end <= start) throw new UnusablePlanError("no JSON object");
+  const json = content.slice(start, end + 1);
   let raw: Partial<Plan>;
   try {
-    raw = JSON.parse(content.slice(start, end + 1));
+    raw = JSON.parse(json);
   } catch (e) {
-    throw new UnusablePlanError(String(e));
+    try {
+      raw = JSON.parse(repairJson(json));
+    } catch {
+      throw new UnusablePlanError(String(e));
+    }
   }
   return normalizePlan(enforceFacts({ ...raw, scenes: Array.isArray(raw.scenes) ? raw.scenes : [] }, input), input);
 }
