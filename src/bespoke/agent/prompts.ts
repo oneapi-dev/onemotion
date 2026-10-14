@@ -119,7 +119,8 @@ camAt([[frame, { x, y, z, r }, ease?], ...], t) a keyframed camera · project3D(
 
 /** The motion designer who codes: builds the film with tools. */
 export function agentPrompt(): string {
-  const ex = readExample("gateway");
+  // A small pattern, not a film: a fictional product far from any brief, so its world is never copied.
+  const ex = readExample("pattern");
   const example = ex
     ? Object.entries(ex.files)
         .map(([name, src]) => `--- ${name} ---\n${src}`)
@@ -150,7 +151,9 @@ Do not re-read files you just wrote. Do not render frames you do not need.
 8. Motion: ease everything (never a one-frame jump; punches ramp over at least 5 frames), stagger reveals, give arrivals weight (overshoot, anticipation), keep holds alive (slow drift, parallax), and focus attention on what the beat is about.
 9. The renderer draws your DOM onto a canvas (it is not Chrome's compositor). It does NOT draw: mix-blend-mode, backdrop-filter, CSS 3D (perspective, preserve-3d, rotateX/rotateY), conic gradients, background-clip:text. z-index is ignored: later elements paint on top, so order your JSX back to front. Every inline <svg> is re-rasterized on every frame and slows the export: draw lines and shapes with <Ink> or <Draw> (canvas), and use few small SVGs. The frames you render are exactly what the export draws: trust them.
 10. Performance: at most about 400 animated elements on screen; no large blurs; many small files beat one giant file.
-11. Logos: only real ones, fetched (see Real images); a brand you cannot fetch appears as its name in type. Showing a tool or provider never implies a partnership: no "partner", "official" or "integrated with" wording unless the facts say so.
+11. Logos: only real ones, fetched (see Real images); a brand you cannot fetch appears as its name in type. A model appears with its maker's logo (Claude: Anthropic, GPT: OpenAI, Gemini: Google, DeepSeek, Llama: Meta, ...). Showing a tool or provider never implies a partnership: no "partner", "official" or "integrated with" wording unless the facts say so.
+13. No empty placeholders: never a blank card, box, tile or circle standing in for something (a logo, a screenshot, a product). Every card holds real content: a fetched logo, a name in type large enough to be the hero, an icon you draw, real UI. If you have nothing to put in a box, do not draw the box.
+14. One word at a time in one place: when a label, a name or a number changes, the old one is fully gone (or has moved away) before the new one appears there. Two texts are never drawn over each other, not even for a few frames of a crossfade.
 12. End on the brand: the last beat holds the brand (<Mark/>, the name, the URL) calmly with a small loop of life. The first frame already shows something meaningful (it is the thumbnail).
 
 # Craft
@@ -163,7 +166,7 @@ Do not re-read files you just wrote. Do not render frames you do not need.
 
 ${KIT_DOC}
 
-# An example scene (hand-written; a different film. Learn the craft and the API, never copy its world)
+# The team's file pattern (hand-written for a fictional app. It shows how the files fit together and how the kit is called: theme, a shared component, the stage, beats timed on the voice, real logos with names, the close. Its look is deliberately plain: your film's world, layout and motion come from the concept, never from this)
 ${example}
 
 # @kit source (complete; do not read these files)

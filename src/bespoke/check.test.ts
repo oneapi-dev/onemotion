@@ -61,6 +61,12 @@ describe("checkScene", () => {
     expect(checkScene(example("gateway"), facts).errors).toEqual([]);
   });
 
+  it("passes the file pattern the agents learn from, beats and all", { timeout: 60_000 }, () => {
+    const r = checkScene(example("pattern"), "Wayfare plans your whole trip in one place, from the apps you already use.");
+    expect(r.errors).toEqual([]);
+    expect(Object.keys(r.modules).sort()).toEqual(["scene/beats/b1.tsx", "scene/beats/b2.tsx", "scene/beats/b3.tsx", "scene/beats/index.ts", "scene/components/Headline.tsx", "scene/index.tsx", "scene/theme.ts"]);
+  });
+
   it("refuses paths outside scene/", () => {
     const r = checkScene({ "scene/index.tsx": minimal(""), "../evil.ts": "" });
     expect(r.ok).toBe(false);

@@ -1,0 +1,10 @@
+{
+  "format": "landscape",
+  "brand": { "name": "Wayfare", "url": "wayfare.example", "logo": null, "colors": ["#2F6BFF"] },
+  "score": { "genre": "house", "bpm": 112, "seed": 5 },
+  "beats": [
+    { "id": "b1", "says": "Your whole trip, in one place.", "voice": "Your whole trip, in one place.", "shows": "the headline writes itself over a folded paper map", "seconds": 3 },
+    { "id": "b2", "says": "From the apps you already use.", "voice": "From the apps you already use.", "shows": "the real logos of three apps slide onto the map, each named", "seconds": 3.2 },
+    { "id": "b3", "says": "wayfare.example", "voice": "Wayfare.", "shows": "the brand lockup and its address", "seconds": 2.6 }
+  ]
+}
