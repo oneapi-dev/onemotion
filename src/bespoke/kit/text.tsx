@@ -40,28 +40,48 @@ export const Fit = ({ text, font, weight, size, maxW, track = 0, style, children
 
 type CharsMode = "rise" | "drop" | "fade" | "scale" | "slam";
 
-/** A per-character reveal from frame `at`: rise or drop (masked), fade, scale (pop), slam (big to size). */
-export const Chars = ({ text, t, at, step = 2.2, mode = "rise", style }: { text: string; t: number; at: number; step?: number; mode?: CharsMode; style?: CSSProperties }) => (
-  <>
-    {[...text].map((ch, i) => {
-      const a = at + i * step;
-      const p = prog(t, a, a + 16);
-      let inner: CSSProperties = {};
-      if (mode === "rise") inner = { transform: `translateY(${((1 - p) * 110).toFixed(1)}%) rotate(${((1 - p) * 6).toFixed(1)}deg)` };
-      if (mode === "drop") inner = { transform: `translateY(${((p - 1) * 110).toFixed(1)}%)` };
-      if (mode === "fade") inner = { opacity: p, transform: `translateY(${((1 - p) * 0.25).toFixed(3)}em)` };
-      if (mode === "scale") inner = { transform: `scale(${pop(t, a, 3.5).toFixed(3)})`, opacity: t >= a ? 1 : 0 };
-      if (mode === "slam") inner = { transform: `scale(${(t < a ? 2.2 : 1 + 1.2 * Math.exp(-(t - a) / 3)).toFixed(3)})`, opacity: prog(t, a - 2, a + 2) };
-      const clip = mode === "rise" || mode === "drop";
-      return (
-        // The mask is padded so glyph tips and descenders are never shaved.
-        <span key={i} style={{ display: "inline-block", overflow: clip ? "hidden" : "visible", verticalAlign: "bottom", padding: clip ? "0 0.04em 0.14em" : 0, margin: clip ? "0 -0.04em -0.14em" : 0 }}>
-          <span style={{ display: "inline-block", whiteSpace: "pre", ...inner, ...style }}>{ch}</span>
-        </span>
-      );
-    })}
-  </>
-);
+/**
+ * A per-character reveal from frame `at`: rise or drop (masked), fade, scale (pop), slam (big to size).
+ * Characters are grouped by word, and the spaces between words stay plain text: a line breaks only
+ * between words, and never starts with a space.
+ */
+export const Chars = ({ text, t, at, step = 2.2, mode = "rise", style }: { text: string; t: number; at: number; step?: number; mode?: CharsMode; style?: CSSProperties }) => {
+  const parts = text.split(/(\s+)/);
+  // Each part's first character's index in the whole text, so the timing runs on across words and spaces.
+  const starts = parts.map((_, k) => parts.slice(0, k).reduce((n, p) => n + [...p].length, 0));
+  return (
+    <>
+      {parts.map((part, k) =>
+        !part ? null : /^\s+$/.test(part) ? (
+          part
+        ) : (
+          <span key={k} style={{ display: "inline-block", whiteSpace: "nowrap" }}>
+            {[...part].map((ch, j) => charOf(ch, starts[k] + j, t, at, step, mode, style))}
+          </span>
+        ),
+      )}
+    </>
+  );
+};
+
+/** One character of Chars, the i-th of its text, revealed from at + i * step. */
+const charOf = (ch: string, i: number, t: number, at: number, step: number, mode: CharsMode, style?: CSSProperties) => {
+  const a = at + i * step;
+  const p = prog(t, a, a + 16);
+  let inner: CSSProperties = {};
+  if (mode === "rise") inner = { transform: `translateY(${((1 - p) * 110).toFixed(1)}%) rotate(${((1 - p) * 6).toFixed(1)}deg)` };
+  if (mode === "drop") inner = { transform: `translateY(${((p - 1) * 110).toFixed(1)}%)` };
+  if (mode === "fade") inner = { opacity: p, transform: `translateY(${((1 - p) * 0.25).toFixed(3)}em)` };
+  if (mode === "scale") inner = { transform: `scale(${pop(t, a, 3.5).toFixed(3)})`, opacity: t >= a ? 1 : 0 };
+  if (mode === "slam") inner = { transform: `scale(${(t < a ? 2.2 : 1 + 1.2 * Math.exp(-(t - a) / 3)).toFixed(3)})`, opacity: prog(t, a - 2, a + 2) };
+  const clip = mode === "rise" || mode === "drop";
+  return (
+    // The mask is padded so glyph tips and descenders are never shaved.
+    <span key={i} style={{ display: "inline-block", overflow: clip ? "hidden" : "visible", verticalAlign: "bottom", padding: clip ? "0 0.04em 0.14em" : 0, margin: clip ? "0 -0.04em -0.14em" : 0 }}>
+      <span style={{ display: "inline-block", whiteSpace: "pre", ...inner, ...style }}>{ch}</span>
+    </span>
+  );
+};
 
 export const Caret = ({ t, h, color }: { t: number; h: number; color: string }) => (
   <span style={{ display: "inline-block", width: Math.max(2, Math.round(h * 0.09)), height: h, background: color, marginLeft: 3, verticalAlign: "middle", opacity: Math.sin(t / 4.5) > -0.2 ? 1 : 0 }} />
