@@ -1,7 +1,7 @@
 "use client";
 
 import type { FilmSpec } from "../film";
-import type { Sandbox } from "../host";
+import type { FilmHost } from "../host";
 import { filmTiming } from "../timing";
 import type { Concept } from "./concept";
 import { scaled } from "./images";
@@ -53,13 +53,13 @@ export async function reviewFilm(o: {
   modules: Record<string, string>;
   concept: Concept;
   facts: string;
-  sandbox: Sandbox;
+  host: FilmHost;
   /** The person's product screenshots: the film's UI should match them. */
   refs?: string[];
   signal?: AbortSignal;
 }): Promise<{ review: Review; usage: Usage; warnings: string[] }> {
   const tiles = reviewTiles(o.spec);
-  const { images, warnings } = await o.sandbox.stills({ spec: o.spec, modules: o.modules }, tiles.map((t) => t.frame), o.signal);
+  const { images, warnings } = await o.host.stills({ spec: o.spec, modules: o.modules }, tiles.map((t) => t.frame), o.signal);
   const portrait = o.spec.format === "portrait";
   const urls = await Promise.all(images.map((b) => scaled(b, portrait ? 720 : 1280)));
   const parts: Part[] = [

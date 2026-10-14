@@ -31,10 +31,11 @@ describe("checkScene", () => {
     expect(r.modules["scene/index.tsx"]).toContain('require("@kit")');
   });
 
-  it("rejects network, time, randomness and foreign imports", { timeout: 60_000 }, () => {
-    const r = checkScene({ "scene/index.tsx": minimal("  fetch('https://x.test'); const n = Date.now() + Math.random();", 'import fs from "fs";') });
+  it("rejects time, randomness, storage and foreign imports, and allows the network", { timeout: 60_000 }, () => {
+    const r = checkScene({ "scene/index.tsx": minimal("  void fetch('https://x.test'); const n = Date.now() + Math.random() + localStorage.length;", 'import fs from "fs";') });
     expect(r.ok).toBe(false);
-    expect(r.errors.join("\n")).toMatch(/"fetch" is not available/);
+    expect(r.errors.join("\n")).not.toMatch(/fetch/);
+    expect(r.errors.join("\n")).toMatch(/"localStorage" is not available/);
     expect(r.errors.join("\n")).toMatch(/"Date" is not available/);
     expect(r.errors.join("\n")).toMatch(/Math.random/);
     expect(r.errors.join("\n")).toMatch(/import from "fs" is not allowed/);

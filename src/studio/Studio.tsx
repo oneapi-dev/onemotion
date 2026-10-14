@@ -10,17 +10,18 @@ import { scoreOf } from "@/music/score";
 import { planTiming } from "@/engine/rig";
 import { filmTiming } from "@/bespoke/timing";
 import { LIBRARY } from "@/music/library";
-import type { Sandbox } from "@/bespoke/host";
+import type { FilmHost } from "@/bespoke/host";
 import { makeFilm, type FilmState, type RecentFilm } from "@/bespoke/agent/run";
 import { storedFilmMusic, storedFilmVoice } from "@/bespoke/voice";
 import { scaled } from "@/bespoke/agent/images";
 import { Editor } from "./Editor";
-import { FilmStage } from "./FilmStage";
+
 import { SettingsDialog } from "./Settings";
 import { hasNarration, recordNarration, storedNarration } from "@/voice/narrate";
 import { DEFAULT_BUDGET_USD, deleteProject, loadProjects, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
 
 const Preview = dynamic(() => import("./Preview"), { ssr: false, loading: () => <div className="preview-wait" aria-hidden="true" /> });
+const FilmStage = dynamic(() => import("./FilmStage"), { ssr: false, loading: () => <div className="preview-wait" aria-hidden="true" /> });
 
 const FORMATS: { id: MotionFormat; label: string; hint: string }[] = [
   { id: "landscape", label: "16:9", hint: "YouTube, X, websites" },
@@ -106,9 +107,9 @@ export function Studio() {
   // The current video's recorded voiceover lines, as URLs the preview and exporter play.
   const [voice, setVoice] = useState<{ projectId: string; clips: Record<number, string>; missing: boolean } | null>(null);
   const [mode, setMode] = useState<Mode>("bespoke");
-  const sandbox = useRef<Sandbox | null>(null);
-  const onSandbox = useCallback((s: Sandbox | null) => {
-    sandbox.current = s;
+  const host = useRef<FilmHost | null>(null);
+  const onHost = useCallback((h: FilmHost | null) => {
+    host.current = h;
   }, []);
   const onFilmError = useCallback((m: string) => setError(`The preview hit an error: ${m}`), []);
   const running = useRef<AbortController | null>(null);
@@ -355,7 +356,7 @@ export function Studio() {
           refs,
           pages,
           web: settings.webSearch,
-          sandbox: () => sandbox.current,
+          host: () => host.current,
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName } : undefined,
           onVoice: (clips) => setFilmClips({ projectId: base.id, clips }),
           onMusic: (blob) => setFilmMusic({ projectId: base.id, blob }),
@@ -414,7 +415,7 @@ export function Studio() {
   }
 
   async function exportFilm(film: FilmState) {
-    const box = sandbox.current;
+    const box = host.current;
     if (!box || !film.modules) return;
     abort.current = new AbortController();
     setExporting({ state: "running", progress: 0 });
@@ -618,7 +619,7 @@ export function Studio() {
 
         <section className={`stage stage-${format}`} aria-label="Preview">
           <div className="frame">
-            {isFilm ? <FilmStage film={film} format={format} voiceover={voiceover} music={music} onSandbox={onSandbox} onError={onFilmError} /> : <Preview input={input} />}
+            {isFilm ? <FilmStage film={film} format={format} voiceover={voiceover} music={music} onHost={onHost} onError={onFilmError} /> : <Preview input={input} />}
           </div>
           {isFilm && current ? (
             <div className="meta">

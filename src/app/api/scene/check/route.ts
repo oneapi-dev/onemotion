@@ -3,7 +3,7 @@ import { checkScene } from "@/bespoke/check";
 export const runtime = "nodejs";
 
 /**
- * Checks a bespoke scene and compiles it for the sandbox: the files in, the
+ * Checks a bespoke scene and compiles it for the page: the files in, the
  * problems or the compiled modules out. Stateless; holds nothing.
  */
 export async function POST(req: Request) {

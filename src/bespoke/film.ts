@@ -16,7 +16,7 @@ export type FilmSpec = {
   assets?: Record<string, string>;
 };
 
-/** What the sandbox renders: the spec, the scene compiled to CommonJS modules by path, and recorded voice lines by beat index. */
+/** What the film host renders: the spec, the scene compiled to CommonJS modules by path, and recorded voice lines by beat index. */
 export type FilmInput = {
   spec: FilmSpec;
   modules: Record<string, string>;

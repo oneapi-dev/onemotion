@@ -1,96 +1,100 @@
 "use client";
 
-import type { FromSandbox, ToSandbox, WireFilm } from "./runtime/protocol";
+import { renderMediaOnWeb, renderStillOnWeb } from "@remotion/web-renderer";
+import { DIMENSIONS } from "@/engine/plan";
+import type { FilmInput, FilmSpec } from "./film";
+import { FilmComposition, filmFrames } from "./runtime/FilmComposition";
+import { qaWarnings } from "./runtime/qa";
+import { FILM_FPS } from "./timing";
 
-/** Where the sandbox page lives. It is served by this app but runs with an opaque origin. */
-export const SANDBOX_SRC = "/sandbox/index.html";
-/** The iframe's sandbox: scripts only. No same-origin access, no forms, no popups, no top navigation. */
-export const SANDBOX_FLAGS = "allow-scripts";
+/** A film as the Studio holds it: the spec, the compiled scene, and recorded voice lines and a music bed as Blobs. */
+export type WireFilm = { spec: FilmSpec; modules: Record<string, string>; voiceover?: Record<number, Blob>; music?: Blob };
 
-type Pending = { resolve: (v: FromSandbox) => void; reject: (e: Error) => void; onProgress?: (p: number) => void };
+const urls = new Map<Blob, string>();
+/** Voice and music blobs as object URLs, made once per blob. */
+const urlOf = (blob: Blob) => {
+  let url = urls.get(blob);
+  if (!url) {
+    url = URL.createObjectURL(blob);
+    urls.set(blob, url);
+  }
+  return url;
+};
+
+export function toInput(film: WireFilm): FilmInput {
+  const voiceover: Record<number, string> = {};
+  for (const [i, blob] of Object.entries(film.voiceover ?? {})) voiceover[Number(i)] = urlOf(blob);
+  return { spec: film.spec, modules: film.modules, voiceover, music: film.music ? urlOf(film.music) : undefined };
+}
+
+const composition = (input: FilmInput) => {
+  const { width, height } = DIMENSIONS[input.spec.format];
+  return { id: "film", component: FilmComposition, width, height, fps: FILM_FPS, durationInFrames: filmFrames(input), defaultProps: input };
+};
 
 /**
- * The Studio's side of the sandbox: sends a film to show, asks for stills
- * and exports, and matches the answers. Only messages from this iframe's
- * window are read.
+ * Where a bespoke film runs: in this page, next to the Studio. It holds
+ * the film the preview shows, renders the stills the agents look at (with
+ * the frame QA) and exports the MP4. Stills run one job at a time: agents
+ * working in parallel share it, and the QA reads one render at a time.
  */
-export class Sandbox {
-  private pending = new Map<string, Pending>();
-  private ready: Promise<void>;
-  private markReady!: () => void;
-  private n = 0;
-  onShown?: (frames: number) => void;
-  onError?: (message: string) => void;
+export class FilmHost {
+  current: FilmInput | null = null;
+  private listeners = new Set<(input: FilmInput | null) => void>();
+  /** Called when a render starts: the preview pauses, so it does not take the CPU the render needs. */
+  private renders = new Set<() => void>();
 
-  private ping: ReturnType<typeof setInterval>;
-
-  constructor(private frame: HTMLIFrameElement) {
-    this.ready = new Promise((r) => (this.markReady = r));
-    window.addEventListener("message", this.receive);
-    // The sandbox may have started before this listener, or not yet: ask until it answers.
-    this.ping = setInterval(() => frame.contentWindow?.postMessage({ type: "ping" } satisfies ToSandbox, "*"), 150);
+  onRender(fn: () => void): () => void {
+    this.renders.add(fn);
+    return () => this.renders.delete(fn);
   }
 
-  dispose() {
-    clearInterval(this.ping);
-    window.removeEventListener("message", this.receive);
-    for (const p of this.pending.values()) p.reject(new Error("The preview was closed."));
-    this.pending.clear();
+  private rendering() {
+    for (const fn of this.renders) fn();
   }
-
-  private receive = (e: MessageEvent<FromSandbox>) => {
-    if (e.source !== this.frame.contentWindow || !e.data || typeof e.data !== "object") return;
-    const m = e.data;
-    if (m.type === "ready") {
-      clearInterval(this.ping);
-      return this.markReady();
-    }
-    if (m.type === "shown") return this.onShown?.(m.frames);
-    if (m.type === "player-error") return this.onError?.(m.message);
-    const p = this.pending.get(m.id);
-    if (!p) return;
-    if (m.type === "progress") return p.onProgress?.(m.progress);
-    this.pending.delete(m.id);
-    if (m.type === "failed") p.reject(new Error(m.message));
-    else p.resolve(m);
-  };
-
-  private async send(msg: ToSandbox) {
-    await this.ready;
-    this.frame.contentWindow?.postMessage(msg, "*");
-  }
-
-  private request<T extends FromSandbox>(msg: ToSandbox & { id: string }, signal?: AbortSignal, onProgress?: (p: number) => void): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      this.pending.set(msg.id, { resolve: resolve as (v: FromSandbox) => void, reject, onProgress });
-      signal?.addEventListener("abort", () => {
-        void this.send({ type: "abort", id: msg.id });
-        this.pending.delete(msg.id);
-        reject(new DOMException("Aborted", "AbortError"));
-      });
-      void this.send(msg);
-    });
-  }
-
-  show(film: WireFilm) {
-    void this.send({ type: "show", film });
-  }
-
-  /** Stills one job at a time: agents working in parallel share this sandbox, and its QA reads one render at a time. */
   private queue: Promise<unknown> = Promise.resolve();
 
-  async stills(film: WireFilm, frames: number[], signal?: AbortSignal): Promise<{ images: Blob[]; warnings: string[] }> {
+  show(film: WireFilm) {
+    this.current = toInput(film);
+    for (const l of this.listeners) l(this.current);
+  }
+
+  subscribe(fn: (input: FilmInput | null) => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  async stills(film: WireFilm, frames: number[], signal?: AbortSignal, quality = 0.82): Promise<{ images: Blob[]; warnings: string[] }> {
     const run = this.queue.then(async () => {
       signal?.throwIfAborted();
-      const r = await this.request<Extract<FromSandbox, { type: "stills" }>>({ type: "stills", id: `s${++this.n}`, film, frames }, signal);
-      return { images: r.images, warnings: r.warnings };
+      this.rendering();
+      const input = { ...toInput(film), qa: true };
+      const comp = composition(input);
+      qaWarnings.length = 0;
+      const images: Blob[] = [];
+      for (const frame of frames) {
+        const f = Math.max(0, Math.min(comp.durationInFrames - 1, Math.round(frame)));
+        const still = await renderStillOnWeb({ composition: comp, inputProps: input, frame: f, signal: signal ?? null, delayRenderTimeoutInMilliseconds: 120_000 });
+        images.push(await still.blob({ format: "jpeg", quality }));
+      }
+      return { images, warnings: [...new Set(qaWarnings)].slice(0, 30) };
     });
     this.queue = run.catch(() => undefined);
     return run;
   }
 
   async exportMp4(film: WireFilm, onProgress: (p: number) => void, signal?: AbortSignal): Promise<Blob> {
-    const r = await this.request<Extract<FromSandbox, { type: "exported" }>>({ type: "export", id: `e${++this.n}`, film }, signal, onProgress);
-    return r.blob;
+    const input = toInput(film);
+    this.rendering();
+    const result = await renderMediaOnWeb({
+      composition: composition(input),
+      inputProps: input,
+      container: "mp4",
+      videoCodec: "h264",
+      videoBitrate: "high",
+      signal,
+      onProgress: (p) => onProgress(p.progress),
+    });
+    return result.getBlob();
   }
 }

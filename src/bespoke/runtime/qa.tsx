@@ -7,7 +7,7 @@ import { useCurrentFrame } from "remotion";
  * these warnings next to the pictures, which catch most but not all of it.
  */
 
-/** Warnings from the stills being rendered now; the sandbox empties it before a job and reads it after. */
+/** Warnings from the stills being rendered now; the film host empties it before a job and reads it after. */
 export const qaWarnings: string[] = [];
 
 const MAX_ELEMENTS = 2000;

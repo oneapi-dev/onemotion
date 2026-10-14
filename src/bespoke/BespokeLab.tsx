@@ -1,24 +1,27 @@
 "use client";
 
+import { Player, type PlayerRef } from "@remotion/player";
 import { useEffect, useRef, useState } from "react";
 import { DIMENSIONS } from "@/engine/plan";
 import { LIBRARY } from "@/music/library";
 import { normalizeScore } from "@/music/score";
 import type { FilmSpec } from "./film";
-import { SANDBOX_FLAGS, SANDBOX_SRC, Sandbox } from "./host";
-import type { WireFilm } from "./runtime/protocol";
-import { filmTiming, type FilmBeat } from "./timing";
+import { FilmHost, type WireFilm } from "./host";
+import { FilmComposition, filmFrames } from "./runtime/FilmComposition";
+import { FILM_FPS, filmTiming, type FilmBeat } from "./timing";
 
 type Example = { name: string; film: { format: FilmSpec["format"]; brand: FilmSpec["brand"]; score: unknown; beats: FilmBeat[] }; files: Record<string, string> };
 
 /**
  * The bespoke lab: runs a hand-written example scene through the same path a
- * model's scene takes (check and compile, the sandbox, stills, export), to
+ * model's scene takes (check and compile, the film host, stills, export), to
  * prove the pipeline without a model.
  */
 export default function BespokeLab() {
-  const frame = useRef<HTMLIFrameElement>(null);
-  const box = useRef<Sandbox | null>(null);
+  const [host] = useState(() => new FilmHost());
+  const [input, setInput] = useState(host.current);
+  const player = useRef<PlayerRef>(null);
+  useEffect(() => host.onRender(() => player.current?.pause()), [host]);
   const [film, setFilm] = useState<WireFilm | null>(null);
   const [status, setStatus] = useState("Checking the example…");
   const [errors, setErrors] = useState<string[]>([]);
@@ -27,10 +30,7 @@ export default function BespokeLab() {
   const [progress, setProgress] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!frame.current) return;
-    const sb = new Sandbox(frame.current);
-    sb.onError = (m) => setErrors((e) => [...e, `player: ${m}`]);
-    box.current = sb;
+    const off = host.subscribe(setInput);
     let live = true;
     (async () => {
       const name = new URLSearchParams(window.location.search).get("example") ?? "gateway";
@@ -56,23 +56,23 @@ export default function BespokeLab() {
       const bed = new URLSearchParams(window.location.search).get("music") === "1" ? await (await fetch("/audio/bright.mp3")).blob() : undefined;
       const wire = { spec, modules: checked.modules, music: bed };
       setFilm(wire);
-      sb.show(wire);
+      host.show(wire);
       setStatus(`Checked in ${Math.round(performance.now() - t0)} ms. ${filmTiming(spec.beats, score).timing.total} frames.`);
     })().catch((e: unknown) => setStatus(`Failed: ${e instanceof Error ? e.message : String(e)}`));
     return () => {
       live = false;
-      sb.dispose();
+      off();
     };
-  }, []);
+  }, [host]);
 
   const renderStills = async () => {
-    if (!film || !box.current) return;
+    if (!film) return;
     const { beats } = filmTiming(film.spec.beats, film.spec.score);
     const frames = beats.flatMap((b) => [Math.round(b.start + (b.end - b.start) * 0.3), Math.round(b.start + (b.end - b.start) * 0.8)]);
     setStatus("Rendering stills…");
     const t0 = performance.now();
     try {
-      const r = await box.current.stills(film, frames);
+      const r = await host.stills(film, frames);
       setStills(r.images.map((b, i) => ({ frame: frames[i], url: URL.createObjectURL(b) })));
       setErrors(r.warnings.map((w) => `qa: ${w}`));
       setStatus(`${frames.length} stills in ${((performance.now() - t0) / 1000).toFixed(1)} s.`);
@@ -83,11 +83,11 @@ export default function BespokeLab() {
   };
 
   const exportVideo = async () => {
-    if (!film || !box.current) return;
+    if (!film) return;
     setStatus("Exporting…");
     const t0 = performance.now();
     try {
-      const blob = await box.current.exportMp4(film, setProgress);
+      const blob = await host.exportMp4(film, setProgress);
       setVideo({ url: URL.createObjectURL(blob), mb: blob.size / 1e6, seconds: (performance.now() - t0) / 1000 });
       setStatus("Exported.");
     } catch (e) {
@@ -103,7 +103,24 @@ export default function BespokeLab() {
     <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24, fontFamily: "system-ui, sans-serif", color: "#eee" }}>
       <h1 style={{ fontSize: 22 }}>Bespoke lab</h1>
       <p data-testid="status">{status}</p>
-      <iframe ref={frame} title="Bespoke preview" src={SANDBOX_SRC} sandbox={SANDBOX_FLAGS} style={{ width: "100%", aspectRatio: `${width} / ${height}`, border: 0, background: "#000", display: "block" }} />
+      <div style={{ width: "100%", aspectRatio: `${width} / ${height}`, background: "#000" }}>
+        {input ? (
+          <Player
+            ref={player}
+            component={FilmComposition}
+            inputProps={input}
+            durationInFrames={filmFrames(input)}
+            fps={FILM_FPS}
+            compositionWidth={width}
+            compositionHeight={height}
+            controls
+            loop
+            autoPlay
+            acknowledgeRemotionLicense
+            style={{ width: "100%", height: "100%" }}
+          />
+        ) : null}
+      </div>
       <div style={{ display: "flex", gap: 12, margin: "16px 0" }}>
         <button type="button" onClick={renderStills} disabled={!film}>
           Render stills

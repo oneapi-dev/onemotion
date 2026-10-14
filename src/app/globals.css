@@ -395,19 +395,10 @@ a:focus-visible {
   aspect-ratio: 16 / 9;
 }
 
-/* A bespoke video plays in its sandbox iframe. */
+/* A bespoke video plays in a Player that fills this frame. */
 .film-frame {
   position: relative;
   width: 100%;
-}
-
-.film-frame iframe {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  display: block;
 }
 
 .film-wait {

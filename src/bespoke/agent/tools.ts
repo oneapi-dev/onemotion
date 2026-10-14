@@ -2,7 +2,7 @@
 
 import { DIMENSIONS } from "@/engine/plan";
 import type { FilmSpec } from "../film";
-import type { Sandbox } from "../host";
+import type { FilmHost } from "../host";
 import { filmTiming } from "../timing";
 import type { SiteInfo } from "@/director/input";
 import { prepareAsset, scaled, sheet } from "./images";
@@ -66,7 +66,7 @@ export type ToolScope = {
  * The agent's tools. They change `ws` in place and call `changed` after
  * every change, so the Studio can save it and refresh the preview.
  */
-export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void, signal?: AbortSignal, scope: ToolScope = {}): AgentTool[] {
+export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, signal?: AbortSignal, scope: ToolScope = {}): AgentTool[] {
   const { width: W, height: H } = DIMENSIONS[ws.spec.format];
   const view = () => scope.view?.() ?? ws.files;
   const report = (errors: string[]) => {
@@ -227,7 +227,7 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
         const frames = (Array.isArray(a.frames) ? a.frames : []).slice(0, 6).map((x) => clampFrame(Number(x) || 0));
         if (!frames.length) return { text: "Give the frames to render." };
         try {
-          const r = await sandbox.stills(film(), frames, signal);
+          const r = await host.stills(film(), frames, signal);
           const urls = await Promise.all(r.images.map((b) => scaled(b, H > W ? 540 : 960)));
           return { text: `rendered frames ${frames.join(", ")}${r.warnings.length ? `\nQA:\n- ${r.warnings.join("\n- ")}` : "\nQA: no warnings"}`, images: urls.map((url, i) => ({ label: `frame ${frames[i]}`, url })) };
         } catch (err) {
@@ -246,7 +246,7 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
         if (blocked) return { text: blocked };
         const { frames, labels } = sheetFrames();
         try {
-          const r = await sandbox.stills(film(), frames, signal);
+          const r = await host.stills(film(), frames, signal);
           const P = H > W;
           const cols = P ? 5 : W === H ? 4 : 3;
           const url = await sheet(r.images, labels, cols, P ? 300 : W === H ? 420 : 640);

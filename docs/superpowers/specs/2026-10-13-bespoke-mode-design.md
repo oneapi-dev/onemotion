@@ -38,9 +38,9 @@ Studio (parent page, holds keys)
  ├─ agent loop (browser) ── /api/chat ──► OneAPI   (one completion per request, key in header, not stored)
  │    tools: timing, list/read/write/edit/delete_file, check, render_frames, contact_sheet, finish
  │    check ─────────────── /api/scene/check        (TypeScript typecheck + scene rules + transpile → JS modules)
- │    render_* / preview / export ──postMessage──►  sandbox iframe
- └─ sandbox iframe  (sandbox="allow-scripts": opaque origin, strict CSP, no network but our static files and fonts)
-      runtime.js: React, Remotion, Player, web-renderer, @kit, music composer
+ │    render_* / preview / export ──────────────►  FilmHost (same page)
+ └─ FilmHost + Player  (in the Studio page, open network, see "No sandbox" below)
+      React, Remotion, Player, web-renderer, @kit
       evaluates the compiled scene modules with a require() that knows only react, remotion and @kit
 ```
 
@@ -49,16 +49,19 @@ Studio (parent page, holds keys)
   from the request header (same rule as `/api/direct`). No step comes near the
   request limit, and a closed tab loses nothing that is not saved per step.
 - **Check** runs on the server with the `typescript` package: forbidden
-  imports and globals (`fetch`, `Date`, `Math.random`, `localStorage`, `eval`,
+  imports and globals (`Date`, `Math.random`, timers, `localStorage`, `eval`,
   dynamic `import()`, ...), numbers on screen that are not in the facts, then a
   real typecheck against the kit's types, then `transpileModule` to CommonJS.
-  The browser only ever runs code that passed it.
-- **Sandbox**: the iframe has no same-origin access (no storage, no cookies,
-  no parent DOM), and its CSP allows connections only to this app's static
-  files and Google Fonts. The parent never sends it a key. Messages are
-  checked by source window on both sides. Static rules are a lint, not the
-  security boundary; the iframe is.
-- **Frames for the model**: the iframe renders stills with
+  The browser only ever runs code that passed it. The network is allowed.
+- **No sandbox** (since 2026-10-14, the owner's call): scenes run in the
+  Studio page itself, so they can reach the internet. The static rules are a
+  lint, not a security boundary: a scene runs with the page's rights and
+  could read the OneAPI key the Studio holds. The risk is a model steered by
+  text it read (a brief, a website, a web search result) into writing code
+  that sends the key away. Accepted because OneMotion runs in each person's
+  own browser with their own key. Before this, scenes ran in an
+  `allow-scripts` iframe with a strict CSP (commits up to 09895be).
+- **Frames for the model**: the host renders stills with
   `renderStillOnWeb`, exactly what the export will draw, so the model judges
   the real output. Contact sheets are tiled on a canvas in the parent.
 
@@ -112,7 +115,7 @@ headers), plus what the browser exporter needs:
    sheet, looks, fixes, at least two look-and-fix passes, then `finish`.
 3. **Review** (optional, one call): a fresh look at labelled frames returns
    issues; the same agent session fixes them.
-4. **Preview and export** in the sandbox, with music composed from the
+4. **Preview and export** in the page, with music composed from the
    concept's score, the scene's own SFX, and the optional voice-over.
 
 Files, concept and the agent's conversation are saved with the project after
@@ -139,7 +142,7 @@ the running cost and stops at a budget the person sets.
 
 - Both aspects per run.
 - Word-level cues (needs ElevenLabs timestamps; beat-level cues first).
-- Running generated code outside the sandbox, ever.
+- A sandbox for generated code (removed 2026-10-14, see "No sandbox").
 
 ## Parity with remotion-opus-skill (2026-10-13)
 
@@ -151,7 +154,7 @@ code mode:
 | creative director concept, different from recent films | concept call with the recent films' style, metaphor, world and music |
 | VO script, ElevenLabs VO with word timings | a voice line per beat, recorded with timestamps (with-timestamps), cached |
 | `cue("m02:word")`, captions with word highlight | `cue("b2:word")`, captions drawn for recorded lines |
-| scene agent: write, check, contact sheet, look, fix | same tools, in the browser, rendering in the sandbox |
+| scene agent: write, check, contact sheet, look, fix | same tools, in the browser, rendering in the page |
 | facts linter (numbers on screen) | the scene check fails numbers not in the facts |
 | DOM QA (text clipped, off frame) | QA probe on every still rendered for the model |
 | Opus art director review, revise in the same session | review of labelled tiles, up to two revise rounds |

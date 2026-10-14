@@ -9,8 +9,7 @@ import { SCENE_ENTRY } from "./film";
  * The gate a scene passes before any browser runs it: path and size limits,
  * the scene rules (imports, determinism, no network or storage), its exports,
  * a real typecheck against the kit, then a transpile to CommonJS modules for
- * the sandbox. The rules are a lint that keeps scenes deterministic; the
- * sandbox iframe, not this, is the security boundary.
+ * the page. The rules are a lint that keeps scenes deterministic.
  */
 
 const ROOT = process.cwd();
@@ -20,7 +19,13 @@ const MAX_FILE_BYTES = 80_000;
 const PATH_OK = /^scene\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.tsx?$/;
 const IMPORTS = new Set(["react", "remotion", "@kit"]);
 /** Globals a scene has no use for: time, randomness, network, storage, timers, the page itself. */
-const FORBIDDEN = new Set(["Date", "fetch", "XMLHttpRequest", "WebSocket", "EventSource", "localStorage", "sessionStorage", "indexedDB", "eval", "Function", "setTimeout", "setInterval", "requestAnimationFrame", "globalThis", "window", "self", "parent", "top", "document", "navigator", "importScripts", "Worker", "require", "process", "location", "caches", "cookieStore"]);
+/**
+ * Globals a scene may not use: they make a frame depend on when it is
+ * drawn (time, randomness, timers), or reach into the person's stored
+ * keys. The network is open: a scene may load what it needs, though an
+ * image from a site without CORS will not survive the MP4 export.
+ */
+const FORBIDDEN = new Set(["Date", "eval", "Function", "setTimeout", "setInterval", "requestAnimationFrame", "localStorage", "sessionStorage", "indexedDB", "cookieStore", "require", "process"]);
 
 export type CheckResult = { ok: boolean; errors: string[]; modules: Record<string, string> };
 
@@ -87,7 +92,6 @@ function rules(name: string, src: string, files: Record<string, string>, known: 
       const isName = (ts.isPropertyAccessExpression(p) && p.name === n) || (ts.isPropertyAssignment(p) && p.name === n) || (ts.isMethodDeclaration(p) && p.name === n) || ts.isJsxAttribute(p) || (ts.isPropertySignature(p) && p.name === n);
       if (!isName) out.push(`${at(n)}: "${n.text}" is not available in a scene (everything is a pure function of the frame)`);
     }
-    if (ts.isElementAccessExpression(n) && /^(window|globalThis|self)$/.test(n.expression.getText())) out.push(`${at(n)}: global lookups are not allowed`);
     if (known && n.parent) {
       let text: string | null = null;
       if (ts.isJsxText(n)) text = n.getText();

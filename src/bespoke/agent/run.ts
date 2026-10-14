@@ -3,7 +3,7 @@
 import { describeModel, matchModels, mentions } from "@/director/facts";
 import type { CatalogModel, SiteInfo } from "@/director/input";
 import type { FilmFormat, FilmSpec } from "../film";
-import type { Sandbox } from "../host";
+import type { FilmHost } from "../host";
 import { filmMusic, musicPrompt, recordFilmVoice, type FilmVoice } from "../voice";
 import { filmTiming } from "../timing";
 import { filmSpecOf, normalizeConcept, type Concept } from "./concept";
@@ -152,7 +152,7 @@ export async function makeFilm(o: {
   pages?: SiteInfo[];
   /** Let the creative director and the lead search and read the web (OneAPI web search). */
   web?: boolean;
-  sandbox: () => Sandbox | null;
+  host: () => FilmHost | null;
   /** The person's ElevenLabs key and voice, to record the voice-over before the scene is built. */
   voice?: FilmVoice & { apiKey: string };
   onVoice?: (clips: Record<number, Blob>) => void;
@@ -204,8 +204,8 @@ export async function makeFilm(o: {
   }
 
   act(null);
-  const sandbox = o.sandbox();
-  if (!sandbox) throw new Error("The preview is not ready.");
+  const host = o.host();
+  if (!host) throw new Error("The preview is not ready.");
   // The facts check reads everything; the agents get the concept's short list, the catalog and the images found.
   const facts = `${o.brief}\n${factsOf(o.brief, o.site, o.models)}\n${pageText(o.site, o.pages)}`;
   const agentFacts = [concept.facts.length ? concept.facts.map((f) => `- ${f}`).join("\n") : "", factsOf(o.brief, o.site, o.models)].filter(Boolean).join("\n");
@@ -256,7 +256,7 @@ export async function makeFilm(o: {
   const leadTools = (all: boolean) =>
     sceneTools(
       lead,
-      sandbox,
+      host,
       () => {
         if (lead.modules) shown = lead.modules;
         push();
@@ -283,7 +283,7 @@ export async function makeFilm(o: {
       const ws: Workspace = { spec, facts, files, modules: null, dirty: true };
       const tools = sceneTools(
         ws,
-        sandbox,
+        host,
         () => {
           if (ws.modules) shown = ws.modules;
           push();
@@ -330,7 +330,7 @@ export async function makeFilm(o: {
     shown = c.modules;
     say("review", { kind: "tool", text: `round ${round}: the art director is looking at the frames` });
     o.onActivity?.("review", `round ${round}: rendering labelled frames, then the art director looks at them`);
-    const { review, usage: used } = await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: c.modules, concept, facts, sandbox, refs: o.refs, signal: o.signal });
+    const { review, usage: used } = await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: c.modules, concept, facts, host, refs: o.refs, signal: o.signal });
     o.onActivity?.("review", null);
     Object.assign(ledger, addUsage(ledger, used, price));
     push({ reviews: [...film.reviews, review] });

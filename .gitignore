@@ -9,5 +9,4 @@ renders/
 next-env.d.ts
 .motion-audio-tmp/
 .opencode-context.md
-public/sandbox/runtime/
 .playwright-mcp/

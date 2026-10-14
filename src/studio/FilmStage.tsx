@@ -1,46 +1,70 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Player, type PlayerRef } from "@remotion/player";
+import { useEffect, useRef, useState } from "react";
 import type { FilmFormat } from "@/bespoke/film";
-import { SANDBOX_FLAGS, SANDBOX_SRC, Sandbox } from "@/bespoke/host";
-import { DIMENSIONS } from "@/engine/plan";
+import { FilmHost } from "@/bespoke/host";
 import type { FilmState } from "@/bespoke/agent/run";
+import { FilmComposition, filmFrames } from "@/bespoke/runtime/FilmComposition";
+import { FILM_FPS } from "@/bespoke/timing";
+import { DIMENSIONS } from "@/engine/plan";
+
+const message = (err: unknown) => (err instanceof Error ? err.message : String(err)).split("\n").slice(0, 8).join("\n");
 
 /**
- * The preview of a bespoke film: the sandbox iframe, showing the last
- * version of the scene that passed the check. The same sandbox renders the
- * agent's stills and the export, so it is handed up to the Studio.
+ * The preview of a bespoke film, showing the last version of the scene
+ * that passed the check. The same host renders the agents' stills and the
+ * export, so it is handed up to the Studio.
  */
-export function FilmStage({ film, format, voiceover, music, onSandbox, onError }: { film: FilmState | null; format: FilmFormat; voiceover?: Record<number, Blob>; music?: Blob; onSandbox: (s: Sandbox | null) => void; onError: (message: string) => void }) {
-  const frame = useRef<HTMLIFrameElement>(null);
-  const box = useRef<Sandbox | null>(null);
+export default function FilmStage({ film, format, voiceover, music, onHost, onError }: { film: FilmState | null; format: FilmFormat; voiceover?: Record<number, Blob>; music?: Blob; onHost: (h: FilmHost | null) => void; onError: (message: string) => void }) {
+  const [host] = useState(() => new FilmHost());
+  const [input, setInput] = useState(host.current);
+  const player = useRef<PlayerRef>(null);
 
   useEffect(() => {
-    if (!frame.current) return;
-    const sb = new Sandbox(frame.current);
-    box.current = sb;
-    onSandbox(sb);
+    onHost(host);
+    const off = host.subscribe(setInput);
+    // A render (stills for the agents, the export) runs in this page: the preview pauses so it gets the CPU.
+    const offRender = host.onRender(() => player.current?.pause());
     return () => {
-      sb.dispose();
-      box.current = null;
-      onSandbox(null);
+      off();
+      offRender();
+      onHost(null);
     };
-  }, [onSandbox]);
-
-  useEffect(() => {
-    if (box.current) box.current.onError = onError;
-  }, [onError]);
+  }, [host, onHost]);
 
   const modules = film?.modules ?? null;
   const spec = film?.spec ?? null;
   useEffect(() => {
-    if (box.current && spec && modules) box.current.show({ spec, modules, voiceover, music });
-  }, [spec, modules, voiceover, music]);
+    if (spec && modules) host.show({ spec, modules, voiceover, music });
+  }, [host, spec, modules, voiceover, music]);
 
+  const { width, height } = DIMENSIONS[film?.spec.format ?? format];
   return (
-    <div className="film-frame" style={{ aspectRatio: `${DIMENSIONS[film?.spec.format ?? format].width} / ${DIMENSIONS[film?.spec.format ?? format].height}` }}>
-      <iframe ref={frame} title="Video preview" src={SANDBOX_SRC} sandbox={SANDBOX_FLAGS} />
-      {!modules ? <div className="film-wait">{film ? "The scene appears here as soon as its first version passes the check." : "Writing the concept…"}</div> : null}
+    <div className="film-frame" style={{ aspectRatio: `${width} / ${height}` }}>
+      {input && modules ? (
+        <Player
+          ref={player}
+          component={FilmComposition}
+          inputProps={input}
+          durationInFrames={filmFrames(input)}
+          fps={FILM_FPS}
+          compositionWidth={DIMENSIONS[input.spec.format].width}
+          compositionHeight={DIMENSIONS[input.spec.format].height}
+          controls
+          loop
+          autoPlay
+          clickToPlay
+          acknowledgeRemotionLicense
+          errorFallback={({ error }) => {
+            onError(message(error));
+            return <div style={{ color: "#b00", font: "14px/1.4 monospace", padding: 16, whiteSpace: "pre-wrap" }}>{message(error)}</div>;
+          }}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+        />
+      ) : (
+        <div className="film-wait">{film ? "The scene appears here as soon as its first version passes the check." : "Writing the concept…"}</div>
+      )}
     </div>
   );
 }

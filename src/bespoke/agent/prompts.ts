@@ -140,7 +140,7 @@ You may call several tools in one reply.
 Do not re-read files you just wrote. Do not render frames you do not need.
 
 # Hard rules (checked; violations come back to you)
-1. Imports only from "react", "remotion", "@kit" and your own files in scene/ (relative). No other packages, assets, fetch, Date, Math.random (use seeded(n)), timers, window or document. Everything is a pure function of useCurrentFrame().
+1. Imports only from "react", "remotion", "@kit" and your own files in scene/ (relative). No Date, Math.random (use seeded(n)), timers or storage: everything is a pure function of useCurrentFrame(). The network is open, but bring images in with fetch_image and draw them with <Asset/>: an image loaded straight from another site is usually blocked from the MP4 export (no CORS), and anything loaded while frames render needs delayRender() from "remotion" so the frame waits for it.
 2. scene/index.tsx exports \`default function Scene()\`, \`fonts\` (families from the list, with weights: { "Space Grotesk": ["500", "700"] }) and \`background\` (a CSS colour).
 3. The voice-over is the clock. Time everything with cue(), and put every visual event on the word that names it (cue("b2:gateway")), so the viewer SEES what the voice SAYS at the moment it says it. Each beat shows its "says" during that beat. Use the beats' order and lengths as given.
 4. Facts: any number, price, model name or claim on screen must be in the brief or the FACTS. Do not invent features, statistics, clients or rankings.

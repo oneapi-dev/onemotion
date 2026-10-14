@@ -1,7 +1,9 @@
-import type { Metadata } from "next";
-import BespokeLab from "@/bespoke/BespokeLab";
+"use client";
 
-export const metadata: Metadata = { title: "Bespoke lab · OneMotion" };
+import dynamic from "next/dynamic";
+
+// The lab renders in the browser only: the film host uses the web renderer.
+const BespokeLab = dynamic(() => import("@/bespoke/BespokeLab"), { ssr: false });
 
 export default function Page() {
   return <BespokeLab />;
