@@ -143,7 +143,7 @@ export async function makeFilm(o: {
   o.onConcept(film);
 
   // The voice is the clock: record it first, so the beats and every word cue follow the real lines.
-  if (o.voice && spec.beats.some((b) => b.voice)) {
+  if (o.voice && concept.voiceover && spec.beats.some((b) => b.voice)) {
     try {
       act(`recording the voice-over with ${o.voice.voiceName}`);
       const rec = await recordFilmVoice({ spec, language: concept.language, apiKey: o.voice.apiKey, voice: o.voice, signal: o.signal, onLine: (done, total) => act(`recording the voice-over: line ${done} of ${total}`) });

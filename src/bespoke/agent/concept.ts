@@ -21,6 +21,8 @@ export type Concept = {
   score: unknown;
   /** A built-in track id, or "composed" for the composer. */
   music: string;
+  /** Whether the film has a voice-over (false when the brief asks for none). */
+  voiceover: boolean;
   whyDifferent: string;
 };
 
@@ -79,6 +81,7 @@ export function normalizeConcept(raw: unknown): Concept {
     beats,
     score: raw.score,
     music: LIBRARY.some((t) => t.id === raw.music) || raw.music === "composed" ? String(raw.music) : "",
+    voiceover: raw.voiceover !== false,
     whyDifferent: str(raw.why_different),
   };
 }

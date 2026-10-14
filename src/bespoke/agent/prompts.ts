@@ -48,13 +48,16 @@ Reply with ONE JSON object and nothing else:
   "palette": { "bg": "#hex", "ink": "#hex", "accent": "#hex", "support": "#hex" },
   "brand": { "name": "the product or company the film is about", "url": "its domain, e.g. oneapi.id, or empty" },
   "beats": [ { "id": "b1", "says": "the on-screen words of this beat (short)", "voice": "the voice-over line of this beat, as it is spoken", "shows": "what the viewer sees", "seconds": 2.5 } ],
-  "music": "the id of a built-in track from MUSIC below, or \"composed\"",
+  "music": "the id of a built-in track from MUSIC below, or the word composed",
+  "voiceover": true,
   "score": { "genre": "one of ${GENRES.join(", ")}", "bpm": 110, "key": "C", "mode": "major or minor", "energy": [1, 1, 2] },
   "why_different": "how this differs from the recent films"
 }
 
 Rules:
 - The brief is the boss: its subject, language, length, call to action and things to avoid. A brief in Indonesian gets Indonesian on-screen text.
+- A brief with a storyboard (scenes with times, on-screen words, what happens): follow it. Its scenes are your beats, in its order, with its timings (seconds) and its on-screen words as "says"; put each scene's visual direction, in full, in "shows". You may split a long scene into two beats; never drop or reorder scenes. Its visual direction, palette and type rules override your own taste.
+- "voiceover": false when the brief asks for no voice-over or narration; then the film is told by picture, type and sound alone (still write a short "voice" line per beat: it times the picture).
 - Facts: every number, price, model name, feature or claim on screen must come from the brief or the FACTS in the message. Never invent clients, statistics, benchmarks, savings, testimonials or features. When unsure, show it as a metaphor, not a claim.
 - Beats: 4 to 8, ids b1, b2, ... in order. "says" is at most 7 words: one idea per beat, very little text at once. The last beat is the brand close: the brand name, its line and its URL, calm, held at least 3 seconds.
 - Voice: every beat has a voice-over line in the brief's language, at most 12 words, written as it is spoken: numbers, prices and symbols in words ("dua dolar", "five times"), names as they sound, the brand name at the END of a line (mid-sentence it gets mispronounced). The lines read as one script; the first names what this is. When the person records a voice, beats stretch to fit their lines; otherwise the lines time the picture and are not heard.

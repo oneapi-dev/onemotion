@@ -51,6 +51,9 @@ const ARCHETYPE: Record<Plan["archetype"], string> = {
 };
 
 type Stage = "site" | "design" | "voice" | "film" | null;
+/** How long a brief may be: Quick turns it into one small plan; Bespoke reads a full storyboard. */
+const MAX_BRIEF: Record<Mode, number> = { plan: 600, bespoke: 20_000 };
+
 /** Names of the agents of a bespoke run, and the order their lines show in: the film's own steps, the lead, the beats, the review. */
 const WHO: Record<string, string> = { film: "Film", lead: "Lead", review: "Review" };
 const ORDER = (who: string) => (who === "film" ? 0 : who === "lead" ? 1 : who === "review" ? 999 : 2 + (Number(who.replace(/\D/g, "")) || 0));
@@ -368,7 +371,7 @@ export function Studio() {
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    if (stage || (!brief.trim() && !website.trim())) return;
+    if (stage || (!brief.trim() && !website.trim()) || brief.length > MAX_BRIEF[mode]) return;
     if (mode === "bespoke") void makeBespoke({ brief: brief.trim(), website });
     else void design({ brief: brief.trim(), website });
   }
@@ -441,8 +444,8 @@ export function Studio() {
             <label className="field">
               <span>Your brief</span>
               <textarea
-                rows={4}
-                maxLength={600}
+                rows={brief.length > 600 ? 10 : 4}
+                maxLength={MAX_BRIEF.bespoke}
                 value={brief}
                 onChange={(e) => setBrief(e.target.value)}
                 placeholder="Pengumuman: model baru MiMo V2.6 sekarang tersedia di OneAPI"
@@ -451,6 +454,16 @@ export function Studio() {
                 }}
                 disabled={Boolean(stage)}
               />
+              {brief.length > 400 || brief.length > MAX_BRIEF[mode] ? (
+                <small className={brief.length > MAX_BRIEF[mode] ? "error" : "hint"}>
+                  {brief.length.toLocaleString("en-US")} / {MAX_BRIEF[mode].toLocaleString("en-US")} characters
+                  {brief.length > MAX_BRIEF[mode]
+                    ? `: Quick takes a short brief; switch to Bespoke for a long one.`
+                    : mode === "bespoke" && brief.length > 2000
+                      ? ". A long brief steers every agent, and each of their steps reads it, so it costs more per video."
+                      : ""}
+                </small>
+              ) : null}
             </label>
             <div className="examples" role="group" aria-label="Examples">
               {EXAMPLES.map((ex) => (
@@ -522,7 +535,7 @@ export function Studio() {
                 </label>
               ) : null}
             </div>
-            <button type="submit" className="btn primary big" disabled={Boolean(stage) || (!brief.trim() && !website.trim())}>
+            <button type="submit" className="btn primary big" disabled={Boolean(stage) || (!brief.trim() && !website.trim()) || brief.length > MAX_BRIEF[mode]}>
               {stage === "site"
                 ? `Reading the website… ${seconds}s`
                 : stage === "design"
