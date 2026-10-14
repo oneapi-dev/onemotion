@@ -4,7 +4,7 @@ import { GENRES } from "@/music/score";
 import { kitSource } from "../check";
 import { readExample } from "../examples";
 import { FONT_NAMES } from "../kit/fonts";
-import { SFX } from "../kit/sfx";
+import { SFX, SFX_USE } from "../kit/sfx";
 
 /**
  * The prompts of bespoke mode. The concept prompt makes the creative
@@ -103,7 +103,9 @@ prog(t, a, b, ease?) eased 0..1 between frames a and b · pop(t, t0, k?) springy
 - <Draw draw={(ctx, t) => ...} width? height? /> your own canvas drawing every frame: particles, many shapes, charts.
 
 ## Sound (place the sound design yourself)
-<Sfx name at volume? /> names: ${SFX.join(", ")}. A cue on every camera move, connection, click, impact and reveal; sound a frame or two before the picture.
+<Sfx name at volume? /> a sound at a frame:
+${SFX.map((n) => `- ${n}: ${SFX_USE[n]}`).join("\n")}
+A cue on every camera move, connection, click, impact and reveal; sound a frame or two before the picture. For hand-drawn strokes use marker or pencil as the line draws; for packets and tokens, blip.
 
 ## 2.5D (optional: one continuous camera through a world)
 camAt([[frame, { x, y, z, r }, ease?], ...], t) a keyframed camera · project3D(p, cam, W, cy, F?) where a world point lands and its scale · <Billboard3D cam p={{ x, y, z }} w h focusZ? unfocus?> a DOM element standing in 3D with lens depth of field (render far ones first) · <Particles3D cam prev /> drifting particles that streak while the camera moves (prev = the camera one frame earlier) · <Floor3D cam y? /> a perspective grid floor · focusWeight(t, a, b) 0..1 "this is what the voice is about".

@@ -691,6 +691,112 @@ function makeSfx() {
     noiseHit(click, t, { gain: 0.15 * g, decay: 0.01, type: "low", cutoff: 300 });
   }
   out.click = master(click, 0.9);
+
+  // Everything below was added later. New sounds go at the end, after every
+  // older one, so the seeded noise of the older sounds never changes.
+
+  // A marker on paper or a whiteboard: friction noise in irregular strokes.
+  const marker = bus(0.75);
+  {
+    const f = svf();
+    f.set(2600, 0.9);
+    let stroke = 0;
+    for (let k = 0; k < 0.7 * SR; k++) {
+      const tt = k / SR;
+      // Strokes of 60 to 140 ms, each pressing in and lifting off.
+      if (tt >= stroke) stroke = tt + 0.06 + rand() * 0.08;
+      const into = 1 - (stroke - tt) / 0.14;
+      const press = Math.sin(Math.PI * Math.min(1, Math.max(0, into))) ** 0.6;
+      const fade = Math.min(1, tt / 0.02) * Math.min(1, (0.7 - tt) / 0.08);
+      const y = f.run(noise()).band;
+      put(marker, k, y * 0.9 * press * fade * (0.75 + 0.25 * Math.sin(tt * 90)), -0.1 + 0.2 * Math.sin(tt * 7));
+    }
+  }
+  out.marker = master(marker, 0.7);
+
+  // A pencil: finer, higher and drier than the marker.
+  const pencil = bus(0.5);
+  {
+    const f = svf();
+    f.set(5200, 1.4);
+    for (let k = 0; k < 0.45 * SR; k++) {
+      const tt = k / SR;
+      const grain = rand() > 0.6 ? 1 : 0.35;
+      const env = Math.min(1, tt / 0.015) * Math.min(1, (0.45 - tt) / 0.06) * (0.6 + 0.4 * Math.sin(tt * 55));
+      put(pencil, k, f.run(noise()).band * grain * env * 0.8, 0.15);
+    }
+  }
+  out.pencil = master(pencil, 0.6);
+
+  // An error tone: two short descending notes, soft square, no alarm.
+  const error = bus(0.45);
+  for (const [t, note] of [[0, 76], [0.13, 72]]) {
+    let ph = 0;
+    const dt = hz(note) / SR;
+    for (let k = 0; k < 0.11 * SR; k++) {
+      const tt = k / SR;
+      ph = (ph + dt) % 1;
+      const env = Math.min(1, tt / 0.004) * Math.exp(-tt / 0.06);
+      put(error, Math.round(t * SR) + k, (osc("square", ph, dt) * 0.35 + Math.sin(TAU * ph) * 0.4) * env * 0.5);
+    }
+  }
+  out.error = master(error, 0.55);
+
+  // A success: two rising bell notes.
+  const success = bus(1.2);
+  fm(success, { t: 0, dur: 0.05, note: 84, gain: 0.35, ratio: 3, index: 1.6, indexDecay: 0.12, decay: 0.35 });
+  fm(success, { t: 0.09, dur: 0.05, note: 91, gain: 0.3, ratio: 3, index: 1.4, indexDecay: 0.12, decay: 0.45, pan: 0.2 });
+  mixInto(success, reverb(success, { room: 0.7 }), 0.35);
+  out.success = master(success, 0.65);
+
+  // A data pulse: one tiny clean blip.
+  const blip = bus(0.12);
+  for (let k = 0; k < 0.08 * SR; k++) {
+    const tt = k / SR;
+    put(blip, k, Math.sin(TAU * hz(93) * tt) * Math.min(1, tt / 0.002) * Math.exp(-tt / 0.018) * 0.7);
+  }
+  out.blip = master(blip, 0.6);
+
+  // A connection snapping in: a soft low thump with a bright click on top.
+  const connect = bus(0.35);
+  kick(connect, 0, 0.6, { from: 220, to: 90, decay: 0.07, click: 0.1 });
+  noiseHit(connect, 0.004, { gain: 0.5, decay: 0.004, type: "band", cutoff: 3600, q: 1.5 });
+  out.connect = master(connect, 0.75);
+
+  // A glitch: short stuttered bursts of crushed noise.
+  const glitch = bus(0.32);
+  {
+    let t = 0;
+    while (t < 0.26) {
+      const len = 0.012 + rand() * 0.03;
+      const step = 1 + Math.floor(rand() * 6);
+      const tone = 300 + rand() * 2400;
+      let hold = 0;
+      for (let k = 0; k < len * SR; k++) {
+        if (k % step === 0) hold = Math.sign(Math.sin(TAU * tone * (k / SR))) * 0.5 + noise() * 0.5;
+        put(glitch, Math.round(t * SR) + k, hold * 0.45, rand() * 0.6 - 0.3);
+      }
+      t += len + rand() * 0.025;
+    }
+  }
+  out.glitch = master(glitch, 0.5);
+
+  // A notification: a soft two-tone chime.
+  const notify = bus(1);
+  fm(notify, { t: 0, dur: 0.04, note: 88, gain: 0.28, ratio: 2, index: 1.2, indexDecay: 0.1, decay: 0.3 });
+  fm(notify, { t: 0.07, dur: 0.04, note: 93, gain: 0.24, ratio: 2, index: 1.1, indexDecay: 0.1, decay: 0.35 });
+  out.notify = master(notify, 0.6);
+
+  // One key press, for typing in step with the picture.
+  const key = bus(0.12);
+  noiseHit(key, 0, { gain: 0.5, decay: 0.006, type: "band", cutoff: 3200, q: 1.5 });
+  noiseHit(key, 0, { gain: 0.2, decay: 0.012, type: "low", cutoff: 420 });
+  out.key = master(key, 0.6);
+
+  // A clean sub-bass hit: weight without a boom tail.
+  const sub = bus(1.4);
+  kick(sub, 0, 1, { from: 70, to: 38, decay: 0.55, click: 0.04 });
+  out.sub = master(sub, 0.8);
   return out;
 }
 
