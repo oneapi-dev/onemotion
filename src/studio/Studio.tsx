@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { findUrl, mentions } from "@/director/facts";
+import { findUrl, findUrls, mentions } from "@/director/facts";
 import type { CatalogModel, DirectInput, Recent, SiteInfo } from "@/director/input";
 import type { MotionFormat, Plan, Tone, VideoInput } from "@/engine/plan";
 import { SAMPLE_INPUT } from "@/engine/sample";
@@ -318,6 +318,21 @@ export function Studio() {
       running.current = ctrl;
       try {
         const site = await findSite(opts);
+        // The other pages the brief names (pricing, models, docs): their words become facts, their images assets.
+        const others = findUrls(opts.brief, 5).filter((u) => !site || !u.replace(/^https?:\/\//, "").startsWith(site.domain) || u.replace(/\/$/, "").split("/").length > 3);
+        const pages: SiteInfo[] = [];
+        if (others.length) {
+          setStage("site");
+          const read = await Promise.allSettled(
+            others.slice(0, 4).map(async (url) => {
+              const res = await fetch("/api/site", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+              const body = (await res.json()) as { site?: SiteInfo };
+              if (!res.ok || !body.site) throw new Error(url);
+              return { ...body.site, logo: null };
+            }),
+          );
+          for (const r of read) if (r.status === "fulfilled" && r.value.url !== site?.url) pages.push(r.value);
+        }
         setStage("film");
         runStarted.current = Date.now();
         const base: Project = { id: opts.replace?.id ?? newId(), createdAt: new Date().toISOString(), brief: opts.brief, website: opts.website, format, tone, site };
@@ -338,6 +353,7 @@ export function Studio() {
           recent,
           budgetUsd: settings.budgetUsd ?? DEFAULT_BUDGET_USD,
           refs,
+          pages,
           sandbox: () => sandbox.current,
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName } : undefined,
           onVoice: (clips) => setFilmClips({ projectId: base.id, clips }),

@@ -50,6 +50,7 @@ Reply with ONE JSON object and nothing else:
   "beats": [ { "id": "b1", "says": "the on-screen words of this beat (short)", "voice": "the voice-over line of this beat, as it is spoken", "shows": "what the viewer sees", "seconds": 2.5 } ],
   "music": "the id of a built-in track from MUSIC below, or the word composed",
   "voiceover": true,
+  "facts": ["every fact this film states, copied exactly from the brief, FACTS or PAGES: prices and plan names, model ids, URLs, features (at most 20, one per line)"],
   "score": { "genre": "one of ${GENRES.join(", ")}", "bpm": 110, "key": "C", "mode": "major or minor", "energy": [1, 1, 2] },
   "why_different": "how this differs from the recent films"
 }
@@ -58,7 +59,7 @@ Rules:
 - The brief is the boss: its subject, language, length, call to action and things to avoid. A brief in Indonesian gets Indonesian on-screen text.
 - A brief with a storyboard (scenes with times, on-screen words, what happens): follow it. Its scenes are your beats, in its order, with its timings (seconds) and its on-screen words as "says"; put each scene's visual direction, in full, in "shows". You may split a long scene into two beats; never drop or reorder scenes. Its visual direction, palette and type rules override your own taste.
 - "voiceover": false when the brief asks for no voice-over or narration; then the film is told by picture, type and sound alone (still write a short "voice" line per beat: it times the picture).
-- Facts: every number, price, model name, feature or claim on screen must come from the brief or the FACTS in the message. Never invent clients, statistics, benchmarks, savings, testimonials or features. When unsure, show it as a metaphor, not a claim.
+- Facts: every number, price, model name, feature or claim on screen must come from the brief, the FACTS or the PAGES in the message (the PAGES are the product's own website, read just now: trust them over memory). Never invent clients, statistics, benchmarks, savings, testimonials or features. When unsure, show it as a metaphor, not a claim.
 - Beats: 4 to 8, ids b1, b2, ... in order. "says" is at most 7 words: one idea per beat, very little text at once. The last beat is the brand close: the brand name, its line and its URL, calm, held at least 3 seconds.
 - Voice: every beat has a voice-over line in the brief's language, at most 12 words, written as it is spoken: numbers, prices and symbols in words ("dua dolar", "five times"), names as they sound, the brand name at the END of a line (mid-sentence it gets mispronounced). The lines read as one script; the first names what this is. When the person records a voice, beats stretch to fit their lines; otherwise the lines time the picture and are not heard.
 - Length: the brief's target if it gives one; otherwise what the story needs (a punchy launch 12 to 20 s, a feature story 20 to 30 s, a tutorial up to 45 s). Beat seconds add up to it.
@@ -110,6 +111,9 @@ A cue on every camera move, connection, click, impact and reveal; sound a frame 
 ## 2.5D (optional: one continuous camera through a world)
 camAt([[frame, { x, y, z, r }, ease?], ...], t) a keyframed camera · project3D(p, cam, W, cy, F?) where a world point lands and its scale · <Billboard3D cam p={{ x, y, z }} w h focusZ? unfocus?> a DOM element standing in 3D with lens depth of field (render far ones first) · <Particles3D cam prev /> drifting particles that streak while the camera moves (prev = the camera one frame earlier) · <Floor3D cam y? /> a perspective grid floor · focusWeight(t, a, b) 0..1 "this is what the voice is about".
 
+## Real images (logos, icons)
+<Asset name width? height? style? /> draws an image this film fetched (tool fetch_image), keeping its proportions. The film's own brand is <Mark/>. Other brands (a coding tool, a model provider) appear with their REAL logo: find it with look_up_page on their site (or in IMAGES ON THE PRODUCT'S PAGES), fetch it with fetch_image, check the picture you get back, then draw it with <Asset/>. If you cannot get it, show the name as type. Never draw, trace or imitate a logo from memory.
+
 ## Shells and effects
 <Window kind="mac|browser|terminal" w h title? url? dark?> · <Phone w? dark?> · <Cursor t x y clicks={[frames]} /> (plays its own click) · <Notification t at app title body /> · <Mark size /> the brand logo · useHits([{ at, kind: "punch|shake|flash", amp? }], t) camera reactions · <Whip at a={[x, y]} b={[x, y]} color /> a lash for whip pans and fast connections · <Grain /> print grain · <Burst at x y color /> · <Confetti at colors /> (only for real celebrations).`;
 
@@ -146,7 +150,8 @@ Do not re-read files you just wrote. Do not render frames you do not need.
 8. Motion: ease everything (never a one-frame jump; punches ramp over at least 5 frames), stagger reveals, give arrivals weight (overshoot, anticipation), keep holds alive (slow drift, parallax), and focus attention on what the beat is about.
 9. The renderer draws your DOM onto a canvas (it is not Chrome's compositor). It does NOT draw: mix-blend-mode, backdrop-filter, CSS 3D (perspective, preserve-3d, rotateX/rotateY), conic gradients, background-clip:text. z-index is ignored: later elements paint on top, so order your JSX back to front. Every inline <svg> is re-rasterized on every frame and slows the export: draw lines and shapes with <Ink> or <Draw> (canvas), and use few small SVGs. The frames you render are exactly what the export draws: trust them.
 10. Performance: at most about 400 animated elements on screen; no large blurs; many small files beat one giant file.
-11. End on the brand: the last beat holds the brand (<Mark/>, the name, the URL) calmly with a small loop of life. The first frame already shows something meaningful (it is the thumbnail).
+11. Logos: only real ones, fetched (see Real images); a brand you cannot fetch appears as its name in type. Showing a tool or provider never implies a partnership: no "partner", "official" or "integrated with" wording unless the facts say so.
+12. End on the brand: the last beat holds the brand (<Mark/>, the name, the URL) calmly with a small loop of life. The first frame already shows something meaningful (it is the thumbnail).
 
 # Craft
 - Fill the frame with intent: the hero element of a beat takes about 50 to 75 % of the frame width in landscape, 80 to 90 % in portrait. No small UI floating in a big empty canvas.

@@ -51,6 +51,8 @@ export type Film = {
    */
   cue: (c: string) => number;
   brand: Brand;
+  /** Real images fetched for this film (logos, icons), by name, as image URLs the film can draw. */
+  assets: Record<string, string>;
   /** Keep key content inside this box. */
   safe: { top: number; bottom: number; left: number; right: number };
 };

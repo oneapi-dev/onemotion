@@ -54,3 +54,33 @@ export async function sheet(blobs: Blob[], labels: string[], cols: number, tileW
   });
   return toDataUrl(c, 0.78);
 }
+
+const loadImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("The image could not be decoded."));
+    img.src = src;
+  });
+
+/**
+ * A fetched image made ready for a film: SVG kept as it is (small and
+ * sharp at any size) unless it is heavy, anything else redrawn as PNG at
+ * most `max` px on its longer side. Also returns a small preview for the
+ * model to look at, and the image's size.
+ */
+export async function prepareAsset(data: string, max = 512): Promise<{ data: string; preview: string; width: number; height: number }> {
+  const img = await loadImage(data);
+  const w = img.naturalWidth || 256;
+  const h = img.naturalHeight || 256;
+  const draw = (size: number, type: string) => {
+    const k = Math.min(1, size / Math.max(w, h));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w * k));
+    c.height = Math.max(1, Math.round(h * k));
+    c.getContext("2d")?.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL(type);
+  };
+  const svg = data.startsWith("data:image/svg+xml") && data.length < 200_000;
+  return { data: svg ? data : draw(max, "image/png"), preview: draw(256, "image/png"), width: w, height: h };
+}

@@ -26,6 +26,20 @@ const WEB_TLDS = new Set([
 ]);
 const URL_RE = /\b(?:https?:\/\/)?(?:www\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+([a-z]{2,24})\b(?:\/[^\s"'<>]*)?/gi;
 
+/** Every website address written in a brief, first to last, without repeats; at most `max`. */
+export function findUrls(text: string, max = 5): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(URL_RE)) {
+    const raw = m[0];
+    if (!/^https?:/i.test(raw) && !WEB_TLDS.has(m[1].toLowerCase())) continue;
+    const url = raw.replace(/[.,;:!?)`*]+$/, "");
+    const key = url.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "").toLowerCase();
+    if (!out.some((u) => u.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "").toLowerCase() === key)) out.push(url);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 /** The first website address written in a brief, or "". "Node.js" is not one. */
 export function findUrl(text: string): string {
   for (const m of text.matchAll(URL_RE)) {

@@ -4,7 +4,8 @@ import { DIMENSIONS } from "@/engine/plan";
 import type { FilmSpec } from "../film";
 import type { Sandbox } from "../host";
 import { filmTiming } from "../timing";
-import { scaled, sheet } from "./images";
+import type { SiteInfo } from "@/director/input";
+import { prepareAsset, scaled, sheet } from "./images";
 
 export type ToolResult = { text: string; images?: { label: string; url: string }[]; done?: boolean };
 export type AgentTool = { name: string; description: string; parameters: Record<string, unknown>; run: (args: Record<string, unknown>) => Promise<ToolResult> };
@@ -29,6 +30,10 @@ export async function compile(files: Record<string, string>, facts: string, sign
   if (!res.ok || !body) throw new Error(body?.error ?? `The check failed (${res.status}).`);
   return body;
 }
+
+/** How many real images a film may bring in, and how heavy they may be together (they are saved with the project). */
+const MAX_ASSETS = 16;
+const MAX_ASSET_BYTES = 1_800_000;
 
 const PATH = /^scene\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.tsx?$/;
 const lines = (s: string) => s.split("\n").length;
@@ -251,6 +256,54 @@ export function sceneTools(ws: Workspace, sandbox: Sandbox, changed: () => void,
           };
         } catch (err) {
           return { text: `The scene crashed while rendering: ${err instanceof Error ? err.message : String(err)}` };
+        }
+      },
+    },
+    {
+      name: "look_up_page",
+      description: "Read a public web page (the product's site, a tool's homepage): its title, a text excerpt and the images on it (logos, icons) with their addresses, to fetch with fetch_image.",
+      parameters: { type: "object", properties: { url: { type: "string" } }, required: ["url"] },
+      run: async (a) => {
+        const res = await fetch("/api/site", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: String(a.url ?? "") }), signal });
+        const body = (await res.json().catch(() => null)) as { site?: SiteInfo; error?: string } | null;
+        if (!res.ok || !body?.site) return { text: `Could not read it: ${body?.error ?? res.status}` };
+        const p = body.site;
+        return {
+          text: [
+            `${p.url}: "${p.title}". ${p.description}`,
+            `Text: ${(p.text ?? "").slice(0, 1500)}`,
+            `Images:\n${(p.images ?? []).map((i) => `- ${i.src}${i.alt ? ` (${i.alt})` : ""}`).join("\n") || "(none)"}`,
+          ].join("\n"),
+        };
+      },
+    },
+    {
+      name: "fetch_image",
+      description:
+        "Fetch a real image (a logo, a product or provider icon) from its address and save it as an asset of this film under `name`. Draw it with <Asset name=... width height />. Use the official image from the brand's own site; never draw a brand's logo from memory. You will see the image to confirm it is the right one.",
+      parameters: { type: "object", properties: { url: { type: "string" }, name: { type: "string", description: "a short id, e.g. cursor-logo" } }, required: ["url", "name"] },
+      run: async (a) => {
+        const name = String(a.name ?? "")
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, "-")
+          .replace(/^-|-$/g, "")
+          .slice(0, 40);
+        if (!name) return { text: "Give the asset a name, e.g. cursor-logo." };
+        const assets = (ws.spec.assets ??= {});
+        if (!assets[name] && Object.keys(assets).length >= MAX_ASSETS) return { text: `This film already has ${MAX_ASSETS} assets: reuse one, or keep to the ones that matter.` };
+        const res = await fetch("/api/asset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: String(a.url ?? "") }), signal });
+        const body = (await res.json().catch(() => null)) as { data?: string; type?: string; error?: string } | null;
+        if (!res.ok || !body?.data) return { text: `Could not fetch it: ${body?.error ?? res.status}` };
+        try {
+          const ready = await prepareAsset(body.data);
+          const total = Object.entries(assets).reduce((n, [k, v]) => n + (k === name ? 0 : v.length), 0) + ready.data.length;
+          if (total > MAX_ASSET_BYTES) return { text: "The film's assets are too heavy together: drop one, or use a smaller image." };
+          assets[name] = ready.data;
+          ws.dirty = true;
+          changed();
+          return { text: `saved as asset "${name}" (${ready.width} x ${ready.height}, ${body.type}). Draw it with <Asset name="${name}" width={...} height={...} />.`, images: [{ label: `asset ${name}`, url: ready.preview }] };
+        } catch (err) {
+          return { text: `That image could not be used: ${err instanceof Error ? err.message : String(err)}` };
         }
       },
     },

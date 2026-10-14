@@ -66,6 +66,29 @@ export const priceOf = (models: CatalogModel[], id: string): Price => {
 };
 
 /** What the film may state: the website's own words, the real models a brief names, and OneAPI's catalog when the film is about OneAPI. */
+/** The pages read for this film: the website and the other addresses in the brief. */
+const pagesOf = (site: SiteInfo | null, pages: SiteInfo[] = []) => [...(site ? [site] : []), ...pages.filter((p) => p.url !== site?.url)];
+
+/** Images found on those pages, for the agents to fetch: real logos and icons. */
+function imagesOf(site: SiteInfo | null, pages: SiteInfo[] = []): string {
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  for (const p of pagesOf(site, pages))
+    for (const i of p.images ?? []) {
+      if (seen.has(i.src)) continue;
+      seen.add(i.src);
+      lines.push(`- ${i.src}${i.alt ? ` (${i.alt})` : ""}`);
+    }
+  return lines.slice(0, 40).join("\n") || "(none found)";
+}
+
+/** Everything the pages say, for the creative director and the facts check (the agents get the concept's short list instead). */
+function pageText(site: SiteInfo | null, pages: SiteInfo[] = []): string {
+  return pagesOf(site, pages)
+    .map((p) => `PAGE ${p.url}: "${p.title}". ${p.description}\n${(p.text ?? "").slice(0, 3000)}`)
+    .join("\n\n");
+}
+
 function factsOf(brief: string, site: SiteInfo | null, models: CatalogModel[]): string {
   const lines: string[] = [];
   if (mentions(brief, "oneapi") || site?.domain.endsWith("oneapi.id")) {
@@ -91,12 +114,14 @@ const refParts = (refs: string[]): Part[] =>
     { type: "image_url", image_url: { url } },
   ]);
 
-async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; signal?: AbortSignal; onActivity?: (text: string) => void }) {
+async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; pages?: SiteInfo[]; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; signal?: AbortSignal; onActivity?: (text: string) => void }) {
   const { concept: system } = await loadPrompts();
   const user = [
     `BRIEF:\n${o.brief || "(none: make a launch film for the website)"}`,
     `FACTS:\n${factsOf(o.brief, o.site, o.models)}`,
     o.site?.accent ? `BRAND COLOUR: ${o.site.accent}` : "",
+    pagesOf(o.site, o.pages).length ? `PAGES (read from the web just now):\n${pageText(o.site, o.pages)}` : "",
+    pagesOf(o.site, o.pages).length ? `IMAGES ON THOSE PAGES (real logos and icons the film can use):\n${imagesOf(o.site, o.pages)}` : "",
     `RECENT FILMS (do not repeat their style, metaphor, world or music):\n${o.recent.length ? o.recent.map((r) => `- style "${r.style}", metaphor "${r.metaphor}", world "${r.world}", music ${r.track ?? r.genre}`).join("\n") : "(none)"}`,
     o.refs?.length ? `The person gave ${o.refs.length} screenshot(s) of the real product (REF images below): build at least one beat around remaking it.` : "",
     "Return the concept JSON.",
@@ -123,6 +148,8 @@ export async function makeFilm(o: {
   budgetUsd: number;
   /** Screenshots of the real product, as image data URLs: UI the film remakes faithfully. */
   refs?: string[];
+  /** Other pages the brief names (pricing, docs, ...), read for facts and images. */
+  pages?: SiteInfo[];
   sandbox: () => Sandbox | null;
   /** The person's ElevenLabs key and voice, to record the voice-over before the scene is built. */
   voice?: FilmVoice & { apiKey: string };
@@ -177,9 +204,16 @@ export async function makeFilm(o: {
   act(null);
   const sandbox = o.sandbox();
   if (!sandbox) throw new Error("The preview is not ready.");
-  const facts = `${o.brief}\n${factsOf(o.brief, o.site, o.models)}`;
+  // The facts check reads everything; the agents get the concept's short list, the catalog and the images found.
+  const facts = `${o.brief}\n${factsOf(o.brief, o.site, o.models)}\n${pageText(o.site, o.pages)}`;
+  const agentFacts = [concept.facts.length ? concept.facts.map((f) => `- ${f}`).join("\n") : "", factsOf(o.brief, o.site, o.models)].filter(Boolean).join("\n");
   const { agent: system, review: reviewSystem } = await loadPrompts();
-  const context = [`BRIEF:\n${o.brief}`, `FACTS (the only numbers and claims allowed on screen):\n${factsOf(o.brief, o.site, o.models)}`, `CONCEPT:\n${JSON.stringify({ ...concept, score: spec.score }, null, 1)}`].join("\n\n");
+  const context = [
+    `BRIEF:\n${o.brief}`,
+    `FACTS (the only numbers and claims allowed on screen; copy them exactly):\n${agentFacts}`,
+    `IMAGES ON THE PRODUCT'S PAGES (fetch real logos and icons with fetch_image):\n${imagesOf(o.site, o.pages)}`,
+    `CONCEPT:\n${JSON.stringify({ ...concept, score: spec.score }, null, 1)}`,
+  ].join("\n\n");
   const refs = refParts(o.refs ?? []);
   const task = (text: string): Msg => ({ role: "user", content: refs.length ? [{ type: "text", text }, ...refs] : text });
 

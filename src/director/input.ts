@@ -16,6 +16,10 @@ export type SiteInfo = {
   fonts?: { display?: string; body?: string };
   /** The logo as a data: URL, small enough to keep in a plan's project. */
   logo: string | null;
+  /** The page's visible text, shortened: prices and names that sit in cards and tables, not paragraphs. */
+  text?: string;
+  /** Images on the page (logos, icons, pictures) with their alt text: real assets an agent may fetch. */
+  images?: { src: string; alt: string }[];
 };
 
 /** A model from OneAPI's public catalog. */

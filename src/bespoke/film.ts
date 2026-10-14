@@ -12,6 +12,8 @@ export type FilmSpec = {
   score: Score;
   /** A built-in music track (src/music/library.ts) to play instead of the composed score; the score's tempo is the track's. */
   track?: string;
+  /** Real images the agents fetched (logos, icons), by name, as data URLs. */
+  assets?: Record<string, string>;
 };
 
 /** What the sandbox renders: the spec, the scene compiled to CommonJS modules by path, and recorded voice lines by beat index. */

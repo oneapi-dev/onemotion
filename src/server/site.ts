@@ -56,7 +56,7 @@ async function vet(url: URL): Promise<{ address: string; family: number }> {
 }
 
 /** GET with the connection pinned to a vetted address; follows up to 4 redirects. */
-async function get(raw: string, limit: number, accept: string): Promise<{ url: URL; type: string; body: Buffer }> {
+export async function get(raw: string, limit: number, accept: string): Promise<{ url: URL; type: string; body: Buffer }> {
   let url = new URL(raw);
   for (let hop = 0; hop < 5; hop++) {
     const pinned = await vet(url);
@@ -124,7 +124,35 @@ export async function readSite(raw: string): Promise<SiteInfo> {
   const fromTitle = clean(title.split(/\s[|\-–—:·]\s/)[0]);
   const name = siteName || (fromTitle && fromTitle.length <= 32 ? fromTitle : "") || domain.split(".")[0].replace(/^\w/, (c) => c.toUpperCase());
 
+  // Images before the page is stripped: icons, the share image, pictures with their alt text, logos first.
+  const images = uniq(
+    [
+      ...doc.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').map((l) => `${l.getAttribute("href") ?? ""}\u0000${name} icon`),
+      `${meta('meta[property="og:image"]')}\u0000share image`,
+      ...doc.querySelectorAll("img").map((i) => `${i.getAttribute("src") ?? i.getAttribute("data-src") ?? ""}\u0000${clean(i.getAttribute("alt"))}`),
+    ].filter((x) => !x.startsWith("\u0000") && !x.startsWith("data:")),
+  )
+    .map((x) => {
+      const [src, alt] = x.split("\u0000");
+      try {
+        return { src: new URL(src, page.url).toString(), alt: alt.slice(0, 80) };
+      } catch {
+        return null;
+      }
+    })
+    .filter((x): x is { src: string; alt: string } => Boolean(x))
+    .sort((a, b) => Number(/logo/i.test(b.src + b.alt)) - Number(/logo/i.test(a.src + a.alt)))
+    .slice(0, 30);
+
   for (const el of doc.querySelectorAll("script, style, noscript, svg")) el.remove();
+  // Block elements on their own lines, so "Pro" and "$12" in two cards do not run together.
+  const body = doc.querySelector("body") ?? doc;
+  const text = body.structuredText
+    .split("\n")
+    .map((l) => clean(l))
+    .filter(Boolean)
+    .join(" · ")
+    .slice(0, 6000);
   const headings = uniq(doc.querySelectorAll("h1, h2, h3").map((h) => clean(h.text))).filter((t) => t.length > 2 && t.length < 140);
   const paragraphs = uniq(doc.querySelectorAll("p, li").map((p) => clean(p.text))).filter((t) => t.length >= 25 && t.length <= 320);
   const ctas = uniq(doc.querySelectorAll("a, button").map((a) => clean(a.text))).filter((t) => t.length >= 2 && t.length <= 28);
@@ -163,5 +191,7 @@ export async function readSite(raw: string): Promise<SiteInfo> {
     ctas: ctas.slice(0, 12),
     accent: normalizeHex(meta('meta[name="theme-color"]')),
     logo,
+    text,
+    images,
   };
 }

@@ -9,6 +9,6 @@ export { Draw, Ink, path, pointAt, samplePath, type Stroke } from "./draw";
 export { Annotate, type AnnotateKind } from "./annotate";
 export { useHits, Grain, Burst, Confetti, Whip, type Hit } from "./fx";
 export { camAt, project3D, Billboard3D, Particles3D, Floor3D, focusWeight, type Vec3, type Cam3, type CamKey } from "./space";
-export { Mark, Window, Phone, Cursor, Notification } from "./ui";
+export { Asset, Mark, Window, Phone, Cursor, Notification } from "./ui";
 export { Sfx, SFX, type SfxName } from "./sound";
 export { FONT_NAMES } from "./fonts";

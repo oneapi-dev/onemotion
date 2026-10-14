@@ -109,3 +109,19 @@ export const Notification = ({ t, at, app, title, body, w = 900, icon, dark = fa
     </div>
   );
 };
+
+/**
+ * A real image fetched for this film (a logo, a product icon, a provider
+ * mark) by the name it was saved under. It keeps its proportions inside
+ * the box you give it. An unknown name draws nothing, so a scene never
+ * shows a broken image; the check render warns.
+ */
+export const Asset = ({ name, width, height, style }: { name: string; width?: number; height?: number; style?: CSSProperties }) => {
+  const { assets } = useFilm();
+  const src = assets[name];
+  if (!src) {
+    console.warn(`[QA] asset "${name}" was never fetched (have: ${Object.keys(assets).join(", ") || "none"})`);
+    return null;
+  }
+  return <Img src={src} style={{ width, height, objectFit: "contain", flex: "none", ...style }} />;
+};

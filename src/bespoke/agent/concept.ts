@@ -23,6 +23,8 @@ export type Concept = {
   music: string;
   /** Whether the film has a voice-over (false when the brief asks for none). */
   voiceover: boolean;
+  /** The facts the film states, copied from the brief and the pages read: the agents' short list. */
+  facts: string[];
   whyDifferent: string;
 };
 
@@ -82,6 +84,7 @@ export function normalizeConcept(raw: unknown): Concept {
     score: raw.score,
     music: LIBRARY.some((t) => t.id === raw.music) || raw.music === "composed" ? String(raw.music) : "",
     voiceover: raw.voiceover !== false,
+    facts: Array.isArray(raw.facts) ? raw.facts.map((f) => str(f, 240)).filter(Boolean).slice(0, 25) : [],
     whyDifferent: str(raw.why_different),
   };
 }
