@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AUDIENCES, buildBrief, DEFAULT_SITE, defaultAnswers, LANGUAGES, LENGTHS, LOOKS, TEMPLATES, templateOf, type BriefAnswers, type TemplateId } from "./briefs";
+import { applySuggestion, AUDIENCES, buildBrief, DEFAULT_SITE, defaultAnswers, LANGUAGES, LENGTHS, LOOKS, TEMPLATES, templateOf, type BriefAnswers, type TemplateId } from "./briefs";
+import { suggestBrief } from "./suggest";
 
 const STEPS = ["Product", "Message", "Look and sound"] as const;
 
@@ -10,10 +11,27 @@ const STEPS = ["Product", "Message", "Look and sound"] as const;
  * look. The result lands in the brief box, where it stays the person's to
  * edit. Nothing here calls a model.
  */
-export function BriefWizard({ open, template, website, onUse, onClose }: { open: boolean; template: TemplateId; website: string; onUse: (brief: string, website: string) => void; onClose: () => void }) {
+export function BriefWizard({
+  open,
+  template,
+  website,
+  ai,
+  onUse,
+  onClose,
+}: {
+  open: boolean;
+  template: TemplateId;
+  website: string;
+  /** The person's key and model, for "write it with AI"; null until they are set. */
+  ai: { key: string; model: string } | null;
+  onUse: (brief: string, website: string) => void;
+  onClose: () => void;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   const [a, setA] = useState<BriefAnswers>(() => defaultAnswers(template, website));
   const [step, setStep] = useState(0);
+  const [writing, setWriting] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  const abort = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const d = ref.current;
@@ -21,6 +39,7 @@ export function BriefWizard({ open, template, website, onUse, onClose }: { open:
     if (open && !d.open) {
       setA(defaultAnswers(template, website));
       setStep(0);
+      setWriting({ busy: false, error: null });
       d.showModal();
     }
     if (!open && d.open) d.close();
@@ -30,8 +49,43 @@ export function BriefWizard({ open, template, website, onUse, onClose }: { open:
   const set = <K extends keyof BriefAnswers>(k: K, v: BriefAnswers[K]) => setA((x) => ({ ...x, [k]: v }));
   const last = step === STEPS.length - 1;
 
+  async function writeWithAI() {
+    if (!ai || writing.busy) return;
+    abort.current?.abort();
+    abort.current = new AbortController();
+    setWriting({ busy: true, error: null });
+    try {
+      const s = await suggestBrief({ key: ai.key, model: ai.model, answers: a, signal: abort.current.signal });
+      setA((x) => applySuggestion(x, s));
+      setStep(1);
+      setWriting({ busy: false, error: null });
+    } catch (err) {
+      if (abort.current.signal.aborted) return;
+      setWriting({ busy: false, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  const aiButton = (
+    <div className="ai-fill">
+      <button type="button" className="btn small" onClick={() => void writeWithAI()} disabled={!ai || writing.busy}>
+        {writing.busy ? `Reading ${a.website.trim() || DEFAULT_SITE} and writing…` : "✦ Write it with AI"}
+      </button>
+      <small className={writing.error ? "error" : "hint"}>
+        {writing.error ?? (ai ? `Fills the empty fields from ${a.website.trim() || DEFAULT_SITE}; what you typed stays. One small call on your key.` : "Add your OneAPI key and a model in Settings to use this.")}
+      </small>
+    </div>
+  );
+
   return (
-    <dialog ref={ref} className="dialog wizard" onClose={onClose} aria-labelledby="wizard-title">
+    <dialog
+      ref={ref}
+      className="dialog wizard"
+      onClose={() => {
+        abort.current?.abort();
+        onClose();
+      }}
+      aria-labelledby="wizard-title"
+    >
       <form
         method="dialog"
         className="dialog-body"
@@ -65,6 +119,18 @@ export function BriefWizard({ open, template, website, onUse, onClose }: { open:
                 ))}
               </div>
             </div>
+            {a.template === "custom" ? (
+              <>
+                <label className="field">
+                  <span>What kind of video</span>
+                  <input type="text" value={a.kind} onChange={(e) => set("kind", e.target.value)} placeholder="e.g. a recruiting video for backend engineers" />
+                </label>
+                <label className="field">
+                  <span>What it should do</span>
+                  <input type="text" value={a.goal} onChange={(e) => set("goal", e.target.value)} placeholder="e.g. get engineers to apply this month" />
+                </label>
+              </>
+            ) : null}
             <label className="field">
               <span>Website</span>
               <input type="text" inputMode="url" spellCheck={false} value={a.website} onChange={(e) => set("website", e.target.value)} placeholder={DEFAULT_SITE} />
@@ -78,11 +144,13 @@ export function BriefWizard({ open, template, website, onUse, onClose }: { open:
               <span>What it is, in one line (optional)</span>
               <input type="text" value={a.about} onChange={(e) => set("about", e.target.value)} placeholder="Read from the website" />
             </label>
+            {aiButton}
           </>
         ) : null}
 
         {step === 1 ? (
           <>
+            {aiButton}
             <label className="field">
               <span>{t.subjectLabel}</span>
               <input type="text" value={a.subject} onChange={(e) => set("subject", e.target.value)} placeholder={t.subjectPlaceholder} />

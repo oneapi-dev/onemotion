@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBrief, defaultAnswers, defaultBrief, siteOf, TEMPLATES } from "./briefs";
+import { applySuggestion, buildBrief, defaultAnswers, defaultBrief, readSuggestion, siteOf, suggestPrompt, TEMPLATES } from "./briefs";
 
 describe("briefs", () => {
   it("makes a launch promo for OneAPI when nothing is given", () => {
@@ -42,5 +42,32 @@ describe("briefs", () => {
       expect(b).toContain(`Goal: ${t.goal}.`);
       expect(b).toContain(`Story: ${t.story}.`);
     }
+  });
+});
+
+describe("custom briefs and AI suggestions", () => {
+  it("names a custom video's own kind and goal", () => {
+    const b = buildBrief({ ...defaultAnswers("custom", "oneapi.id"), kind: "a recruiting video for backend engineers", goal: "get engineers to apply." });
+    expect(b).toMatch(/^A 20-second video: a recruiting video for backend engineers for OneAPI \(oneapi\.id\)\./);
+    expect(b).toContain("Goal: get engineers to apply.");
+  });
+
+  it("asks the model for the message only, from the website, in the brief's language", () => {
+    const { system, user } = suggestPrompt({ ...defaultAnswers("feature", ""), subject: "MiMo V2.6" }, { url: "https://oneapi.id", title: "OneAPI", description: "One key", text: "Models: MiMo V2.6" });
+    expect(system).toContain("Use ONLY what the website says");
+    expect(system).toContain("Write in Bahasa Indonesia");
+    expect(user).toContain("THE PERSON'S OWN ANGLE (keep it): MiMo V2.6");
+    expect(user).toContain("TEXT: Models: MiMo V2.6");
+  });
+
+  it("reads a model's answer safely and keeps what the person typed", () => {
+    const s = readSuggestion({ product: "OneAPI", subject: "Satu key untuk semua model", points: ["Claude, GPT, Gemini", 42, "Bayar sesuai pakai", "extra"], cta: "Coba di oneapi.id", audience: "Aliens", junk: true });
+    expect(s.points).toEqual(["Claude, GPT, Gemini", "Bayar sesuai pakai", "extra"]);
+    expect(s.audience).toBe("Developers");
+    const a = applySuggestion({ ...defaultAnswers("launch"), subject: "Mine", points: ["", "Also mine", ""] }, s);
+    expect(a.subject).toBe("Mine");
+    expect(a.points).toEqual(["Claude, GPT, Gemini", "Also mine", "extra"]);
+    expect(a.product).toBe("OneAPI");
+    expect(a.cta).toBe("Coba di oneapi.id");
   });
 });

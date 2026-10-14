@@ -7,14 +7,14 @@
 /** The site a video is about when the person names none. */
 export const DEFAULT_SITE = "oneapi.id";
 
-export type TemplateId = "launch" | "feature" | "tutorial" | "switch" | "announcement";
+export type TemplateId = "launch" | "feature" | "tutorial" | "switch" | "announcement" | "custom";
 
 export type Template = {
   id: TemplateId;
   label: string;
   hint: string;
-  /** "A 20-second launch promo" */
-  title: (seconds: number) => string;
+  /** "A 20-second launch promo"; a custom video names its own kind. */
+  title: (seconds: number, kind: string) => string;
   goal: string;
   /** The story the film should tell, beat by beat. */
   story: string;
@@ -91,6 +91,19 @@ export const TEMPLATES: Template[] = [
     pointsPlaceholder: ["e.g. From Friday to Sunday", "e.g. For new and existing accounts", "e.g. No code needed"],
     seconds: 15,
   },
+  {
+    id: "custom",
+    label: "Custom",
+    hint: "Your own kind of video: say what it is and what it should do.",
+    title: (s, kind) => (kind ? `A ${s}-second video: ${kind}` : `A ${s}-second video`),
+    goal: "do what the brief says it is for",
+    story: "a hook in the first 2 seconds → the message, shown rather than told → the close on the brand and the call to action",
+    subjectLabel: "The main message",
+    subjectPlaceholder: "e.g. Build your AI app in an afternoon",
+    pointsLabel: "Key points (up to 3)",
+    pointsPlaceholder: ["e.g. The first point", "e.g. The second point", "e.g. The third point"],
+    seconds: 20,
+  },
 ];
 
 export const templateOf = (id: TemplateId): Template => TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0];
@@ -111,6 +124,9 @@ export const LENGTHS = [15, 20, 30, 45] as const;
 
 export type BriefAnswers = {
   template: TemplateId;
+  /** A custom video's kind ("a recruiting video for engineers") and what it is for. */
+  kind: string;
+  goal: string;
   website: string;
   product: string;
   about: string;
@@ -126,7 +142,7 @@ export type BriefAnswers = {
 
 export function defaultAnswers(template: TemplateId, website = ""): BriefAnswers {
   const t = templateOf(template);
-  return { template, website, product: "", about: "", subject: "", points: ["", "", ""], audience: AUDIENCES[0], cta: "", seconds: t.seconds, language: LANGUAGES[0], look: "auto", voice: true };
+  return { template, kind: "", goal: "", website, product: "", about: "", subject: "", points: ["", "", ""], audience: AUDIENCES[0], cta: "", seconds: t.seconds, language: LANGUAGES[0], look: "auto", voice: true };
 }
 
 /** The site an answer set is about: the one given, else OneAPI's. */
@@ -140,9 +156,9 @@ export function buildBrief(a: BriefAnswers): string {
   const points = a.points.map((p) => p.trim()).filter(Boolean);
   const look = LOOKS.find((l) => l.id === a.look) ?? LOOKS[0];
   return [
-    `${t.title(a.seconds)} for ${name ? `${name} (${site})` : site}.`,
+    `${t.title(a.seconds, a.kind.trim())} for ${name ? `${name} (${site})` : site}.`,
     a.about.trim() ? `What it is: ${a.about.trim()}` : `What it is: read it from ${site}, in its own words (what it does, its features, its prices).`,
-    `Goal: ${t.goal}.`,
+    `Goal: ${a.goal.trim().replace(/\.$/, "") || t.goal}.`,
     `Audience: ${a.audience.trim() || AUDIENCES[0]}.`,
     a.subject.trim() ? `${t.subjectLabel}: ${a.subject.trim()}` : "",
     points.length ? `${t.pointsLabel.replace(/ \(up to 3\)$/, "")}:\n${points.map((p) => `- ${p}`).join("\n")}` : "",
@@ -159,3 +175,56 @@ export function buildBrief(a: BriefAnswers): string {
 
 /** The brief used when the person writes none: a launch promo for the site, or for OneAPI. */
 export const defaultBrief = (website: string) => buildBrief(defaultAnswers("launch", website));
+
+/** The inputs the AI may fill in from the website: everything about the message, nothing about the look. */
+export type Suggestion = Pick<BriefAnswers, "product" | "about" | "subject" | "points" | "cta" | "audience">;
+
+/** What the model is asked, to write the message of a brief from the website's own words. */
+export function suggestPrompt(a: BriefAnswers, site: { url: string; title: string; description: string; text: string }): { system: string; user: string } {
+  const t = templateOf(a.template);
+  return {
+    system: `You write the inputs of a short video brief from a website. Use ONLY what the website says: never invent numbers, prices, features, clients or claims. Write in ${a.language}, short and concrete, like a good marketer: no hype words, no emoji. Return one JSON object only:
+{"product": "the product's name", "about": "what it is, one sentence", "subject": "${t.subjectLabel}: one line", "points": ["${t.pointsLabel.replace(/ \(up to 3\)$/, "")}: at most 3, each under 12 words"], "cta": "the call to action, with the site's address", "audience": "one of: ${AUDIENCES.join(", ")}"}`,
+    user: [
+      `VIDEO: ${t.title(a.seconds, a.kind.trim())}${a.goal.trim() ? `; goal: ${a.goal.trim()}` : `; goal: ${t.goal}`}.`,
+      a.product.trim() ? `PRODUCT: ${a.product.trim()}` : "",
+      a.about.trim() ? `WHAT IT IS: ${a.about.trim()}` : "",
+      a.subject.trim() ? `THE PERSON'S OWN ANGLE (keep it): ${a.subject.trim()}` : "",
+      `WEBSITE ${site.url}: "${site.title}". ${site.description}`,
+      `TEXT: ${site.text.slice(0, 6000)}`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  };
+}
+
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+/** A model's answer as wizard inputs: unknown fields dropped, lengths capped, exactly three point slots. */
+export function readSuggestion(raw: unknown): Suggestion {
+  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const points = (Array.isArray(o.points) ? o.points : []).map((p) => str(p, 140)).filter(Boolean).slice(0, 3);
+  const audience = str(o.audience, 60);
+  return {
+    product: str(o.product, 60),
+    about: str(o.about, 200),
+    subject: str(o.subject, 140),
+    points: [...points, "", "", ""].slice(0, 3),
+    cta: str(o.cta, 120),
+    audience: (AUDIENCES as readonly string[]).includes(audience) ? audience : AUDIENCES[0],
+  };
+}
+
+/** Fills the person's answers with a suggestion: what they typed themselves stays, the rest comes from the AI. */
+export function applySuggestion(a: BriefAnswers, s: Suggestion): BriefAnswers {
+  const keep = (mine: string, theirs: string) => (mine.trim() ? mine : theirs);
+  return {
+    ...a,
+    product: keep(a.product, s.product),
+    about: keep(a.about, s.about),
+    subject: keep(a.subject, s.subject),
+    points: a.points.map((p, i) => keep(p, s.points[i] ?? "")),
+    cta: keep(a.cta, s.cta),
+    audience: s.audience,
+  };
+}

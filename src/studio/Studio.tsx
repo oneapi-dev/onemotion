@@ -796,6 +796,7 @@ export function Studio() {
         open={wizard.open}
         template={wizard.template}
         website={website}
+        ai={settings.key && settings.model ? { key: settings.key, model: settings.model } : null}
         onClose={() => setWizard((w) => ({ ...w, open: false }))}
         onUse={(text, site) => {
           setBrief(text);
