@@ -37,6 +37,8 @@ export type Settings = {
   voice?: VoiceSettings;
   /** The most one bespoke video may spend on the model, in USD. */
   budgetUsd?: number;
+  /** Let the creative director and the lead search and read the web (OneAPI web search, billed per search). */
+  webSearch?: boolean;
 };
 
 export const DEFAULT_BUDGET_USD = 3;

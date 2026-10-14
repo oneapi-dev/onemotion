@@ -85,6 +85,16 @@ describe("jsonStep", () => {
     expect(body).not.toHaveProperty("response_format");
   });
 
+  it("asks for web search only when the step should search", async () => {
+    const fetch = vi.fn(async () => reply('{"ok": true}'));
+    vi.stubGlobal("fetch", fetch);
+    await jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }], web: true });
+    await jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] });
+    const bodies = fetch.mock.calls.map((c) => JSON.parse((c as unknown as [string, RequestInit])[1].body as string));
+    expect(bodies[0].web).toBe(true);
+    expect(bodies[1]).not.toHaveProperty("web");
+  });
+
   it("reads JSON inside a fence or prose", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => reply('Here it is:\n```json\n{"a": 1}\n```')));
     expect((await jsonStep<{ a: number }>({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] })).value).toEqual({ a: 1 });

@@ -354,6 +354,7 @@ export function Studio() {
           budgetUsd: settings.budgetUsd ?? DEFAULT_BUDGET_USD,
           refs,
           pages,
+          web: settings.webSearch,
           sandbox: () => sandbox.current,
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName } : undefined,
           onVoice: (clips) => setFilmClips({ projectId: base.id, clips }),

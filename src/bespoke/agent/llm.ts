@@ -31,7 +31,19 @@ type Choice = { message?: { content?: string | Part[] | null; tool_calls?: ToolC
 /** How far a reply has come while it streams: characters so far, the tool call being written and its file. */
 export type StepProgress = { chars: number; tool?: string; path?: string; note?: string };
 
-type StepInput = { key: string; model: string; messages: Msg[]; tools?: ToolSpec[]; temperature?: number; maxTokens?: number; signal?: AbortSignal; onRetry?: (message: string) => void; onProgress?: (p: StepProgress) => void };
+type StepInput = {
+  key: string;
+  model: string;
+  messages: Msg[];
+  tools?: ToolSpec[];
+  temperature?: number;
+  maxTokens?: number;
+  /** Let the model search and read the web on this step (OneAPI web search, billed per search). */
+  web?: boolean;
+  signal?: AbortSignal;
+  onRetry?: (message: string) => void;
+  onProgress?: (p: StepProgress) => void;
+};
 
 /** Statuses worth trying again: a rate limit, a provider that timed out or fell over, a gateway hiccup. */
 export const TRANSIENT = new Set([429, 500, 502, 503, 504]);
@@ -71,6 +83,7 @@ async function chatOnce(o: StepInput) {
       tools: o.tools,
       temperature: o.temperature,
       max_tokens: o.maxTokens ?? 32_000,
+      web: o.web || undefined,
     }),
     signal: o.signal,
   });

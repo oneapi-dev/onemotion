@@ -77,6 +77,8 @@ export async function runAgent(o: {
   onActivity?: (text: string) => void;
   /** Spend shared by agents working in parallel: every step adds to it, and the budget is checked against it. */
   ledger?: Spend;
+  /** Let this agent search and read the web (OneAPI web search). */
+  web?: boolean;
   signal?: AbortSignal;
 }): Promise<{ done: boolean; summary: string; spend: Spend }> {
   const { messages } = o;
@@ -101,6 +103,7 @@ export async function runAgent(o: {
         messages,
         tools: specs,
         temperature: 0.6,
+        web: o.web,
         signal: o.signal,
         onRetry: (m) => o.onEvent({ kind: "error", text: m }),
         onProgress: (p) => o.onActivity?.(`${at}: the model is ${describeProgress(p)}`),

@@ -114,7 +114,7 @@ const refParts = (refs: string[]): Part[] =>
     { type: "image_url", image_url: { url } },
   ]);
 
-async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; pages?: SiteInfo[]; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; signal?: AbortSignal; onActivity?: (text: string) => void }) {
+async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; pages?: SiteInfo[]; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; web?: boolean; signal?: AbortSignal; onActivity?: (text: string) => void }) {
   const { concept: system } = await loadPrompts();
   const user = [
     `BRIEF:\n${o.brief || "(none: make a launch film for the website)"}`,
@@ -128,7 +128,7 @@ async function makeConcept(o: { key: string; model: string; brief: string; site:
   ]
     .filter(Boolean)
     .join("\n\n");
-  const r = await jsonStep({ key: o.key, model: o.model, messages: [{ role: "system", content: system }, { role: "user", content: o.refs?.length ? [{ type: "text", text: user }, ...refParts(o.refs)] : user }], temperature: 1, maxTokens: 8000, signal: o.signal, onProgress: (p) => o.onActivity?.(`the art director is ${p.chars ? `writing the concept (${(p.chars / 1000).toFixed(1)}k characters)` : "thinking about the concept"}`) });
+  const r = await jsonStep({ key: o.key, model: o.model, messages: [{ role: "system", content: system }, { role: "user", content: o.refs?.length ? [{ type: "text", text: user }, ...refParts(o.refs)] : user }], temperature: 1, maxTokens: 8000, web: o.web, signal: o.signal, onProgress: (p) => o.onActivity?.(`the art director is ${p.chars ? `writing the concept (${(p.chars / 1000).toFixed(1)}k characters)` : "thinking about the concept"}`) });
   return { concept: normalizeConcept(r.value), usage: r.usage };
 }
 
@@ -150,6 +150,8 @@ export async function makeFilm(o: {
   refs?: string[];
   /** Other pages the brief names (pricing, docs, ...), read for facts and images. */
   pages?: SiteInfo[];
+  /** Let the creative director and the lead search and read the web (OneAPI web search). */
+  web?: boolean;
   sandbox: () => Sandbox | null;
   /** The person's ElevenLabs key and voice, to record the voice-over before the scene is built. */
   voice?: FilmVoice & { apiKey: string };
@@ -230,7 +232,7 @@ export async function makeFilm(o: {
     o.update(film);
   };
   const say = (who: string, e: AgentEvent) => push({ log: [...film.log, { ...e, text: `[${who}] ${e.text}` }].slice(-MAX_LOG) });
-  const agent = (who: string, messages: Msg[], tools: AgentTool[], maxSteps: number) =>
+  const agent = (who: string, messages: Msg[], tools: AgentTool[], maxSteps: number, web = false) =>
     runAgent({
       key: o.key,
       model: o.model,
@@ -241,6 +243,7 @@ export async function makeFilm(o: {
       price,
       spend: NO_SPEND,
       ledger,
+      web,
       onEvent: (e) => say(who, e),
       onStep: () => push(),
       onActivity: (t) => o.onActivity?.(who, t),
@@ -264,7 +267,7 @@ export async function makeFilm(o: {
         writes: all ? `any file except ${BEATS_INDEX}` : "the theme, the shared components and scene/index.tsx (not the beats)",
       },
     );
-  const foundation = await agent("lead", leadMessages, leadTools(false), FOUNDATION_STEPS);
+  const foundation = await agent("lead", leadMessages, leadTools(false), FOUNDATION_STEPS, o.web);
   o.onActivity?.("lead", null);
   // A foundation that never passed the check would break every beat: fall back to a plain stage.
   if (!(await compile(files, facts, o.signal)).ok) {

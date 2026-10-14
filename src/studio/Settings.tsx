@@ -28,6 +28,7 @@ export function SettingsDialog({
   const [key, setKey] = useState(settings.key);
   const [model, setModel] = useState(settings.model);
   const [voiceOn, setVoiceOn] = useState(settings.voice?.on ?? false);
+  const [webSearch, setWebSearch] = useState(settings.webSearch ?? false);
   const [voiceKey, setVoiceKey] = useState(settings.voice?.key ?? "");
   const [voiceId, setVoiceId] = useState(settings.voice?.voiceId ?? "");
   const [voiceName, setVoiceName] = useState(settings.voice?.voiceName ?? "");
@@ -42,6 +43,7 @@ export function SettingsDialog({
       setKey(settings.key);
       setModel(settings.model);
       setVoiceOn(settings.voice?.on ?? false);
+      setWebSearch(settings.webSearch ?? false);
       setVoiceKey(settings.voice?.key ?? "");
       setVoiceId(settings.voice?.voiceId ?? "");
       setVoiceName(settings.voice?.voiceName ?? "");
@@ -93,7 +95,7 @@ export function SettingsDialog({
         onSubmit={(e) => {
           e.preventDefault();
           sample.current?.pause();
-          onSave({ key: key.trim(), model: model.trim(), voice: { on: voiceOn, key: voiceKey.trim(), voiceId, voiceName } });
+          onSave({ ...settings, key: key.trim(), model: model.trim(), webSearch, voice: { on: voiceOn, key: voiceKey.trim(), voiceId, voiceName } });
         }}
       >
         <h2 id="settings-title">Settings</h2>
@@ -129,6 +131,14 @@ export function SettingsDialog({
           )}
         </label>
         <p className="hint">A fast model without long reasoning designs in 10 to 20 seconds.</p>
+        <label className="inline">
+          <input type="checkbox" checked={webSearch} onChange={(e) => setWebSearch(e.target.checked)} style={{ width: "auto" }} />
+          <span>Let the AI search the web while it designs</span>
+        </label>
+        <p className="hint">
+          OneAPI web search: the art director and the lead look things up and read pages (prices, docs, real logos). $0.005 per search and $0.0001 per page
+          read on your key, at most 5 searches per step. The model must support tools.
+        </p>
 
         <h3 className="settings-section">Voiceover (optional)</h3>
         <label className="inline">
