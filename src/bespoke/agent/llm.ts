@@ -65,14 +65,27 @@ const wait = (ms: number, signal?: AbortSignal) =>
     });
   });
 
-/** A step, tried again after a pause when it fails for a reason that passes (a busy or unavailable model, a timeout, a dropped connection). */
-export async function chatStep(o: StepInput) {
+/** Tries a step with web search gets before it goes on without: a search that fails tends to fail again. */
+const WEB_RETRIES = 1;
+
+/**
+ * A step, tried again after a pause when it fails for a reason that passes
+ * (a busy or unavailable model, a timeout, a dropped connection). A step
+ * with web search that keeps failing, or is refused, goes on without it:
+ * the film matters more than the search.
+ */
+export async function chatStep(o: StepInput): Promise<Awaited<ReturnType<typeof chatOnce>>> {
   for (let attempt = 0; ; attempt++) {
     try {
       return await chatOnce(o);
     } catch (err) {
       const status = err instanceof ChatError ? err.status : 0;
       const transient = TRANSIENT.has(status) || (err instanceof TypeError && !o.signal?.aborted);
+      if (o.web && !o.signal?.aborted && status !== 401 && status !== 402 && (!transient || attempt >= WEB_RETRIES)) {
+        o.onRetry?.(`${err instanceof Error ? err.message : String(err)} Going on without web search for this step.`);
+        o.onProgress?.({ chars: 0, note: "web search failed; going on without it" });
+        return chatStep({ ...o, web: false });
+      }
       const limit = status === 504 ? TIMEOUT_RETRIES : BACKOFF_MS.length;
       if (!transient || attempt >= limit) throw err;
       const ms = BACKOFF_MS[attempt];

@@ -31,6 +31,35 @@ export async function compile(files: Record<string, string>, facts: string, sign
   return body;
 }
 
+/** The most of one search's results an agent reads: enough for facts and addresses, not a flood of context. */
+const MAX_SEARCH_TEXT = 6000;
+
+/**
+ * Web search as the agent's own tool, run through OneAPI's MCP server with
+ * the person's key (billed per search). A failed search comes back as a
+ * line the model reads, so the step around it carries on.
+ */
+export function webSearchTool(key: string, signal?: AbortSignal): AgentTool {
+  return {
+    name: "web_search",
+    description:
+      "Search the web for current facts: a product's real features and prices, a tool's official site, recent news. Returns ranked results with titles, URLs and excerpts. Read a result's page with look_up_page, and bring a logo in with fetch_image. Billed per search: search only for what the film needs.",
+    parameters: { type: "object", properties: { query: { type: "string", description: "A specific query; include the year when recency matters." } }, required: ["query"] },
+    run: async (a) => {
+      try {
+        const res = await fetch("/api/web", { method: "POST", headers: { "Content-Type": "application/json", "X-OneAPI-Key": key }, body: JSON.stringify({ query: String(a.query ?? "") }), signal });
+        const body = (await res.json().catch(() => null)) as { text?: string; failed?: boolean; error?: string } | null;
+        if (!res.ok || !body?.text) return { text: `The search failed (${body?.error ?? res.status}). Carry on with what you have.` };
+        const text = body.text.length > MAX_SEARCH_TEXT ? `${body.text.slice(0, MAX_SEARCH_TEXT)}\n(results cut here)` : body.text;
+        return { text: body.failed ? `The search found nothing usable: ${text}` : text };
+      } catch (err) {
+        if (signal?.aborted) throw err;
+        return { text: `The search failed (${err instanceof Error ? err.message : String(err)}). Carry on with what you have.` };
+      }
+    },
+  };
+}
+
 /** How many real images a film may bring in, and how heavy they may be together (they are saved with the project). */
 const MAX_ASSETS = 16;
 const MAX_ASSET_BYTES = 1_800_000;

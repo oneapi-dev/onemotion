@@ -187,3 +187,32 @@ export async function chatResilient(key: string, body: Record<string, unknown>, 
     return (await chat(key, body, signal)) as Assembled;
   }
 }
+
+/** A web search's answer: ranked results as text, or the reason it found nothing. */
+export type WebSearchResult = { text: string; failed: boolean };
+
+/**
+ * One web search through OneAPI's MCP server (POST /mcp, stateless JSON-RPC),
+ * with the person's key: billed per search like an :online request's. It is
+ * a tool call of its own, so a search that fails is a line for the model to
+ * read, not a model step that fails.
+ */
+export async function webSearch(key: string, query: string, numResults: number, signal: AbortSignal): Promise<WebSearchResult> {
+  const res = await fetch(`${BASE_URL}/mcp`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json, text/event-stream", "User-Agent": "oneapi-motion/0.1" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "web_search", arguments: { query, num_results: numResults } } }),
+    signal,
+  });
+  const text = await res.text();
+  if (!res.ok) throw failure(res.status, errorOf(text));
+  let reply: { result?: { content?: { type: string; text?: string }[]; isError?: boolean }; error?: { message?: string } };
+  try {
+    reply = JSON.parse(text);
+  } catch {
+    throw new OneAPIError(502, "OneAPI's web search sent an answer that was not JSON.");
+  }
+  if (reply.error) return { text: reply.error.message ?? "The search failed.", failed: true };
+  const said = (reply.result?.content ?? []).map((c) => (c.type === "text" ? (c.text ?? "") : "")).join("\n").trim();
+  return { text: said || "No results.", failed: Boolean(reply.result?.isError) };
+}

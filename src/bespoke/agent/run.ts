@@ -12,7 +12,7 @@ import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./l
 import { reviewFilm, type Review } from "./review";
 import { BEATS_INDEX, beatFile, beatOf, beatsIndex, beatView, ownsBeat, pool, snapshotBeat, stubBeat } from "./parallel";
 import { LEAD_INTEGRATE, OVERLAP, beatTask, leadFoundationTask } from "./roles";
-import { compile, sceneTools, type AgentTool, type Workspace } from "./tools";
+import { compile, sceneTools, webSearchTool, type AgentTool, type Workspace } from "./tools";
 
 /** A film being made or made: what the Studio keeps of a bespoke run. */
 export type FilmState = {
@@ -232,7 +232,7 @@ export async function makeFilm(o: {
     o.update(film);
   };
   const say = (who: string, e: AgentEvent) => push({ log: [...film.log, { ...e, text: `[${who}] ${e.text}` }].slice(-MAX_LOG) });
-  const agent = (who: string, messages: Msg[], tools: AgentTool[], maxSteps: number, web = false) =>
+  const agent = (who: string, messages: Msg[], tools: AgentTool[], maxSteps: number) =>
     runAgent({
       key: o.key,
       model: o.model,
@@ -243,7 +243,6 @@ export async function makeFilm(o: {
       price,
       spend: NO_SPEND,
       ledger,
-      web,
       onEvent: (e) => say(who, e),
       onStep: () => push(),
       onActivity: (t) => o.onActivity?.(who, t),
@@ -267,7 +266,9 @@ export async function makeFilm(o: {
         writes: all ? `any file except ${BEATS_INDEX}` : "the theme, the shared components and scene/index.tsx (not the beats)",
       },
     );
-  const foundation = await agent("lead", leadMessages, leadTools(false), FOUNDATION_STEPS, o.web);
+  // Web search is the lead's own tool (OneAPI MCP), not the gateway's :online loop: that loop
+  // does not carry a request that brings its own tools, and a failed search must not fail the step.
+  const foundation = await agent("lead", leadMessages, o.web ? [...leadTools(false), webSearchTool(o.key, o.signal)] : leadTools(false), FOUNDATION_STEPS);
   o.onActivity?.("lead", null);
   // A foundation that never passed the check would break every beat: fall back to a plain stage.
   if (!(await compile(files, facts, o.signal)).ok) {

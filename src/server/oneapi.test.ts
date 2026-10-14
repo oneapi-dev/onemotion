@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-const { chatResilient, chatStreamed, OneAPIError } = await import("./oneapi");
+const { chatResilient, chatStreamed, OneAPIError, webSearch } = await import("./oneapi");
 
 const sse = (events: unknown[]) =>
   new Response(events.map((e) => (e === "[DONE]" ? "data: [DONE]\n\n" : `data: ${JSON.stringify(e)}\n\n`)).join(""), { status: 200, headers: { "Content-Type": "text/event-stream" } });
@@ -56,5 +56,27 @@ describe("chatStreamed", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: "plain" }, finish_reason: "stop" }], usage: {} }), { status: 200, headers: { "Content-Type": "application/json" } })));
     const r = await chatStreamed("key", { model: "m", messages: [] }, AbortSignal.timeout(5000));
     expect(r.choices[0].message.content).toBe("plain");
+  });
+});
+
+describe("webSearch", () => {
+  const rpc = (result: unknown) => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result }), { status: 200, headers: { "Content-Type": "application/json" } });
+
+  it("calls web_search on OneAPI's MCP server with the key, and returns the results' text", async () => {
+    const fetch = vi.fn(async () => rpc({ content: [{ type: "text", text: "1. Cursor — https://cursor.com" }] }));
+    vi.stubGlobal("fetch", fetch);
+    const r = await webSearch("sk-oneapi-x", "cursor editor logo", 5, AbortSignal.timeout(5000));
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toMatch(/\/v1\/mcp$/);
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer sk-oneapi-x");
+    expect(JSON.parse(init.body as string)).toMatchObject({ jsonrpc: "2.0", method: "tools/call", params: { name: "web_search", arguments: { query: "cursor editor logo", num_results: 5 } } });
+    expect(r).toEqual({ text: "1. Cursor — https://cursor.com", failed: false });
+  });
+
+  it("passes a failed search on as text, and a refused key as an error", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => rpc({ content: [{ type: "text", text: "Your balance is too low for web search." }], isError: true })));
+    expect(await webSearch("k", "q", 3, AbortSignal.timeout(5000))).toEqual({ text: "Your balance is too low for web search.", failed: true });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { message: "Invalid API key." } }), { status: 401 })));
+    await expect(webSearch("k", "q", 3, AbortSignal.timeout(5000))).rejects.toBeInstanceOf(OneAPIError);
   });
 });

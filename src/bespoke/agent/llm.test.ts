@@ -54,6 +54,31 @@ describe("chatStep", () => {
       expect(fetch).toHaveBeenCalledTimes(1);
     }
   });
+
+  it("goes on without web search when a step with it keeps failing", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockResolvedValueOnce(failed(502, "OneAPI answered 502: The upstream provider failed.")).mockResolvedValueOnce(failed(502, "again")).mockResolvedValueOnce(reply("done"));
+    vi.stubGlobal("fetch", fetch);
+    const notes: string[] = [];
+    const p = chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }], web: true, onRetry: (m) => notes.push(m) });
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect((await p).text).toBe("done");
+    const bodies = fetch.mock.calls.map((c) => JSON.parse((c as unknown as [string, RequestInit])[1].body as string));
+    expect(bodies.map((b) => b.web ?? false)).toEqual([true, true, false]);
+    expect(notes.at(-1)).toMatch(/without web search/);
+    vi.useRealTimers();
+  });
+
+  it("drops web search at once when the step is refused with it, but not for a bad key", async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(failed(400, "web search is not available")).mockResolvedValueOnce(reply("done"));
+    vi.stubGlobal("fetch", fetch);
+    expect((await chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }], web: true })).text).toBe("done");
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const bad = vi.fn(async () => failed(401, "no"));
+    vi.stubGlobal("fetch", bad);
+    await expect(chatStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }], web: true })).rejects.toBeInstanceOf(ChatError);
+    expect(bad).toHaveBeenCalledTimes(1);
+  });
 });
 
 const ndjson = (lines: unknown[]) => new Response(lines.map((l) => `${JSON.stringify(l)}\n`).join(""), { status: 200, headers: { "Content-Type": "application/x-ndjson" } });
