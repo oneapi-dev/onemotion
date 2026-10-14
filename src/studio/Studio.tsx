@@ -64,7 +64,11 @@ const recentOf = (p: Plan): Recent => ({ look: p.look, path: p.path, music: p.mu
 
 const hasPlan = (p: Project | null): p is PlanProject => Boolean(p?.plan);
 const titleOf = (p: Project) => p.plan?.brand || p.film?.spec.brand.name || p.site?.name || "Video";
-const recentFilmOf = (f: FilmState): RecentFilm => ({ style: f.concept.style, metaphor: f.concept.metaphor, world: f.concept.world, genre: f.spec.score.genre, track: f.spec.track });
+const recentFilmOf = (f: FilmState): RecentFilm => {
+  // Films saved before concepts had a look have none.
+  const look = (f.concept as Partial<typeof f.concept>).look;
+  return { style: f.concept.style, metaphor: f.concept.metaphor, world: f.concept.world, genre: f.spec.score.genre, track: f.spec.track, direction: look?.direction, concept: look?.concept, background: look?.backgroundMotion, signature: look?.signature, display: f.concept.typography.display };
+};
 
 function inputOf(project: PlanProject, voiceover?: Record<number, string>): VideoInput {
   const input: VideoInput = {

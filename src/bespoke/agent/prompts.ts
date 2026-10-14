@@ -5,13 +5,15 @@ import { kitSource } from "../check";
 import { readExample } from "../examples";
 import { FONT_NAMES } from "../kit/fonts";
 import { SFX, SFX_USE } from "../kit/sfx";
+import { STYLE_MENUS } from "./styles";
 
 /**
  * The prompts of bespoke mode. The concept prompt makes the creative
  * director invent this film's world; the agent prompt makes a motion
  * designer who codes build it with the kit, render it and look at it.
  * Ideas and rules adapted from remotion-opus-skill (MIT, (c) 2026
- * direkturcrypto), rewritten for OneMotion's browser renderer.
+ * direkturcrypto) and bang-motion (MIT, (c) 2026 Bang Tutorial), rewritten
+ * for OneMotion's browser renderer.
  */
 
 const RANGE = `# The range (what good looks like; never copy one 1:1)
@@ -46,6 +48,20 @@ Reply with ONE JSON object and nothing else:
   "components": ["3 to 5 bespoke things to build, each with a short description"],
   "typography": { "display": "<font>", "text": "<font>", "mono": "<font or null>" },
   "palette": { "bg": "#hex", "ink": "#hex", "accent": "#hex", "support": "#hex" },
+  "look": {
+    "direction": "a STYLE DIRECTION or EXPLAINER STYLE from the menus, by name (or two blended on purpose)",
+    "candidates": ["three CONCEPTS from the menu that could fit this product"],
+    "concept": "the one you pick",
+    "why": "why this product earns that concept, from what it is and does",
+    "fingerprint": "concept · number of beats · the hero object of each beat · how it opens · how it closes",
+    "palette_sources": "where each colour comes from (the logo, the site, the product) or derived: the reason",
+    "emphasis": "one from EMPHASIS",
+    "background_motion": "one from BACKGROUND MOTION",
+    "surface": "one from BACKGROUND SURFACE",
+    "render": "one from RENDER FAMILY",
+    "signature": "one kind of motion repeated as the film's identity (not the background motion)",
+    "special_moment": "the one beat where the most expensive effect is spent, once"
+  },
   "brand": { "name": "the product or company the film is about", "url": "its domain, e.g. oneapi.id, or empty" },
   "beats": [ { "id": "b1", "says": "the on-screen words of this beat (short)", "voice": "the voice-over line of this beat, as it is spoken", "shows": "what the viewer sees", "seconds": 2.5 } ],
   "music": "the id of a built-in track from MUSIC below, or the word composed",
@@ -67,7 +83,13 @@ Rules:
 - Brand colours may lead the palette (the message gives them when known), but the world and the metaphor must be new.
 - Score: energy is one number per beat, 0 (sparse) to 3 (full); keep it restrained: mostly 1 and 2, a 3 only where the story peaks. Pick a genre that fits the world, and not the recent films' genre.
 - Music: pick the built-in track whose mood fits this film's world and pace (MUSIC below), and not one the recent films used. The film's beats snap to its tempo. Use "composed" only when no track fits; then the score below drives a synthesized bed.
+- Look: write the "look" before anything else and let it decide the rest. A style the brief names wins. The display font has character for the feeling (not Inter, Roboto, Montserrat, Arial or Poppins), except the "Claim, how, result" concept, which uses the product's own UI font. The background follows the theme and is not dark by default: most directions are light.
+- Different from the recent films in skin AND structure: at least three of palette, display font, background motion and signature differ, and the concept differs (or at least three of the five fingerprint parts do). New colours over an old order of scenes is still a template.
+- No template skeleton. Each of these is allowed only when the concept demands it, and at most two in one film: an opening line that zooms up and exits; three feature tiles in a row; a search box being typed into; the order hook, feature, feature, promise, logo, call to action. Points become pictures (one feature demoed, a word that changes, an object that transforms), not a list.
+- Headlines in sentence case. Short headlines (one line, four words or fewer) have no full stop unless it changes the meaning.
 - Fonts come from this list: ${FONT_NAMES.join(", ")}.
+
+${STYLE_MENUS}
 
 # MUSIC (built-in tracks, public domain)
 ${LIBRARY.map((t) => `- ${t.id}: ${t.mood} (${t.bpm} BPM)`).join("\n")}
@@ -157,6 +179,13 @@ Do not re-read files you just wrote. Do not render frames you do not need.
 12. End on the brand: the last beat holds the brand (<Mark/>, the name, the URL) calmly with a small loop of life. The first frame already shows something meaningful (it is the thumbnail).
 
 # Craft
+- The concept's "look" is your style brief: its direction, concept, emphasis, background motion, surface, render family, signature motion and special moment. Follow it; do not fall back to a dark screen with glowing cards.
+- Two levels of text at most per beat: one big line or number, plus one small label that belongs to the world. No kicker, title and body stacked; no rows of feature chips (chips that are part of a product UI in use are fine).
+- Type that lives: sentence case, weight 500 to 600 (all caps heavy for one beat at most), emphasis from the concept's EMPHASIS choice. Two beats in a row never share the same text size, entrance and position. Text sits beside the object it is about, not always centred.
+- The background never sits still: the concept's background motion runs in every beat, on a surface of at least two layers (a base plus light, texture or blobs from the palette), never one flat colour unless the direction is Poster color-block or Flat pop. Under text the background is calm: clearly dark or clearly light, never a busy mid-tone; background elements there stay dim.
+- A camera that works: shot sizes change with the story (wide, a medium close-up on the element that is speaking, a close-up for emphasis), text appears after the camera arrives, and holds get a slow push. A camera that only breathes a few percent reads as static.
+- Transitions: at least two kinds in a film, one of them with depth (a push-through with camAt, a card turning in from depth with Billboard3D, an element passing the lens as it grows with directional blur). A wipe at most twice, and only with an object that means something; never a flat block sweeping the whole frame. A background colour changes behind a cut, a wipe or an action on screen, never by a crossfade with no cause.
+- One render family for all objects. The signature motion repeats as the film's identity; the special moment happens once.
 - Fill the frame with intent: the hero element of a beat takes about 50 to 75 % of the frame width in landscape, 80 to 90 % in portrait. No small UI floating in a big empty canvas.
 - Type floor (rendered pixels at 1920 wide): headlines at least 72 px, UI text at least 26 px, labels at least 20 px. If text would be smaller, move the camera in or simplify.
 - Never leave a number mid-roll or a headline mid-reveal when a beat changes: reveals finish at least 10 frames before the next beat.
@@ -185,6 +214,7 @@ You receive: the facts, the concept, each beat's words, automated QA warnings, a
 3. Story: does each hold tile show what its beat says? Is the hook (the first 3 s) clear about WHAT this is? Does the close show the brand and its URL? A hook without its subject = "high".
 4. Composition: big dead areas, tiny UI floating in an empty frame, nothing in focus, cramped layouts, things touching the frame edge. Usually "med".
 5. Taste: does it look like a premium, hand-crafted launch film or like a template? Slide-deck transitions, generic stock imagery, clumsy copy, over-the-top effects. "med" or "low".
+6. Slide checks ("med", "high" when several fail): more than two levels of text in a beat (kicker, title and body); a background that sits still or is one flat colour; three feature tiles in a row or a hook, feature, feature, logo order the concept did not call for; the same text size, entrance and position two beats running; a look that ignores the concept's "look" (its direction, surface, render family).
 
 Ignore motion blur and partial elements on transition tiles, and anything already explained by a QA warning you agree is a false alarm (say so).
 

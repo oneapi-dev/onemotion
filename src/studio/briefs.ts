@@ -4,6 +4,8 @@
  * Pure: the wizard UI and the Studio's default brief both build on it.
  */
 
+import { DIRECTIONS, EXPLAINER_STYLES } from "@/bespoke/agent/styles";
+
 /** The site a video is about when the person names none. */
 export const DEFAULT_SITE = "oneapi.id";
 
@@ -108,15 +110,17 @@ export const TEMPLATES: Template[] = [
 
 export const templateOf = (id: TemplateId): Template => TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0];
 
-export const LOOKS = [
-  { id: "auto", label: "Art director's choice", brief: "the art director's choice, fitted to the brand" },
-  { id: "bold", label: "Bold and kinetic", brief: "bold and kinetic: big type, confident moves on the beat" },
-  { id: "premium", label: "Premium and calm", brief: "premium and calm: generous space, slow precise moves, restrained colour" },
-  { id: "sketch", label: "Hand-drawn", brief: "hand-drawn: marker strokes, arrows and sketches drawing themselves on paper" },
-  { id: "technical", label: "Technical", brief: "technical: diagrams, real code and data, precise and clean" },
-  { id: "playful", label: "Playful", brief: "playful: bouncy shapes, bright colour, a light touch" },
-] as const;
-export type LookId = (typeof LOOKS)[number]["id"];
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+export type Look = { id: string; label: string; group: "auto" | "promo" | "explainer"; hint: string; brief: string };
+
+/** The looks the wizard offers: the art director's choice, the style directions, the explainer styles. */
+export const LOOKS: Look[] = [
+  { id: "auto", label: "Art director's choice", group: "auto", hint: "Picked from the brand and the product.", brief: "the art director's choice from the style directions, fitted to the brand" },
+  ...DIRECTIONS.map((d): Look => ({ id: slug(d.name), label: d.name, group: "promo", hint: `${d.background}. Good for ${d.for}.`, brief: `the "${d.name}" style direction (${d.background}; ${d.type}; ${d.motion})` })),
+  ...EXPLAINER_STYLES.map((d): Look => ({ id: slug(d.name), label: d.name, group: "explainer", hint: `${d.look}. Good for ${d.for}.`, brief: `the "${d.name}" explainer style (${d.look})` })),
+];
+export type LookId = string;
 
 export const AUDIENCES = ["Developers", "Startups and product teams", "Business owners", "Everyone"] as const;
 export const LANGUAGES = ["Bahasa Indonesia", "English"] as const;

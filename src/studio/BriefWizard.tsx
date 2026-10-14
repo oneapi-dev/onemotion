@@ -179,16 +179,25 @@ export function BriefWizard({
 
         {step === 2 ? (
           <>
-            <div className="field">
-              <span>Look</span>
-              <div className="templates" role="radiogroup" aria-label="Look">
-                {LOOKS.map((l) => (
-                  <button key={l.id} type="button" role="radio" aria-checked={a.look === l.id} className="template" onClick={() => set("look", l.id)}>
-                    <strong>{l.label}</strong>
-                  </button>
-                ))}
+            {(
+              [
+                ["auto", "Look"],
+                ["promo", "Promo and launch looks"],
+                ["explainer", "Explainer looks"],
+              ] as const
+            ).map(([group, title]) => (
+              <div className="field" key={group}>
+                <span>{title}</span>
+                <div className="templates compact" role="radiogroup" aria-label={title}>
+                  {LOOKS.filter((l) => l.group === group).map((l) => (
+                    <button key={l.id} type="button" role="radio" aria-checked={a.look === l.id} className="template" title={l.hint} onClick={() => set("look", l.id)}>
+                      <strong>{l.label}</strong>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ))}
+            <p className="hint">{LOOKS.find((l) => l.id === a.look)?.hint}</p>
             <div className="row wrap">
               <div className="field">
                 <span>Length</span>

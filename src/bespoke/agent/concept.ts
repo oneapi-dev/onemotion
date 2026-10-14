@@ -16,6 +16,8 @@ export type Concept = {
   components: string[];
   typography: { display: string; text: string; mono: string | null };
   palette: { bg: string; ink: string; accent: string; support: string };
+  /** The style brief: the look and structure chosen from the menus (styles.ts), which the agents follow. */
+  look: ConceptLook;
   brand: { name: string; url: string };
   beats: { id: string; says: string; shows: string; voice: string; seconds: number }[];
   score: unknown;
@@ -26,6 +28,21 @@ export type Concept = {
   /** The facts the film states, copied from the brief and the pages read: the agents' short list. */
   facts: string[];
   whyDifferent: string;
+};
+
+export type ConceptLook = {
+  direction: string;
+  candidates: string[];
+  concept: string;
+  why: string;
+  fingerprint: string;
+  paletteSources: string;
+  emphasis: string;
+  backgroundMotion: string;
+  surface: string;
+  render: string;
+  signature: string;
+  specialMoment: string;
 };
 
 export class UnusableConceptError extends Error {
@@ -68,6 +85,7 @@ export function normalizeConcept(raw: unknown): Concept {
   const typo = isRecord(raw.typography) ? raw.typography : {};
   const pal = isRecord(raw.palette) ? raw.palette : {};
   const brand = isRecord(raw.brand) ? raw.brand : {};
+  const look = isRecord(raw.look) ? raw.look : {};
   return {
     title: str(raw.title, 120),
     language: /^[a-z]{2}$/.test(str(raw.language, 5)) ? str(raw.language, 5) : "en",
@@ -79,6 +97,20 @@ export function normalizeConcept(raw: unknown): Concept {
     components: Array.isArray(raw.components) ? raw.components.map((c) => str(c, 300)).filter(Boolean).slice(0, 6) : [],
     typography: { display: font(typo.display, "Space Grotesk"), text: font(typo.text, "Inter"), mono: typo.mono ? font(typo.mono, "JetBrains Mono") : null },
     palette: { bg: hex(pal.bg, "#F4F2EC"), ink: hex(pal.ink, "#151515"), accent: hex(pal.accent, "#FF4F1F"), support: hex(pal.support, "#2F6BFF") },
+    look: {
+      direction: str(look.direction, 120),
+      candidates: Array.isArray(look.candidates) ? look.candidates.map((c) => str(c, 80)).filter(Boolean).slice(0, 3) : [],
+      concept: str(look.concept, 80),
+      why: str(look.why, 300),
+      fingerprint: str(look.fingerprint, 400),
+      paletteSources: str(look.palette_sources, 300),
+      emphasis: str(look.emphasis, 120),
+      backgroundMotion: str(look.background_motion, 200),
+      surface: str(look.surface, 160),
+      render: str(look.render, 120),
+      signature: str(look.signature, 200),
+      specialMoment: str(look.special_moment, 200),
+    },
     brand: { name: str(brand.name, 60), url: str(brand.url, 80).replace(/^https?:\/\//, "").replace(/\/$/, "") },
     beats,
     score: raw.score,

@@ -34,7 +34,35 @@ export type FilmState = {
 };
 
 /** What a recent film was, so the next one is different. */
-export type RecentFilm = { style: string; metaphor: string; world: string; genre: string; track?: string };
+export type RecentFilm = {
+  style: string;
+  metaphor: string;
+  world: string;
+  genre: string;
+  track?: string;
+  /** The look it was built with, so the next film differs in skin and structure. */
+  direction?: string;
+  concept?: string;
+  background?: string;
+  signature?: string;
+  display?: string;
+};
+
+/** A recent film as the creative director reads it. */
+export const describeRecent = (r: RecentFilm) =>
+  [
+    r.direction ? `direction "${r.direction}"` : "",
+    r.concept ? `concept "${r.concept}"` : "",
+    `style "${r.style}"`,
+    `metaphor "${r.metaphor}"`,
+    `world "${r.world}"`,
+    r.display ? `display font ${r.display}` : "",
+    r.background ? `background motion "${r.background}"` : "",
+    r.signature ? `signature "${r.signature}"` : "",
+    `music ${r.track ?? r.genre}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
 export const NO_SPEND: Spend = { input: 0, output: 0, cached: 0, usd: 0 };
 /** Steps for the lead's foundation, each beat agent, and the lead's joining pass; how many beat agents run at once. */
@@ -122,7 +150,7 @@ async function makeConcept(o: { key: string; model: string; brief: string; site:
     o.site?.accent ? `BRAND COLOUR: ${o.site.accent}` : "",
     pagesOf(o.site, o.pages).length ? `PAGES (read from the web just now):\n${pageText(o.site, o.pages)}` : "",
     pagesOf(o.site, o.pages).length ? `IMAGES ON THOSE PAGES (real logos and icons the film can use):\n${imagesOf(o.site, o.pages)}` : "",
-    `RECENT FILMS (do not repeat their style, metaphor, world or music):\n${o.recent.length ? o.recent.map((r) => `- style "${r.style}", metaphor "${r.metaphor}", world "${r.world}", music ${r.track ?? r.genre}`).join("\n") : "(none)"}`,
+    `RECENT FILMS (differ from them in skin and structure: direction, concept, palette, display font, background motion, signature, metaphor, world, music):\n${o.recent.length ? o.recent.map((r) => `- ${describeRecent(r)}`).join("\n") : "(none)"}`,
     o.refs?.length ? `The person gave ${o.refs.length} screenshot(s) of the real product (REF images below): build at least one beat around remaking it.` : "",
     "Return the concept JSON.",
   ]

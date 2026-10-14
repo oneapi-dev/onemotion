@@ -22,7 +22,7 @@ describe("briefs", () => {
       ...defaultAnswers("tutorial", "oneapi.id"),
       subject: "Call any model from Python",
       points: ["Create a key", "", "Send a request"],
-      look: "sketch",
+      look: "paper-and-print",
       voice: false,
       language: "English",
       seconds: 30,
@@ -30,7 +30,7 @@ describe("briefs", () => {
     expect(b).toMatch(/^A 30-second how-to for OneAPI \(oneapi\.id\)\./);
     expect(b).toContain("What the viewer will be able to do: Call any model from Python");
     expect(b).toContain("The steps, in order:\n- Create a key\n- Send a request");
-    expect(b).toContain("Look: hand-drawn");
+    expect(b).toContain("Look: the \"Paper and print\" style direction");
     expect(b).toContain("No voice-over");
     expect(b).toContain("Language of every word on screen: English.");
     expect(b).not.toMatch(/\n\n/);

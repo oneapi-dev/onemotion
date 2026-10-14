@@ -86,3 +86,5 @@ This project is MIT licensed.
 The built-in music (`public/music`) is from FreePD and dedicated to the public domain under CC0 1.0; see `public/music/CREDITS.md`. The instrument samples (`public/samples`) are from VCSL, also CC0.
 
 It is built on [Remotion](https://www.remotion.dev), which has its own license. Remotion is free for individuals and for companies of up to three people. Larger companies need a [Remotion company license](https://www.remotion.dev/license) to use this project.
+
+Bespoke mode adapts ideas and rules from two MIT-licensed agent skills: [remotion-opus-skill](https://github.com/direkturcrypto/remotion-opus-skill) by direkturcrypto (the kit and the scene workflow) and [bang-motion](https://github.com/bangtutorial/bang-motion) by Bang Tutorial (the style directions, concepts, background and render menus, and the anti-slide rules).

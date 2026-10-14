@@ -25,6 +25,18 @@ describe("normalizeConcept", () => {
     expect(c.language).toBe("id");
   });
 
+  it("keeps the style brief, and an empty one when the model wrote none", () => {
+    const c = normalizeConcept({
+      ...raw,
+      look: { direction: "Editorial light", candidates: ["Object metaphor", "Living number", "Claim, how, result", "extra"], concept: "Object metaphor", background_motion: "floating colour blobs", special_moment: "b3", unknown: 1 },
+    });
+    expect(c.look.direction).toBe("Editorial light");
+    expect(c.look.candidates).toEqual(["Object metaphor", "Living number", "Claim, how, result"]);
+    expect(c.look.backgroundMotion).toBe("floating colour blobs");
+    expect(c.look.specialMoment).toBe("b3");
+    expect(normalizeConcept(raw).look.direction).toBe("");
+  });
+
   it("repairs colours, fonts and the brand URL", () => {
     const c = normalizeConcept(raw);
     expect(c.palette.ink).toBe("#151515");
