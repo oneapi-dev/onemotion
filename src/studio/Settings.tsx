@@ -29,6 +29,7 @@ export function SettingsDialog({
   const [model, setModel] = useState(settings.model);
   const [voiceOn, setVoiceOn] = useState(settings.voice?.on ?? false);
   const [webSearch, setWebSearch] = useState(settings.webSearch ?? false);
+  const [team, setTeam] = useState(settings.team ?? false);
   const [voiceKey, setVoiceKey] = useState(settings.voice?.key ?? "");
   const [voiceId, setVoiceId] = useState(settings.voice?.voiceId ?? "");
   const [voiceName, setVoiceName] = useState(settings.voice?.voiceName ?? "");
@@ -44,6 +45,7 @@ export function SettingsDialog({
       setModel(settings.model);
       setVoiceOn(settings.voice?.on ?? false);
       setWebSearch(settings.webSearch ?? false);
+      setTeam(settings.team ?? false);
       setVoiceKey(settings.voice?.key ?? "");
       setVoiceId(settings.voice?.voiceId ?? "");
       setVoiceName(settings.voice?.voiceName ?? "");
@@ -95,7 +97,7 @@ export function SettingsDialog({
         onSubmit={(e) => {
           e.preventDefault();
           sample.current?.pause();
-          onSave({ ...settings, key: key.trim(), model: model.trim(), webSearch, voice: { on: voiceOn, key: voiceKey.trim(), voiceId, voiceName } });
+          onSave({ ...settings, key: key.trim(), model: model.trim(), webSearch, team, voice: { on: voiceOn, key: voiceKey.trim(), voiceId, voiceName } });
         }}
       >
         <h2 id="settings-title">Settings</h2>
@@ -138,6 +140,14 @@ export function SettingsDialog({
         <p className="hint">
           OneAPI web search: the art director and the lead look things up and read pages (prices, docs, real logos). $0.005 per search and $0.0001 per page
           read on your key, at most 5 searches per step. The model must support tools.
+        </p>
+        <label className="inline">
+          <input type="checkbox" checked={team} onChange={(e) => setTeam(e.target.checked)} style={{ width: "auto" }} />
+          <span>Build with a team of agents in parallel</span>
+        </label>
+        <p className="hint">
+          Off (recommended): one designer builds the whole film, looks at it and fixes it, like a motion designer in their own editor. On: a lead and
+          one agent per beat work at the same time; faster, but the film is less of one piece and each agent rereads the brief, so it costs more.
         </p>
 
         <h3 className="settings-section">Voiceover (optional)</h3>

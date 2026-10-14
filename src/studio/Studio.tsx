@@ -353,6 +353,7 @@ export function Studio() {
           refs,
           pages,
           web: settings.webSearch,
+          team: settings.team,
           host: () => host.current,
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName } : undefined,
           onVoice: (clips) => setFilmClips({ projectId: base.id, clips }),

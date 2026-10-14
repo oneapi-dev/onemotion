@@ -37,6 +37,8 @@ export type Settings = {
   voice?: VoiceSettings;
   /** Let the creative director and the lead search and read the web (OneAPI web search, billed per search). */
   webSearch?: boolean;
+  /** Build bespoke films with a team of agents in parallel (faster, less coherent) instead of one designer. */
+  team?: boolean;
 };
 
 /** Voiceover is wanted and can be recorded. */

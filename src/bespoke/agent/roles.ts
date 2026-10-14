@@ -23,7 +23,7 @@ You are the LEAD of a small team building this film. Its beats (${o.beats.map((b
 The beat files are stubs for now (they render nothing), so your renders show only the stage. Keep the foundation small and solid: the beat agents carry the content.`;
 }
 
-export function beatTask(o: { context: string; beat: Beat; index: number; beats: Beat[]; notes: string; shared: Record<string, string> }): string {
+export function beatTask(o: { context: string; beat: Beat; index: number; beats: Beat[]; notes: string; shared: Record<string, string>; assets: string[] }): string {
   const { beat: b, beats } = o;
   const len = b.end - b.start;
   const prev = beats[o.index - 1];
@@ -42,12 +42,35 @@ AFTER YOU: ${next ? `${next.id} shows ${next.shows}` : "nothing: you close the f
 THE LEAD'S NOTES:
 ${o.notes || "(none)"}
 
+ASSETS ALREADY FETCHED (draw them with <Asset name=... />; never fetch them again): ${o.assets.join(", ") || "none"}
+
 SHARED FILES:
 ${Object.entries(o.shared)
   .map(([p, src]) => `--- ${p} ---\n${src}`)
   .join("\n\n")}
 
 Work in few replies (at most 8): write your file, \`check\`, \`contact_sheet\` (your stretch and the seams with your neighbours), fix everything you see and every QA warning, render again, then \`finish\` with one line on what you built.`;
+}
+
+/** How many replies one designer gets to build a whole film. */
+export const SOLO_STEPS = 24;
+
+/** One designer builds the whole film, as in their own IDE: one mind, one conversation, many looks. */
+export function soloTask(o: { context: string; beats: Beat[] }): string {
+  return `${o.context}
+
+You build this whole film yourself, from the first frame to the last, in at most ${SOLO_STEPS} replies. Plan the budget: about a third to build, the rest to look and fix.
+
+1. Call \`timing\` once (the beats in frames). Fetch the logos the film needs in one reply, before you write code; never fetch the same image twice.
+2. Write scene/theme.ts, the components and scene/index.tsx, at most 3 files per reply. Each beat (${o.beats.map((b) => b.id).join(", ")}) can live in ${beatFile("<id>")} rendered by \`<Beats of={BEATS} overlap={${OVERLAP}} />\` from @kit (\`import { BEATS } from "./beats"\`; ${BEATS_INDEX} is generated, never write it), or you may time everything in your own components: your choice. A beat file left as it is renders nothing.
+3. \`check\` in the reply that writes the last file, fix every error.
+4. \`contact_sheet\` of the whole film, then look like an art director: is every beat filled and showing its "says"? collisions, contrast (logos and text clearly readable), empty halves of the frame, slides instead of one world, the concept's look. Fix everything in one reply, render again. At least three look-and-fix passes; use \`render_frames\` to look closely at a beat.
+5. \`finish\` only when the film is genuinely good.`;
+}
+
+/** The lead's task when beats are still empty stubs: a film must never show an empty beat. */
+export function emptyBeatsTask(ids: string[]): string {
+  return `These beats are still empty and show nothing: ${ids.join(", ")}. Write them now (${ids.map((id) => beatFile(id)).join(", ")}), each showing its "says" and "shows" from the concept in the same style as the other beats, then \`check\`, \`contact_sheet\` and \`finish\`.`;
 }
 
 /** The lead's task when the whole film does not pass the check: fix those errors and nothing else. */

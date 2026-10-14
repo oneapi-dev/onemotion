@@ -12,8 +12,10 @@ export type FilmSpec = {
   score: Score;
   /** A built-in music track (src/music/library.ts) to play instead of the composed score; the score's tempo is the track's. */
   track?: string;
-  /** Real images the agents fetched (logos, icons), by name, as data URLs. */
+  /** Real images the agents fetched (logos, icons), by name, as data URLs. "name@light" is a one-colour logo repainted white for dark backgrounds, "name@dark" one repainted dark. */
   assets?: Record<string, string>;
+  /** Where each asset came from (address -> name), so the same image is never fetched twice. */
+  assetSources?: Record<string, string>;
 };
 
 /** What the film host renders: the spec, the scene compiled to CommonJS modules by path, and recorded voice lines by beat index. */

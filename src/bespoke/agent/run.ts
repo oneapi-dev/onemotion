@@ -11,8 +11,8 @@ import { jsonStep, type Msg, type Part } from "./llm";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
 import { reviewFilm, type Review } from "./review";
 import { BEATS_INDEX, beatFile, beatOf, beatsIndex, beatView, ownsBeat, pool, snapshotBeat, stubBeat } from "./parallel";
-import { LEAD_INTEGRATE, NO_FOUNDATION, OVERLAP, beatTask, leadFoundationTask, repairTask } from "./roles";
-import { compile, sceneTools, webSearchTool, type AgentTool, type Workspace } from "./tools";
+import { LEAD_INTEGRATE, NO_FOUNDATION, OVERLAP, SOLO_STEPS, beatTask, emptyBeatsTask, leadFoundationTask, repairTask, soloTask } from "./roles";
+import { assetNames, compile, sceneTools, webSearchTool, type AgentTool, type Workspace } from "./tools";
 
 /** A film being made or made: what the Studio keeps of a bespoke run. */
 export type FilmState = {
@@ -183,6 +183,8 @@ export async function makeFilm(o: {
   pages?: SiteInfo[];
   /** Let the creative director and the lead search and read the web (OneAPI web search). */
   web?: boolean;
+  /** Build with a team (a lead and one agent per beat, in parallel) instead of one designer: faster, less coherent. */
+  team?: boolean;
   host: () => FilmHost | null;
   /** The person's ElevenLabs key and voice, to record the voice-over before the scene is built. */
   voice?: FilmVoice & { apiKey: string };
@@ -284,9 +286,9 @@ export async function makeFilm(o: {
       signal: o.signal,
     });
 
-  // 1. The lead lays the foundation: theme, shared components, the stage. Beats are stubs.
+  // One designer builds the whole film (the default), or a team: a lead lays the foundation and one agent per beat builds on it.
   const lead: Workspace = { spec, facts, files, modules: null, dirty: true };
-  const leadMessages: Msg[] = [{ role: "system", content: system }, task(leadFoundationTask({ context, beats: timed }))];
+  const leadMessages: Msg[] = [{ role: "system", content: system }, task(o.team ? leadFoundationTask({ context, beats: timed }) : soloTask({ context, beats: timed }))];
   const leadTools = (all: boolean) =>
     sceneTools(
       lead,
@@ -323,76 +325,98 @@ export async function makeFilm(o: {
     lead.dirty = true;
     await agent("lead", leadMessages, leadTools(all), REPAIR_STEPS);
   };
-
+  /** Beats the film shows nothing for: still stubs while the stage renders <Beats>. */
+  const emptyBeats = () => (/from\s+["']\.\/beats["']/.test(files["scene/index.tsx"] ?? "") ? ids.filter((id) => files[beatFile(id)] === stubBeat(id)) : []);
   // Web search is the lead's own tool (OneAPI MCP), not the gateway's :online loop: that loop
   // does not carry a request that brings its own tools, and a failed search must not fail the step.
-  const foundation = await agent("lead", leadMessages, o.web ? [...leadTools(false), webSearchTool(o.key, o.signal)] : leadTools(false), FOUNDATION_STEPS);
-  o.onActivity?.("lead", null);
-  let notes = foundation.summary;
-  let base = await checkFilm();
-  if (!base.ok) {
-    await repair(base.errors, false);
-    base = await checkFilm();
-  }
-  if (!base.ok && !o.signal?.aborted) {
-    // A broken shared file fails every check after it, even when nothing imports it: drop the
-    // whole foundation and give the beats a plain stage.
-    for (const p of Object.keys(files)) if (beatOf(p) === null && p !== BEATS_INDEX) delete files[p];
-    files["scene/index.tsx"] = fallbackStage(concept);
-    notes = NO_FOUNDATION;
-    say("lead", { kind: "error", text: "the foundation did not pass the check and was dropped; the beats build on a plain stage" });
-    await checkFilm();
-  }
-  if (o.signal?.aborted) return finish(foundation);
+  const webTools = o.web ? [webSearchTool(o.key, o.signal)] : [];
 
-  // 2. Every beat at once (a few at a time), each agent on its own file, seeing the others' last good versions.
-  const shared = Object.fromEntries(Object.entries(files).filter(([p]) => beatOf(p) === null && p !== BEATS_INDEX));
-  const results = await pool(
-    timed.map((b, i) => async () => {
-      const ws: Workspace = { spec, facts, files, modules: null, dirty: true };
-      const tools = sceneTools(
-        ws,
-        host,
-        () => {
-          if (ws.modules) shown = ws.modules;
-          push();
-        },
-        o.signal,
-        {
-          canWrite: ownsBeat(b.id),
-          writes: `${beatFile(b.id)} and helpers in scene/beats/${b.id}/`,
-          view: () => beatView(b.id, files, good),
-          mine: (e) => e.startsWith(`scene/beats/${b.id}`),
-          onPassed: () => {
-            good[b.id] = snapshotBeat(b.id, files);
+  let r: { done: boolean; summary: string };
+  if (!o.team) {
+    r = await agent("lead", leadMessages, [...leadTools(true), ...webTools], SOLO_STEPS);
+    o.onActivity?.("lead", null);
+    if (o.signal?.aborted) return finish(r);
+  } else {
+    const foundation = await agent("lead", leadMessages, [...leadTools(false), ...webTools], FOUNDATION_STEPS);
+    o.onActivity?.("lead", null);
+    let notes = foundation.summary;
+    let base = await checkFilm();
+    if (!base.ok) {
+      await repair(base.errors, false);
+      base = await checkFilm();
+    }
+    if (!base.ok && !o.signal?.aborted) {
+      // A broken shared file fails every check after it, even when nothing imports it: drop the
+      // whole foundation and give the beats a plain stage.
+      for (const p of Object.keys(files)) if (beatOf(p) === null && p !== BEATS_INDEX) delete files[p];
+      files["scene/index.tsx"] = fallbackStage(concept);
+      notes = NO_FOUNDATION;
+      say("lead", { kind: "error", text: "the foundation did not pass the check and was dropped; the beats build on a plain stage" });
+      await checkFilm();
+    }
+    if (o.signal?.aborted) return finish(foundation);
+
+    // Every beat at once (a few at a time), each agent on its own file, seeing the others' last good versions.
+    const shared = Object.fromEntries(Object.entries(files).filter(([p]) => beatOf(p) === null && p !== BEATS_INDEX));
+    const assets = assetNames(spec.assets ?? {});
+    const results = await pool(
+      timed.map((b, i) => async () => {
+        const ws: Workspace = { spec, facts, files, modules: null, dirty: true };
+        const tools = sceneTools(
+          ws,
+          host,
+          () => {
+            if (ws.modules) shown = ws.modules;
+            push();
           },
-          focus: { from: b.start, to: b.end, label: `beat ${b.id}, frames ${b.start} to ${b.end}` },
-        },
-      );
-      o.onActivity?.(b.id, "starting");
-      try {
-        return await agent(b.id, [{ role: "system", content: system }, task(beatTask({ context, beat: b, index: i, beats: timed, notes, shared }))], tools, BEAT_STEPS);
-      } finally {
-        o.onActivity?.(b.id, null);
-      }
-    }),
-    BEAT_CONCURRENCY,
-  );
-  results.forEach((r, i) => {
-    if (r.status === "rejected") say(ids[i], { kind: "error", text: `stopped: ${r.reason instanceof Error ? r.reason.message : String(r.reason)}` });
-  });
-  // Each beat is its last version that passed: a half-finished edit does not reach the film.
-  for (const id of ids) {
-    for (const p of Object.keys(files)) if (ownsBeat(id)(p)) delete files[p];
-    Object.assign(files, good[id]);
-  }
-  push();
-  if (o.signal?.aborted) return finish({ done: false, summary: "stopped" });
+          o.signal,
+          {
+            canWrite: ownsBeat(b.id),
+            writes: `${beatFile(b.id)} and helpers in scene/beats/${b.id}/`,
+            view: () => beatView(b.id, files, good),
+            mine: (e) => e.startsWith(`scene/beats/${b.id}`),
+            onPassed: () => {
+              good[b.id] = snapshotBeat(b.id, files);
+            },
+            focus: { from: b.start, to: b.end, label: `beat ${b.id}, frames ${b.start} to ${b.end}` },
+          },
+        );
+        o.onActivity?.(b.id, "starting");
+        try {
+          return await agent(b.id, [{ role: "system", content: system }, task(beatTask({ context, beat: b, index: i, beats: timed, notes, shared, assets }))], tools, BEAT_STEPS);
+        } finally {
+          o.onActivity?.(b.id, null);
+        }
+      }),
+      BEAT_CONCURRENCY,
+    );
+    results.forEach((x, i) => {
+      if (x.status === "rejected") say(ids[i], { kind: "error", text: `stopped: ${x.reason instanceof Error ? x.reason.message : String(x.reason)}` });
+    });
+    // Each beat is its last version that passed: a half-finished edit does not reach the film.
+    for (const id of ids) {
+      for (const p of Object.keys(files)) if (ownsBeat(id)(p)) delete files[p];
+      Object.assign(files, good[id]);
+    }
+    push();
+    if (o.signal?.aborted) return finish({ done: false, summary: "stopped" });
 
-  // 3. The lead joins the beats into one film, then the art director's rounds.
-  lead.dirty = true;
-  leadMessages.push({ role: "user", content: LEAD_INTEGRATE });
-  let r = await agent("lead", leadMessages, leadTools(true), INTEGRATE_STEPS);
+    // The lead joins the beats into one film.
+    lead.dirty = true;
+    leadMessages.push({ role: "user", content: LEAD_INTEGRATE });
+    r = await agent("lead", leadMessages, leadTools(true), INTEGRATE_STEPS);
+  }
+
+  // A film never shows an empty beat: whatever is still a stub is written now.
+  const empty = emptyBeats();
+  if (empty.length && !o.signal?.aborted) {
+    say("lead", { kind: "error", text: `${empty.join(", ")} ${empty.length === 1 ? "is" : "are"} still empty; writing ${empty.length === 1 ? "it" : "them"} now` });
+    leadMessages.push({ role: "user", content: emptyBeatsTask(empty) });
+    lead.dirty = true;
+    r = await agent("lead", leadMessages, leadTools(true), REVISE_STEPS);
+  }
+
+  // The art director's rounds.
   for (let round = 1; round <= MAX_REVIEWS && !o.signal?.aborted; round++) {
     let c = await checkFilm();
     if (!c.ok) {

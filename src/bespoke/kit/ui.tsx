@@ -114,13 +114,15 @@ export const Notification = ({ t, at, app, title, body, w = 900, icon, dark = fa
  * A real image fetched for this film (a logo, a product icon, a provider
  * mark) by the name it was saved under. It keeps its proportions inside
  * the box you give it. An unknown name draws nothing, so a scene never
- * shows a broken image; the check render warns.
+ * shows a broken image; the check render warns. `tone="light"` draws a
+ * one-colour dark logo in white (for dark backgrounds), `tone="dark"` a
+ * light one in near-black; a colour logo is drawn as it is.
  */
-export const Asset = ({ name, width, height, style }: { name: string; width?: number; height?: number; style?: CSSProperties }) => {
+export const Asset = ({ name, width, height, tone, style }: { name: string; width?: number; height?: number; tone?: "light" | "dark"; style?: CSSProperties }) => {
   const { assets } = useFilm();
-  const src = assets[name];
+  const src = (tone ? assets[`${name}@${tone}`] : undefined) ?? assets[name];
   if (!src) {
-    console.warn(`[QA] asset "${name}" was never fetched (have: ${Object.keys(assets).join(", ") || "none"})`);
+    console.warn(`[QA] asset "${name}" was never fetched (have: ${Object.keys(assets).filter((k) => !k.includes("@")).join(", ") || "none"})`);
     return null;
   }
   return <Img src={src} style={{ width, height, objectFit: "contain", flex: "none", ...style }} />;

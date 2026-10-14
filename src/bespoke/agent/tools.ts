@@ -60,6 +60,9 @@ export function webSearchTool(key: string, signal?: AbortSignal): AgentTool {
   };
 }
 
+/** The names of a film's own assets, without the recoloured variants. */
+export const assetNames = (assets: Record<string, string>) => Object.keys(assets).filter((k) => !k.includes("@"));
+
 /** How many real images a film may bring in, and how heavy they may be together (they are saved with the project). */
 const MAX_ASSETS = 16;
 const MAX_ASSET_BYTES = 1_800_000;
@@ -319,18 +322,33 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
           .slice(0, 40);
         if (!name) return { text: "Give the asset a name, e.g. cursor-logo." };
         const assets = (ws.spec.assets ??= {});
-        if (!assets[name] && Object.keys(assets).length >= MAX_ASSETS) return { text: `This film already has ${MAX_ASSETS} assets: reuse one, or keep to the ones that matter.` };
-        const res = await fetch("/api/asset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: String(a.url ?? "") }), signal });
+        const sources = (ws.spec.assetSources ??= {});
+        const url = String(a.url ?? "").trim();
+        const have = () => assetNames(assets).join(", ") || "none";
+        if (sources[url] && assets[sources[url]]) return { text: `Already saved as "${sources[url]}": draw it with <Asset name="${sources[url]}" />. Assets this film has: ${have()}.` };
+        if (!assets[name] && assetNames(assets).length >= MAX_ASSETS) return { text: `This film already has ${MAX_ASSETS} assets (${have()}): reuse one of them.` };
+        const res = await fetch("/api/asset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }), signal });
         const body = (await res.json().catch(() => null)) as { data?: string; type?: string; error?: string } | null;
         if (!res.ok || !body?.data) return { text: `Could not fetch it: ${body?.error ?? res.status}` };
         try {
           const ready = await prepareAsset(body.data);
-          const total = Object.entries(assets).reduce((n, [k, v]) => n + (k === name ? 0 : v.length), 0) + ready.data.length;
+          const variantKey = ready.tone === "dark" ? `${name}@light` : `${name}@dark`;
+          const total = Object.entries(assets).reduce((n, [k, v]) => n + (k === name || k.startsWith(`${name}@`) ? 0 : v.length), 0) + ready.data.length + (ready.variant?.length ?? 0);
           if (total > MAX_ASSET_BYTES) return { text: "The film's assets are too heavy together: drop one, or use a smaller image." };
           assets[name] = ready.data;
+          delete assets[`${name}@light`];
+          delete assets[`${name}@dark`];
+          if (ready.variant) assets[variantKey] = ready.variant;
+          sources[url] = name;
           ws.dirty = true;
           changed();
-          return { text: `saved as asset "${name}" (${ready.width} x ${ready.height}, ${body.type}). Draw it with <Asset name="${name}" width={...} height={...} />.`, images: [{ label: `asset ${name}`, url: ready.preview }] };
+          const tone =
+            ready.tone === "dark"
+              ? ` It is a dark one-colour mark: on a dark background draw it with <Asset name="${name}" tone="light" /> (a white version), never dark on dark.`
+              : ready.tone === "light"
+                ? ` It is a light one-colour mark: on a light background draw it with <Asset name="${name}" tone="dark" />.`
+                : "";
+          return { text: `saved as asset "${name}" (${ready.width} x ${ready.height}, ${body.type}). Draw it with <Asset name="${name}" width={...} height={...} />.${tone}`, images: [{ label: `asset ${name}`, url: ready.preview }] };
         } catch (err) {
           return { text: `That image could not be used: ${err instanceof Error ? err.message : String(err)}` };
         }
