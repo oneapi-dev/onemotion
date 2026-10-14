@@ -11,7 +11,7 @@ import { jsonStep, type Msg, type Part } from "./llm";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
 import { reviewFilm, type Review } from "./review";
 import { BEATS_INDEX, beatFile, beatOf, beatsIndex, beatView, ownsBeat, pool, snapshotBeat, stubBeat } from "./parallel";
-import { LEAD_INTEGRATE, OVERLAP, beatTask, leadFoundationTask } from "./roles";
+import { LEAD_INTEGRATE, NO_FOUNDATION, OVERLAP, beatTask, leadFoundationTask, repairTask } from "./roles";
 import { compile, sceneTools, webSearchTool, type AgentTool, type Workspace } from "./tools";
 
 /** A film being made or made: what the Studio keeps of a bespoke run. */
@@ -73,6 +73,10 @@ const BEAT_CONCURRENCY = 3;
 /** Review rounds after the build, and the steps the agent gets to fix each one. */
 const MAX_REVIEWS = 2;
 const REVISE_STEPS = 8;
+/** Steps the lead gets to fix check errors that would stop the film from playing. */
+const REPAIR_STEPS = 4;
+/** How long a film waits for its preview to mount before giving up. */
+const HOST_WAIT_MS = 30_000;
 const MAX_LOG = 200;
 
 type Prompts = { concept: string; agent: string; review: string };
@@ -231,7 +235,12 @@ export async function makeFilm(o: {
   }
 
   act(null);
-  const host = o.host();
+  // The preview mounts with the film's first update, and loads on demand: give it a moment.
+  let host = o.host();
+  for (let waited = 0; !host && waited < HOST_WAIT_MS && !o.signal?.aborted; waited += 250) {
+    await new Promise((r) => setTimeout(r, 250));
+    host = o.host();
+  }
   if (!host) throw new Error("The preview is not ready.");
   // The facts check reads everything; the agents get the concept's short list, the catalog and the images found.
   const facts = `${o.brief}\n${factsOf(o.brief, o.site, o.models)}\n${pageText(o.site, o.pages)}`;
@@ -292,14 +301,47 @@ export async function makeFilm(o: {
         writes: all ? `any file except ${BEATS_INDEX}` : "the theme, the shared components and scene/index.tsx (not the beats)",
       },
     );
+  /** The last version of the whole film that passed the check, files and all. */
+  let lastGood: Record<string, string> | null = null;
+  /** Checks the whole film; a pass is remembered as the version to fall back to. */
+  const checkFilm = async () => {
+    const c = await compile(files, facts, o.signal);
+    if (c.ok) {
+      lastGood = { ...files };
+      shown = c.modules;
+    }
+    return c;
+  };
+  let repaired = "";
+  /** The lead fixes the check's errors and nothing else; the same errors are not tried twice. */
+  const repair = async (errors: string[], all: boolean) => {
+    const key = errors.join("\n");
+    if (o.signal?.aborted || key === repaired) return;
+    repaired = key;
+    say("lead", { kind: "error", text: `the film does not pass the check (${errors.length} error${errors.length === 1 ? "" : "s"}); fixing them` });
+    leadMessages.push({ role: "user", content: repairTask(errors) });
+    lead.dirty = true;
+    await agent("lead", leadMessages, leadTools(all), REPAIR_STEPS);
+  };
+
   // Web search is the lead's own tool (OneAPI MCP), not the gateway's :online loop: that loop
   // does not carry a request that brings its own tools, and a failed search must not fail the step.
   const foundation = await agent("lead", leadMessages, o.web ? [...leadTools(false), webSearchTool(o.key, o.signal)] : leadTools(false), FOUNDATION_STEPS);
   o.onActivity?.("lead", null);
-  // A foundation that never passed the check would break every beat: fall back to a plain stage.
-  if (!(await compile(files, facts, o.signal)).ok) {
+  let notes = foundation.summary;
+  let base = await checkFilm();
+  if (!base.ok) {
+    await repair(base.errors, false);
+    base = await checkFilm();
+  }
+  if (!base.ok && !o.signal?.aborted) {
+    // A broken shared file fails every check after it, even when nothing imports it: drop the
+    // whole foundation and give the beats a plain stage.
+    for (const p of Object.keys(files)) if (beatOf(p) === null && p !== BEATS_INDEX) delete files[p];
     files["scene/index.tsx"] = fallbackStage(concept);
-    say("lead", { kind: "error", text: "the foundation did not pass the check; the beats build on a plain stage" });
+    notes = NO_FOUNDATION;
+    say("lead", { kind: "error", text: "the foundation did not pass the check and was dropped; the beats build on a plain stage" });
+    await checkFilm();
   }
   if (o.signal?.aborted) return finish(foundation);
 
@@ -329,7 +371,7 @@ export async function makeFilm(o: {
       );
       o.onActivity?.(b.id, "starting");
       try {
-        return await agent(b.id, [{ role: "system", content: system }, task(beatTask({ context, beat: b, index: i, beats: timed, notes: foundation.summary, shared }))], tools, BEAT_STEPS);
+        return await agent(b.id, [{ role: "system", content: system }, task(beatTask({ context, beat: b, index: i, beats: timed, notes, shared }))], tools, BEAT_STEPS);
       } finally {
         o.onActivity?.(b.id, null);
       }
@@ -352,9 +394,12 @@ export async function makeFilm(o: {
   leadMessages.push({ role: "user", content: LEAD_INTEGRATE });
   let r = await agent("lead", leadMessages, leadTools(true), INTEGRATE_STEPS);
   for (let round = 1; round <= MAX_REVIEWS && !o.signal?.aborted; round++) {
-    const c = await compile(files, facts, o.signal);
+    let c = await checkFilm();
+    if (!c.ok) {
+      await repair(c.errors, true);
+      c = await checkFilm();
+    }
     if (!c.ok) break;
-    shown = c.modules;
     say("review", { kind: "tool", text: `round ${round}: the art director is looking at the frames` });
     o.onActivity?.("review", `round ${round}: rendering labelled frames, then the art director looks at them`);
     const { review, usage: used } = await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: c.modules, concept, facts, host, refs: o.refs, signal: o.signal });
@@ -373,14 +418,26 @@ export async function makeFilm(o: {
   }
   return finish(r);
 
-  /** Whatever the agents did, the film is the last version that passes the check. */
+  /** Whatever the agents did, the film is the last version that passes the check, and its files are that version's. */
   async function finish(last: { done: boolean; summary: string }): Promise<FilmState> {
-    const final = await compile(files, facts, o.signal).catch(() => null);
-    if (final?.ok) shown = final.modules;
-    const ok = Boolean(shown);
+    let final = await checkFilm().catch(() => null);
+    if (final && !final.ok && !o.signal?.aborted) {
+      await repair(final.errors, true).catch(() => undefined);
+      final = await checkFilm().catch(() => null);
+    }
+    let summary = last.summary;
+    if (final && !final.ok && lastGood && !o.signal?.aborted) {
+      // The last edits broke it: go back to the version that played, so what is saved is what is shown.
+      for (const p of Object.keys(files)) delete files[p];
+      Object.assign(files, lastGood);
+      final = await checkFilm().catch(() => null);
+      summary = `${last.summary} (the last edits did not pass the check, so the film is its last version that did)`;
+      say("lead", { kind: "error", text: "the last edits did not pass the check; kept the last version that did" });
+    }
+    const ok = Boolean(final?.ok || shown);
     push({
       status: ok ? (last.done ? "done" : "stopped") : "failed",
-      summary: ok ? last.summary : `The scene did not pass the check: ${(final?.errors ?? []).slice(0, 3).join("; ")}`,
+      summary: ok ? summary : `The scene did not pass the check: ${(final?.errors ?? []).slice(0, 3).join("; ")}`,
     });
     return film;
   }

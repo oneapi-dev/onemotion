@@ -50,6 +50,19 @@ ${Object.entries(o.shared)
 Work in few replies (at most 8): write your file, \`check\`, \`contact_sheet\` (your stretch and the seams with your neighbours), fix everything you see and every QA warning, render again, then \`finish\` with one line on what you built.`;
 }
 
+/** The lead's task when the whole film does not pass the check: fix those errors and nothing else. */
+export function repairTask(errors: string[]): string {
+  return `The film does not pass the check, so it cannot play. Fix exactly these errors in a few replies, change nothing else, call \`check\` until it passes, then \`finish\`:
+${errors
+  .slice(0, 12)
+  .map((e) => `- ${e}`)
+  .join("\n")}
+A name declared twice in one file: keep one declaration and delete the other. A name that is missing: import it or define it.`;
+}
+
+/** What the beat agents are told when the foundation never passed the check and was dropped. */
+export const NO_FOUNDATION = "The lead's foundation did not pass the check and was dropped. There is no theme and there are no shared components: build your beat with the kit alone, on the plain stage in scene/index.tsx, in the concept's palette and type.";
+
 export const LEAD_INTEGRATE = `All beats are written by their agents. Now make it one film:
 1. \`contact_sheet\` for the whole film.
 2. Fix the seams between beats (an exit meeting the next entry), consistency (type sizes, colours, positions of recurring things), overlaps and every QA warning. You may edit any file now, beats included, except ${BEATS_INDEX}.
