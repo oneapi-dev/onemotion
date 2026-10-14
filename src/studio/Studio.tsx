@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { findUrl, findUrls, mentions } from "@/director/facts";
+import { findUrl, findUrls } from "@/director/facts";
 import type { CatalogModel, DirectInput, Recent, SiteInfo } from "@/director/input";
 import type { MotionFormat, Plan, Tone, VideoInput } from "@/engine/plan";
 import { SAMPLE_INPUT } from "@/engine/sample";
@@ -17,6 +17,8 @@ import { scaled } from "@/bespoke/agent/images";
 import { Editor } from "./Editor";
 
 import { SettingsDialog } from "./Settings";
+import { BriefWizard } from "./BriefWizard";
+import { DEFAULT_SITE, defaultBrief, TEMPLATES, type TemplateId } from "./briefs";
 import { hasNarration, recordNarration, storedNarration } from "@/voice/narrate";
 import { deleteProject, loadProjects, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
 
@@ -30,14 +32,6 @@ const FORMATS: { id: MotionFormat; label: string; hint: string }[] = [
 ];
 
 const TONES: (Tone | "auto")[] = ["auto", "punchy", "polished", "cinematic", "playful", "deadpan", "energetic", "clean"];
-
-/** Starting points: a click fills the brief, which is then the person's to edit. */
-const EXAMPLES = [
-  "Pengumuman: model baru MiMo V2.6 sekarang tersedia di OneAPI",
-  "Video promosi 20 detik untuk oneapi.id",
-  "Tutorial singkat pakai OneAPI di Python, 3 langkah",
-  "3 reasons developers move to one API key for every model",
-];
 
 const ARCHETYPE: Record<Plan["archetype"], string> = {
   promo: "Promo",
@@ -90,6 +84,7 @@ function slug(s: string) {
 export function Studio() {
   const [settings, setSettings] = useState<Settings>({ key: "", model: "" });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [wizard, setWizard] = useState<{ open: boolean; template: TemplateId }>({ open: false, template: "launch" });
   const [models, setModels] = useState<CatalogModel[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [current, setCurrent] = useState<Project | null>(null);
@@ -230,12 +225,11 @@ export function Studio() {
     [settings],
   );
 
-  /** The website: the one typed in, else one named in the brief, else OneAPI's own when the brief is about it. */
+  /** The website: the one typed in, else one named in the brief, else OneAPI's own. */
   const findSite = useCallback(async (opts: { brief: string; website: string; site?: SiteInfo | null }): Promise<SiteInfo | null> => {
     if (opts.site !== undefined) return opts.site;
     const explicit = opts.website.trim();
-    const target = explicit || findUrl(opts.brief) || (mentions(opts.brief, "oneapi") ? "oneapi.id" : "");
-    if (!target) return null;
+    const target = explicit || findUrl(opts.brief) || DEFAULT_SITE;
     setStage("site");
     const res = await fetch("/api/site", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: target }) });
     const body = (await res.json()) as { site?: SiteInfo; error?: string };
@@ -388,9 +382,11 @@ export function Studio() {
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    if (stage || (!brief.trim() && !website.trim()) || brief.length > MAX_BRIEF[mode]) return;
-    if (mode === "bespoke") void makeBespoke({ brief: brief.trim(), website });
-    else void design({ brief: brief.trim(), website });
+    if (stage || brief.length > MAX_BRIEF[mode]) return;
+    // No brief: a launch promo for the website, or for OneAPI.
+    const text = brief.trim() || (mode === "bespoke" ? defaultBrief(website) : `Launch promo for ${website.trim() || DEFAULT_SITE}`);
+    if (mode === "bespoke") void makeBespoke({ brief: text, website });
+    else void design({ brief: text, website });
   }
 
   async function startExport() {
@@ -465,7 +461,7 @@ export function Studio() {
                 maxLength={MAX_BRIEF.bespoke}
                 value={brief}
                 onChange={(e) => setBrief(e.target.value)}
-                placeholder="Pengumuman: model baru MiMo V2.6 sekarang tersedia di OneAPI"
+                placeholder={`Leave empty for a launch promo of ${website.trim() || DEFAULT_SITE}, write your own, or start from a template below.`}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.currentTarget.form?.requestSubmit();
                 }}
@@ -482,16 +478,19 @@ export function Studio() {
                 </small>
               ) : null}
             </label>
-            <div className="examples" role="group" aria-label="Examples">
-              {EXAMPLES.map((ex) => (
-                <button key={ex} type="button" className="example" onClick={() => setBrief(ex)} disabled={Boolean(stage)}>
-                  {ex}
-                </button>
-              ))}
+            <div className="field">
+              <span>Start from a template</span>
+              <div className="templates compact" role="group" aria-label="Templates">
+                {TEMPLATES.map((x) => (
+                  <button key={x.id} type="button" className="template" title={x.hint} onClick={() => setWizard({ open: true, template: x.id })} disabled={Boolean(stage)}>
+                    <strong>{x.label}</strong>
+                  </button>
+                ))}
+              </div>
             </div>
             <label className="field">
-              <span>Website, if there is one</span>
-              <input type="text" inputMode="url" spellCheck={false} value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourbrand.com" disabled={Boolean(stage)} />
+              <span>Website</span>
+              <input type="text" inputMode="url" spellCheck={false} value={website} onChange={(e) => setWebsite(e.target.value)} placeholder={`${DEFAULT_SITE} (when left empty)`} disabled={Boolean(stage)} />
             </label>
             {mode === "bespoke" ? (
               <div className="field">
@@ -552,7 +551,7 @@ export function Studio() {
                 </label>
               ) : null}
             </div>
-            <button type="submit" className="btn primary big" disabled={Boolean(stage) || (!brief.trim() && !website.trim()) || brief.length > MAX_BRIEF[mode]}>
+            <button type="submit" className="btn primary big" disabled={Boolean(stage) || brief.length > MAX_BRIEF[mode]}>
               {stage === "site"
                 ? `Reading the website… ${seconds}s`
                 : stage === "design"
@@ -792,6 +791,20 @@ export function Studio() {
           )}
         </section>
       </main>
+
+      <BriefWizard
+        open={wizard.open}
+        template={wizard.template}
+        website={website}
+        onClose={() => setWizard((w) => ({ ...w, open: false }))}
+        onUse={(text, site) => {
+          setBrief(text);
+          setWebsite(site);
+          // A wizard brief is longer than Quick takes: it is made for Bespoke.
+          setMode("bespoke");
+          setWizard((w) => ({ ...w, open: false }));
+        }}
+      />
 
       <SettingsDialog
         open={settingsOpen}

@@ -194,32 +194,6 @@ a:focus-visible {
   padding: 7px 10px;
 }
 
-.examples {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: -6px;
-}
-
-.example {
-  text-align: left;
-  font: inherit;
-  font-size: 13.5px;
-  color: var(--ink-2);
-  background: none;
-  border: 0;
-  padding: 4px 0;
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: var(--line-2);
-  text-underline-offset: 3px;
-}
-
-.example:hover:not(:disabled) {
-  color: var(--ink);
-  text-decoration-color: var(--ink-2);
-}
-
 .seg {
   display: inline-flex;
   border: 1px solid var(--line-2);
@@ -623,6 +597,91 @@ a:focus-visible {
 
 .dialog::backdrop {
   background: rgba(10, 8, 4, 0.45);
+}
+
+.dialog.wizard {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.steps li[aria-current="step"] .step {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+
+.templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.template {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.templates.compact {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+}
+
+.templates.compact .template {
+  padding: 8px 10px;
+  font-size: 13.5px;
+}
+
+.template small {
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.template[aria-checked="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.template:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.brief-preview pre {
+  white-space: pre-wrap;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  margin: 8px 0 0;
 }
 
 .dialog-body {
