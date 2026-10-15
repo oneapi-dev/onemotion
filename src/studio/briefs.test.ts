@@ -29,7 +29,7 @@ describe("briefs", () => {
     });
     expect(b).toMatch(/^A 30-second how-to for OneAPI \(oneapi\.id\)\./);
     expect(b).toContain("What the viewer will be able to do: Call any model from Python");
-    expect(b).toContain("The steps, in order:\n- Create a key\n- Send a request");
+    expect(b).toContain("The steps, in order (each shown in use, not listed):\n- Create a key\n- Send a request");
     expect(b).toContain("Look: the \"Paper and print\" style direction");
     expect(b).toContain("No voice-over");
     expect(b).toContain("Language of every word on screen: English.");
@@ -40,7 +40,7 @@ describe("briefs", () => {
     for (const t of TEMPLATES) {
       const b = buildBrief(defaultAnswers(t.id));
       expect(b).toContain(`Goal: ${t.goal}.`);
-      expect(b).toContain(`Story: ${t.story}.`);
+      expect(b).toContain(`Story: open within 2 seconds on ${t.hook} → ${t.story}.`);
     }
   });
 });
@@ -48,7 +48,7 @@ describe("briefs", () => {
 describe("custom briefs and AI suggestions", () => {
   it("names a custom video's own kind and goal", () => {
     const b = buildBrief({ ...defaultAnswers("custom", "oneapi.id"), kind: "a recruiting video for backend engineers", goal: "get engineers to apply." });
-    expect(b).toMatch(/^A 20-second video: a recruiting video for backend engineers for OneAPI \(oneapi\.id\)\./);
+    expect(b).toMatch(/^A 20-second film for OneAPI \(oneapi\.id\)\.\nKind of video: a recruiting video for backend engineers\n/);
     expect(b).toContain("Goal: get engineers to apply.");
   });
 
@@ -69,5 +69,36 @@ describe("custom briefs and AI suggestions", () => {
     expect(a.points).toEqual(["Claude, GPT, Gemini", "Also mine", "extra"]);
     expect(a.product).toBe("OneAPI");
     expect(a.cta).toBe("Coba di oneapi.id");
+  });
+});
+
+describe("the offer", () => {
+  const promo = {
+    ...defaultAnswers("custom", "oneapi.id"),
+    kind: "Video Promosi OneAPI.id",
+    about: "AI Gateway untuk developer yang menyediakan akses ke berbagai model AI melalui satu API.",
+    offer: "Bayar $2, dapat $10 usage; DeepSeek V4.1 dapat 3x usage jadi $30",
+    subject: "Seperti OpenRouter, tapi harga lebih terjangkau",
+    goal: "developer daftar hari ini",
+    cta: "Daftar sekarang di oneapi.id",
+    seconds: 30,
+    voice: false,
+  };
+
+  it("opens the film on the offer, says the kind once, and keeps competitors to text", () => {
+    const b = buildBrief(promo);
+    expect(b).toMatch(/^A 30-second film for OneAPI \(oneapi\.id\)\.\nKind of video: Video Promosi OneAPI\.id\n/);
+    expect(b).toContain("The offer, which opens the film (show it exactly as written): Bayar $2, dapat $10 usage; DeepSeek V4.1 dapat 3x usage jadi $30");
+    expect(b).toContain("Story: open within 2 seconds on the offer → ");
+    expect(b).toContain("Goal: developer daftar hari ini.");
+    expect(b).toContain("a competitor named only to compare appears as text, without its logo");
+  });
+
+  it("lets the AI find the offer on the website, and keeps the person's own", () => {
+    expect(suggestPrompt(defaultAnswers("launch"), { url: "u", title: "t", description: "d", text: "x" }).system).toContain('"offer"');
+    const s = readSuggestion({ offer: "Go $2 for 14 days" });
+    expect(s.offer).toBe("Go $2 for 14 days");
+    expect(applySuggestion({ ...defaultAnswers("launch"), offer: "Mine" }, s).offer).toBe("Mine");
+    expect(applySuggestion(defaultAnswers("launch"), s).offer).toBe("Go $2 for 14 days");
   });
 });

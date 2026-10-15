@@ -152,6 +152,10 @@ export function BriefWizard({
           <>
             {aiButton}
             <label className="field">
+              <span>The offer (optional): it opens the film</span>
+              <input type="text" value={a.offer} onChange={(e) => set("offer", e.target.value)} placeholder="e.g. Pay $2, get $10 of usage" />
+            </label>
+            <label className="field">
               <span>{t.subjectLabel}</span>
               <input type="text" value={a.subject} onChange={(e) => set("subject", e.target.value)} placeholder={t.subjectPlaceholder} />
             </label>
