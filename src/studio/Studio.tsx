@@ -18,8 +18,8 @@ import { Editor } from "./Editor";
 
 import { SettingsDialog } from "./Settings";
 import { BriefWizard } from "./BriefWizard";
-import { DEFAULT_SITE, defaultBrief, TEMPLATES, type TemplateId } from "./briefs";
-import { improveBrief } from "./suggest";
+import { DEFAULT_SITE, defaultBrief, formatLine, ideaFromBrief, TEMPLATES, type TemplateId } from "./briefs";
+import { writeBrief } from "./suggest";
 import { hasNarration, recordNarration, storedNarration } from "@/voice/narrate";
 import { deleteProject, loadProjects, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
 
@@ -393,7 +393,7 @@ export function Studio() {
     const before = { brief, website };
     setImproving({ busy: true, error: null, before: null });
     try {
-      const r = await improveBrief({ key: settings.key, model: settings.model, brief, website });
+      const r = await writeBrief({ key: settings.key, model: settings.model, idea: ideaFromBrief(brief, website), format: formatLine(format) });
       setBrief(r.brief);
       if (r.website && !website.trim()) setWebsite(r.website);
       // An improved brief is longer than Quick takes: it is made for Bespoke.
@@ -523,7 +523,7 @@ export function Studio() {
                 </button>
               ) : null}
               <small className={improving.error ? "error" : "hint"}>
-                {improving.error ?? (ready ? "Sorts a rough brief into offer, message, points and look; facts stay exactly as you wrote them. One small call on your key." : "Add your OneAPI key in Settings to use this.")}
+                {improving.error ?? (ready ? "Your model rewrites this into a full brief (story, a timed storyboard, look, sound) from the website; facts and prices stay exactly as you wrote them. One call on your key." : "Add your OneAPI key in Settings to use this.")}
               </small>
             </div>
             <div className="field">
@@ -844,6 +844,7 @@ export function Studio() {
         open={wizard.open}
         template={wizard.template}
         website={website}
+        format={formatLine(format)}
         ai={settings.key && settings.model ? { key: settings.key, model: settings.model } : null}
         onClose={() => setWizard((w) => ({ ...w, open: false }))}
         onUse={(text, site) => {
