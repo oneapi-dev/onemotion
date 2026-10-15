@@ -20,8 +20,6 @@ export type Template = {
   goal: string;
   /** What the first 2 seconds show when there is no offer to open on. */
   hook: string;
-  /** The story after the hook, beat by beat. */
-  story: string;
   subjectLabel: string;
   subjectPlaceholder: string;
   pointsLabel: string;
@@ -37,7 +35,6 @@ export const TEMPLATES: Template[] = [
     noun: "launch promo",
     goal: "make the audience want to try it today",
     hook: "the promise or the problem",
-    story: "what it is → the key points, each shown in action, not listed → the brand, its address and the call to action",
     subjectLabel: "The main promise",
     subjectPlaceholder: "e.g. One API key for every AI model",
     pointsLabel: "What makes it worth trying (up to 3)",
@@ -51,7 +48,6 @@ export const TEMPLATES: Template[] = [
     noun: "announcement of something new",
     goal: "make users try the new thing",
     hook: "the new thing itself",
-    story: "what it does, shown in use → why it matters → where to get it",
     subjectLabel: "What is new",
     subjectPlaceholder: "e.g. MiMo V2.6 is now available",
     pointsLabel: "Why it matters (up to 3)",
@@ -65,7 +61,6 @@ export const TEMPLATES: Template[] = [
     noun: "how-to",
     goal: "teach it clearly enough to follow along",
     hook: "the goal in one line",
-    story: "each step shown with its real code or UI, one at a time → the result working → where to start",
     subjectLabel: "What the viewer will be able to do",
     subjectPlaceholder: "e.g. Call any model from Python",
     pointsLabel: "The steps, in order (up to 3)",
@@ -79,7 +74,6 @@ export const TEMPLATES: Template[] = [
     noun: '"why switch" film',
     goal: "make the audience feel the old way's pain and see the way out",
     hook: "the pain, shown concretely",
-    story: "the turn: the product → each improvement as a before and after → the call to action",
     subjectLabel: "The problem today",
     subjectPlaceholder: "e.g. A different key and SDK for every model provider",
     pointsLabel: "What gets better (up to 3)",
@@ -93,7 +87,6 @@ export const TEMPLATES: Template[] = [
     noun: "announcement",
     goal: "make sure nobody misses it",
     hook: "the news",
-    story: "the details, one at a time → when and where",
     subjectLabel: "The news",
     subjectPlaceholder: "e.g. A weekend offer on every model",
     pointsLabel: "Details: dates, terms, who it is for (up to 3)",
@@ -107,7 +100,6 @@ export const TEMPLATES: Template[] = [
     noun: "film",
     goal: "do what the brief says it is for",
     hook: "the promise or the problem",
-    story: "the message, shown rather than told → the close on the brand and the call to action",
     subjectLabel: "The main message",
     subjectPlaceholder: "e.g. Build your AI app in an afternoon",
     pointsLabel: "Key points (up to 3)",
@@ -162,7 +154,7 @@ export function defaultAnswers(template: TemplateId, website = ""): BriefAnswers
 /** The site an answer set is about: the one given, else OneAPI's. */
 export const siteOf = (website: string) => website.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "") || DEFAULT_SITE;
 
-/** The answers as a brief: what to make, about what, for whom, the story, the look and the rules of fact. */
+/** The answers as a brief: what to make, about what, for whom, how it opens, the look and the rules of fact. */
 export function buildBrief(a: BriefAnswers): string {
   const t = templateOf(a.template);
   const site = siteOf(a.website);
@@ -179,7 +171,7 @@ export function buildBrief(a: BriefAnswers): string {
     points.length ? `${t.pointsLabel.replace(/ \(up to 3\)$/, "")} (each shown in use, not listed):\n${points.map((p) => `- ${p}`).join("\n")}` : "",
     `Audience: ${a.audience.trim() || AUDIENCES[0]}.`,
     `Goal: ${a.goal.trim().replace(/\.$/, "") || t.goal}.`,
-    `Story: open within 2 seconds on ${offer ? "the offer" : t.hook} → ${t.story}.`,
+    `Opening: within 2 seconds, ${offer ? "the offer" : t.hook}. The order of everything after it is the art director's: pick the concept this product earns, not a fixed sequence.`,
     `Call to action: ${a.cta.trim() || `try it at ${site}`}.`,
     `Look: ${look.brief}.`,
     a.voice ? `Voice-over: yes, in ${a.language}.` : "No voice-over: music, sound design and on-screen text carry it.",
@@ -201,7 +193,7 @@ export function suggestPrompt(a: BriefAnswers, site: { url: string; title: strin
   const t = templateOf(a.template);
   return {
     system: `You write the inputs of a short video brief from a website. Use ONLY what the website says: never invent numbers, prices, features, clients or claims. Write in ${a.language}, short and concrete, like a good marketer: no hype words, no emoji. Return one JSON object only:
-{"product": "the product's name", "about": "what it is, one sentence", "subject": "${t.subjectLabel}: one line", "offer": "an offer or promotion the website states (a price, a bonus, a free tier), copied exactly, or an empty string", "points": ["${t.pointsLabel.replace(/ \(up to 3\)$/, "")}: at most 3, each under 12 words"], "cta": "the call to action, with the site's address", "audience": "one of: ${AUDIENCES.join(", ")}"}`,
+{"product": "the product's name", "about": "what it is, one sentence", "subject": "${t.subjectLabel}: one line", "offer": "an offer or promotion the website states (a price, a bonus, a free tier), copied exactly, or an empty string", "points": ["${t.pointsLabel.replace(/ \(up to 3\)$/, "")}: at most 3, each under 12 words, each a feature or fact the site states, never a repeat of the offer or the main message"], "cta": "the call to action, with the site's address", "audience": "one of: ${AUDIENCES.join(", ")}"}`,
     user: [
       `VIDEO: a ${a.seconds}-second ${a.template === "custom" && a.kind.trim() ? a.kind.trim() : t.noun}${a.goal.trim() ? `; goal: ${a.goal.trim()}` : `; goal: ${t.goal}`}.`,
       a.product.trim() ? `PRODUCT: ${a.product.trim()}` : "",
@@ -254,7 +246,7 @@ export function improvePrompt(brief: string, site: { url: string; title: string;
   return {
     system: `You are a creative brief editor at a motion studio. A person wrote a rough brief for a short video. Sort what they wrote into the fields below so a creative director can work from it. Keep every fact, number, price, name and promise exactly as the person wrote it; take facts from the website only when the brief leaves a field empty; never invent numbers, prices, features, clients or claims. Write in the language of the brief. Return one JSON object only:
 {"template": "one of: ${TEMPLATES.map((t) => t.id).join(", ")}", "kind": "for custom only: the kind of video in a few words", "product": "the product's name", "about": "what it is, one sentence", "offer": "the offer or promotion (prices, bonus, free tier), copied exactly, or an empty string", "subject": "the main message, one line", "points": ["at most 3 points, each under 12 words"], "audience": "one of: ${AUDIENCES.join(", ")}", "goal": "what the video should make the viewer do", "cta": "the call to action, with the site's address", "seconds": 20, "language": "the language of the on-screen text, e.g. Bahasa Indonesia", "look": "one of: ${LOOKS.map((l) => l.id).join(", ")}", "voice": false}
-A look or length the brief names wins; otherwise "auto" and the length that fits (15 to 45 seconds). "voice" is true only when the brief asks for a voice-over or narration. An offer is never the goal: the goal is what the viewer does.`,
+A look or length the brief names wins; otherwise "auto" and the length that fits (15 to 45 seconds). "voice" is true only when the brief asks for a voice-over or narration. An offer is never the goal: the goal is what the viewer does. Each field says something new: the points are what the product does or gives (its features, from the brief or else the website), never a repeat of the offer or the main message.`,
     user: [`BRIEF:\n${brief.trim() || "(empty: a launch promo for the website)"}`, site ? `WEBSITE ${site.url}: "${site.title}". ${site.description}\nTEXT: ${site.text.slice(0, 6000)}` : ""].filter(Boolean).join("\n\n"),
   };
 }

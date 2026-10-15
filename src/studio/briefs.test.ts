@@ -36,11 +36,12 @@ describe("briefs", () => {
     expect(b).not.toMatch(/\n\n/);
   });
 
-  it("has a story and a goal for every kind of video", () => {
+  it("has a goal and an opening for every kind of video, and leaves the order to the art director", () => {
     for (const t of TEMPLATES) {
       const b = buildBrief(defaultAnswers(t.id));
       expect(b).toContain(`Goal: ${t.goal}.`);
-      expect(b).toContain(`Story: open within 2 seconds on ${t.hook} → ${t.story}.`);
+      expect(b).toContain(`Opening: within 2 seconds, ${t.hook}.`);
+      expect(b).not.toMatch(/Story:/);
     }
   });
 });
@@ -89,7 +90,7 @@ describe("the offer", () => {
     const b = buildBrief(promo);
     expect(b).toMatch(/^A 30-second film for OneAPI \(oneapi\.id\)\.\nKind of video: Video Promosi OneAPI\.id\n/);
     expect(b).toContain("The offer, which opens the film (show it exactly as written): Bayar $2, dapat $10 usage; DeepSeek V4.1 dapat 3x usage jadi $30");
-    expect(b).toContain("Story: open within 2 seconds on the offer → ");
+    expect(b).toContain("Opening: within 2 seconds, the offer.");
     expect(b).toContain("Goal: developer daftar hari ini.");
     expect(b).toContain("a competitor named only to compare appears as text, without its logo");
   });
