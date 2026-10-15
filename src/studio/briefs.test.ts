@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applySuggestion, buildBrief, defaultAnswers, defaultBrief, readSuggestion, siteOf, suggestPrompt, TEMPLATES } from "./briefs";
+import { applySuggestion, buildBrief, defaultAnswers, defaultBrief, improvePrompt, readImproved, readSuggestion, siteOf, suggestPrompt, TEMPLATES } from "./briefs";
 
 describe("briefs", () => {
   it("makes a launch promo for OneAPI when nothing is given", () => {
@@ -100,5 +100,31 @@ describe("the offer", () => {
     expect(s.offer).toBe("Go $2 for 14 days");
     expect(applySuggestion({ ...defaultAnswers("launch"), offer: "Mine" }, s).offer).toBe("Mine");
     expect(applySuggestion(defaultAnswers("launch"), s).offer).toBe("Go $2 for 14 days");
+  });
+});
+
+describe("improve with AI", () => {
+  it("asks the model to sort the brief, keep its facts and never make the offer the goal", () => {
+    const { system, user } = improvePrompt("promo oneapi, $2 dapat $10", { url: "https://oneapi.id", title: "OneAPI", description: "AI gateway", text: "Go $2" });
+    expect(system).toContain("Keep every fact, number, price, name and promise exactly");
+    expect(system).toContain("An offer is never the goal");
+    expect(user).toContain("BRIEF:\npromo oneapi, $2 dapat $10");
+    expect(user).toContain("TEXT: Go $2");
+  });
+
+  it("turns the model's sorting into a full brief, with safe defaults for anything odd", () => {
+    const a = readImproved(
+      { template: "custom", kind: "Video promosi", offer: "Bayar $2 dapat $10", subject: "Satu API untuk semua model", points: ["Kompatibel OpenAI"], goal: "daftar hari ini", seconds: 300, look: "nope", language: "Bahasa Indonesia", voice: "yes" },
+      "oneapi.id",
+    );
+    expect(a.template).toBe("custom");
+    expect(a.seconds).toBe(60);
+    expect(a.look).toBe("auto");
+    expect(a.voice).toBe(false);
+    const b = buildBrief(a);
+    expect(b).toContain("Kind of video: Video promosi");
+    expect(b).toContain("The offer, which opens the film (show it exactly as written): Bayar $2 dapat $10");
+    expect(b).toContain("Goal: daftar hari ini.");
+    expect(readImproved("garbage", "").template).toBe("launch");
   });
 });

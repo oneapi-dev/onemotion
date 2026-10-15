@@ -676,6 +676,20 @@ a:focus-visible {
   opacity: 0.6;
 }
 
+.improve {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: -6px;
+}
+
+.improve small {
+  flex-basis: 100%;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
 .ai-fill {
   display: flex;
   flex-direction: column;

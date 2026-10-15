@@ -248,3 +248,32 @@ export function applySuggestion(a: BriefAnswers, s: Suggestion): BriefAnswers {
     audience: s.audience,
   };
 }
+
+/** What the model is asked, to turn a person's rough brief into the wizard's answers. The brief itself is then built by buildBrief. */
+export function improvePrompt(brief: string, site: { url: string; title: string; description: string; text: string } | null): { system: string; user: string } {
+  return {
+    system: `You are a creative brief editor at a motion studio. A person wrote a rough brief for a short video. Sort what they wrote into the fields below so a creative director can work from it. Keep every fact, number, price, name and promise exactly as the person wrote it; take facts from the website only when the brief leaves a field empty; never invent numbers, prices, features, clients or claims. Write in the language of the brief. Return one JSON object only:
+{"template": "one of: ${TEMPLATES.map((t) => t.id).join(", ")}", "kind": "for custom only: the kind of video in a few words", "product": "the product's name", "about": "what it is, one sentence", "offer": "the offer or promotion (prices, bonus, free tier), copied exactly, or an empty string", "subject": "the main message, one line", "points": ["at most 3 points, each under 12 words"], "audience": "one of: ${AUDIENCES.join(", ")}", "goal": "what the video should make the viewer do", "cta": "the call to action, with the site's address", "seconds": 20, "language": "the language of the on-screen text, e.g. Bahasa Indonesia", "look": "one of: ${LOOKS.map((l) => l.id).join(", ")}", "voice": false}
+A look or length the brief names wins; otherwise "auto" and the length that fits (15 to 45 seconds). "voice" is true only when the brief asks for a voice-over or narration. An offer is never the goal: the goal is what the viewer does.`,
+    user: [`BRIEF:\n${brief.trim() || "(empty: a launch promo for the website)"}`, site ? `WEBSITE ${site.url}: "${site.title}". ${site.description}\nTEXT: ${site.text.slice(0, 6000)}` : ""].filter(Boolean).join("\n\n"),
+  };
+}
+
+/** A model's sorting of a brief, as wizard answers: unknown values fall back to the defaults. */
+export function readImproved(raw: unknown, website: string): BriefAnswers {
+  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const template = TEMPLATES.some((t) => t.id === o.template) ? (o.template as TemplateId) : "launch";
+  const base = defaultAnswers(template, website);
+  const s = readSuggestion(o);
+  const seconds = typeof o.seconds === "number" && Number.isFinite(o.seconds) ? Math.round(Math.min(60, Math.max(10, o.seconds))) : base.seconds;
+  return {
+    ...base,
+    ...s,
+    kind: str(o.kind, 80),
+    goal: str(o.goal, 160),
+    seconds,
+    language: str(o.language, 40) || base.language,
+    look: LOOKS.some((l) => l.id === o.look) ? String(o.look) : "auto",
+    voice: o.voice === true,
+  };
+}

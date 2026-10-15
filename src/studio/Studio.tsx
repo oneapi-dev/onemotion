@@ -19,6 +19,7 @@ import { Editor } from "./Editor";
 import { SettingsDialog } from "./Settings";
 import { BriefWizard } from "./BriefWizard";
 import { DEFAULT_SITE, defaultBrief, TEMPLATES, type TemplateId } from "./briefs";
+import { improveBrief } from "./suggest";
 import { hasNarration, recordNarration, storedNarration } from "@/voice/narrate";
 import { deleteProject, loadProjects, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
 
@@ -89,6 +90,8 @@ export function Studio() {
   const [settings, setSettings] = useState<Settings>({ key: "", model: "" });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [wizard, setWizard] = useState<{ open: boolean; template: TemplateId }>({ open: false, template: "launch" });
+  /** "Improve with AI" on the brief: whether it runs, what went wrong, and the brief before it, for undo. */
+  const [improving, setImproving] = useState<{ busy: boolean; error: string | null; before: { brief: string; website: string } | null }>({ busy: false, error: null, before: null });
   const [models, setModels] = useState<CatalogModel[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [current, setCurrent] = useState<Project | null>(null);
@@ -385,6 +388,22 @@ export function Studio() {
     [ready, projects, format, tone, settings, models, findSite, refs],
   );
 
+  async function improve() {
+    if (!ready || improving.busy || stage) return;
+    const before = { brief, website };
+    setImproving({ busy: true, error: null, before: null });
+    try {
+      const r = await improveBrief({ key: settings.key, model: settings.model, brief, website });
+      setBrief(r.brief);
+      if (r.website && !website.trim()) setWebsite(r.website);
+      // An improved brief is longer than Quick takes: it is made for Bespoke.
+      setMode("bespoke");
+      setImproving({ busy: false, error: null, before });
+    } catch (err) {
+      setImproving({ busy: false, error: err instanceof Error ? err.message : String(err), before: null });
+    }
+  }
+
   function submit(e: FormEvent) {
     e.preventDefault();
     if (stage || brief.length > MAX_BRIEF[mode]) return;
@@ -483,6 +502,30 @@ export function Studio() {
                 </small>
               ) : null}
             </label>
+            <div className="improve">
+              <button type="button" className="btn small" onClick={() => void improve()} disabled={!ready || improving.busy || Boolean(stage)} title={ready ? "Your model turns this brief into a complete one, from the website's own words where it is silent" : "Add your OneAPI key and a model in Settings first"}>
+                {improving.busy ? "Improving the brief…" : "✦ Improve with AI"}
+              </button>
+              {improving.before ? (
+                <button
+                  type="button"
+                  className="btn small ghost"
+                  onClick={() => {
+                    const b = improving.before;
+                    if (!b) return;
+                    setBrief(b.brief);
+                    setWebsite(b.website);
+                    setImproving({ busy: false, error: null, before: null });
+                  }}
+                  disabled={Boolean(stage)}
+                >
+                  Undo
+                </button>
+              ) : null}
+              <small className={improving.error ? "error" : "hint"}>
+                {improving.error ?? (ready ? "Sorts a rough brief into offer, message, points and look; facts stay exactly as you wrote them. One small call on your key." : "Add your OneAPI key in Settings to use this.")}
+              </small>
+            </div>
             <div className="field">
               <span>Start from a template</span>
               <div className="templates compact" role="group" aria-label="Templates">
