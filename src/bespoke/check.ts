@@ -96,10 +96,14 @@ function rules(name: string, src: string, files: Record<string, string>, known: 
       let text: string | null = null;
       if (ts.isJsxText(n)) text = n.getText();
       else if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n)) text = n.text;
-      const p = n.parent;
+      // A piece of a template string is judged with the whole template: "108%," is CSS when the template is a gradient.
+      const whole = ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n) ? templateOf(n) : n;
+      const p = whole.parent;
+      const literal = ts.isStringLiteral(whole) || ts.isNoSubstitutionTemplateLiteral(whole) || ts.isTemplateExpression(whole);
       const styleLike =
-        (ts.isStringLiteral(n) && ((ts.isPropertyAssignment(p) && STYLE_PROPS.test(p.name.getText())) || (ts.isJsxAttribute(p) && !VISIBLE_ATTRS.test(p.name.getText())) || ts.isImportDeclaration(p) || ts.isExportDeclaration(p))) ||
-        (ts.isCallExpression(p) && /(^|\.)cue$/.test(p.expression.getText()));
+        (literal && ((ts.isPropertyAssignment(p) && STYLE_PROPS.test(p.name.getText())) || (ts.isJsxAttribute(p) && !VISIBLE_ATTRS.test(p.name.getText())) || ts.isImportDeclaration(p) || ts.isExportDeclaration(p))) ||
+        (ts.isCallExpression(p) && /(^|\.)cue$/.test(p.expression.getText())) ||
+        (whole !== n && CSSY.test(whole.getText()));
       if (text && text.trim() && !CSSY.test(text.trim()) && !styleLike) {
         for (const num of unknownNumbers(text, known)) out.push(`${at(n)}: on-screen text "${text.trim().slice(0, 40)}" shows ${num}, which is not in the facts`);
       }
@@ -108,6 +112,13 @@ function rules(name: string, src: string, files: Record<string, string>, known: 
   };
   visit(sf);
   return out;
+}
+
+/** The template string a head, middle or tail piece belongs to. */
+function templateOf(n: ts.Node): ts.Node {
+  let t: ts.Node = n;
+  while (t.parent && !ts.isTemplateExpression(t)) t = t.parent;
+  return ts.isTemplateExpression(t) ? t : n;
 }
 
 function resolves(from: string, spec: string, files: Record<string, string>): boolean {

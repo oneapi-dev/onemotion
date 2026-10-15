@@ -56,6 +56,16 @@ describe("checkScene", () => {
     expect(checkScene({ "scene/index.tsx": scene }, "Save 87% on every request.").ok).toBe(true);
   });
 
+  it("reads a CSS template string as style, not as words on screen, but still checks visible templates", { timeout: 60_000 }, () => {
+    const scene = minimal("  const y = 108; const bg = `radial-gradient(70% 42% at 50% ${y}%, #222 0%, transparent 60%)`;", "").replace(
+      "return <AbsoluteFill />;",
+      "return <AbsoluteFill style={{ background: bg }}><div>{`Hemat 87% untuk ${y} model`}</div></AbsoluteFill>;",
+    );
+    const r = checkScene({ "scene/index.tsx": scene }, "OneAPI: one key for every model.");
+    expect(r.errors.join("\n")).not.toMatch(/shows (60|70|42|50)\b/);
+    expect(r.errors.join("\n")).toMatch(/shows 87, which is not in the facts/);
+  });
+
   it("passes the example when its model names are in the facts", { timeout: 60_000 }, () => {
     const facts = "Models on OneAPI: claude-sonnet-5.5, gpt-6.1-sol, gemini-3.8-flash, deepseek-v4.1-flash. Base URL https://api.oneapi.id/v1";
     expect(checkScene(example("gateway"), facts).errors).toEqual([]);
