@@ -2,7 +2,8 @@ import type { DirectInput } from "@/director/input";
 import { matchModels } from "@/director/facts";
 import { directRequest, parseAnswer, TruncatedAnswerError } from "@/director/prompt";
 import { UnusablePlanError } from "@/director/rules";
-import { catalog, chatResilient, OneAPIError } from "@/server/oneapi";
+import { catalog, OneAPIError } from "@/server/oneapi";
+import { complete, endpointOf, type Endpoint } from "@/server/provider";
 
 // Reasoning models can think for a minute or two before they answer.
 export const maxDuration = 300;
@@ -16,7 +17,13 @@ const MAX_BRIEF = 600;
  */
 export async function POST(req: Request) {
   const key = req.headers.get("x-oneapi-key")?.trim() ?? "";
-  if (!key) return Response.json({ error: "Add your OneAPI API key in Settings first." }, { status: 401 });
+  if (!key) return Response.json({ error: "Add your API key in Settings first." }, { status: 401 });
+  let ep: Endpoint;
+  try {
+    ep = endpointOf(req);
+  } catch (err) {
+    return Response.json({ error: err instanceof Error ? err.message : "Bad endpoint." }, { status: 400 });
+  }
   const body = (await req.json().catch(() => null)) as (DirectInput & { model?: string }) | null;
   if (!body || typeof body.prompt !== "string") return Response.json({ error: "Describe the video you want." }, { status: 400 });
   const prompt = body.prompt.trim();
@@ -43,14 +50,14 @@ export async function POST(req: Request) {
   const started = Date.now();
   try {
     const request = directRequest(model, input) as Record<string, unknown>;
-    let answer: Awaited<ReturnType<typeof chatResilient>>;
+    let answer: Awaited<ReturnType<typeof complete>>;
     try {
-      answer = await chatResilient(key, request, AbortSignal.timeout(170_000));
+      answer = await complete(ep, key, request, AbortSignal.timeout(170_000));
     } catch (err) {
       // A provider that timed out or fell over gets one more try while the request has time left.
       if (!(err instanceof OneAPIError && [429, 500, 502, 503, 504].includes(err.status)) || Date.now() - started > 100_000) throw err;
       await new Promise((r) => setTimeout(r, 3000));
-      answer = await chatResilient(key, request, AbortSignal.timeout(Math.max(30_000, 280_000 - (Date.now() - started))));
+      answer = await complete(ep, key, request, AbortSignal.timeout(Math.max(30_000, 280_000 - (Date.now() - started))));
     }
     const plan = parseAnswer(answer as Parameters<typeof parseAnswer>[0], input);
     return Response.json({ plan, seconds: Math.round((Date.now() - started) / 1000) });

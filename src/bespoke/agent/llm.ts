@@ -1,6 +1,8 @@
 /** The OpenAI-style chat shapes the bespoke agent speaks, and one step through /api/chat. */
 
-export type Part = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+/** A prompt-cache breakpoint: the provider caches the prompt up to and including the part that carries it. */
+export type CacheMark = { type: "ephemeral" };
+export type Part = { type: "text"; text: string; cache_control?: CacheMark } | { type: "image_url"; image_url: { url: string }; cache_control?: CacheMark };
 export type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
 export type Msg =
   | { role: "system"; content: string }
@@ -43,6 +45,105 @@ type StepInput = {
   signal?: AbortSignal;
   onRetry?: (message: string) => void;
   onProgress?: (p: StepProgress) => void;
+  /** Set on the try that already went to the backup model: it does not go on to another. */
+  onBackup?: boolean;
+  /** Sent exactly as given: no check of how the route treats system messages (the checks themselves). */
+  raw?: boolean;
+};
+
+let backup: string | null = null;
+
+const sight = new Map<string, Promise<boolean>>();
+
+/**
+ * Whether a model actually receives the images sent to it on this
+ * connection (a gateway can drop them for some providers): one tiny picture
+ * of a number, asked back. Remembered per model for the session. Answers
+ * true when it cannot tell (no canvas here, or the check itself failed).
+ */
+export function seesImages(key: string, model: string, signal?: AbortSignal): Promise<boolean> {
+  const known = sight.get(model);
+  if (known) return known;
+  const check = (async () => {
+    if (typeof OffscreenCanvas === "undefined") return true;
+    const c = new OffscreenCanvas(240, 120);
+    const ctx = c.getContext("2d");
+    if (!ctx) return true;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, 240, 120);
+    ctx.fillStyle = "#000000";
+    ctx.font = "bold 72px sans-serif";
+    ctx.fillText("4739", 30, 88);
+    const blob = await c.convertToBlob({ type: "image/png" });
+    const url = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(blob);
+    });
+    try {
+      // Room for a reasoning model to think before it answers: an empty answer means it never saw the picture.
+      const r = await chatOnce({ key, model, maxTokens: 3000, messages: [{ role: "user", content: [{ type: "text", text: "What number is written in this image? Reply with the digits only." }, { type: "image_url", image_url: { url } }] }], signal });
+      return /4\s*7\s*3\s*9/.test(r.text);
+    } catch (err) {
+      // A check that could not run (offline, a busy provider) says nothing about sight: assume the model sees.
+      return !(err instanceof ChatError) || TRANSIENT.has(err.status);
+    }
+  })();
+  sight.set(model, check);
+  return check;
+}
+
+const systemCheck = new Map<string, Promise<boolean>>();
+
+/**
+ * Whether a model's route drops the system message (a gateway can, for some
+ * providers: the model then never sees its instructions): a password in a
+ * system message, asked back. Remembered per model for the session. Answers
+ * false when it cannot tell, so a failed check changes nothing.
+ */
+export function dropsSystem(key: string, model: string, signal?: AbortSignal): Promise<boolean> {
+  const known = systemCheck.get(model);
+  if (known) return known;
+  const check = (async () => {
+    try {
+      // Room for a reasoning model to think before it answers.
+      const r = await chatOnce({ key, model, maxTokens: 2000, raw: true, signal, messages: [{ role: "system", content: "The password is TANGERINE-41. When asked for the password, reply with it." }, { role: "user", content: "What is the password? Reply with the password only." }] });
+      return r.text.trim() !== "" && !/TANGERINE/i.test(r.text);
+    } catch {
+      return false;
+    }
+  })();
+  systemCheck.set(model, check);
+  return check;
+}
+
+/**
+ * The conversation with its system message moved to the head of the first
+ * user message, for a route that drops system messages: the instructions
+ * still come first, and a breakpoint on them stays where it was.
+ */
+export function foldSystem(messages: WireMsg[]): WireMsg[] {
+  const sys = messages.filter((m) => m.role === "system");
+  if (!sys.length) return messages;
+  const marked = sys.some((m) => Array.isArray(m.content) && m.content.some((p) => p.cache_control));
+  const text = sys.map((m) => (typeof m.content === "string" ? m.content : (m.content as Part[]).map((p) => (p.type === "text" ? p.text : "")).join(""))).join("\n\n");
+  const head: Part = { type: "text", text: `INSTRUCTIONS (your system prompt; follow them throughout):\n${text}\n\nEND OF INSTRUCTIONS.`, ...(marked ? { cache_control: MARK } : {}) };
+  const rest = messages.filter((m) => m.role !== "system");
+  const at = rest.findIndex((m) => m.role === "user");
+  if (at < 0) return [{ role: "user", content: [head] }, ...rest];
+  const user = rest[at] as Extract<Msg, { role: "user" }>;
+  const parts: Part[] = typeof user.content === "string" ? [{ type: "text", text: user.content }] : user.content;
+  return rest.map((m, i) => (i === at ? { role: "user", content: [head, ...parts] } : m));
+}
+
+/**
+ * The model a step goes to when the chosen one keeps failing for a reason
+ * that passes (its provider down, timing out or rate limited), set from
+ * Settings like the endpoint. Null: no backup, the step fails.
+ */
+export const setBackupModel = (model: string | null) => {
+  backup = model?.trim() || null;
 };
 
 /** Statuses worth trying again: a rate limit, a provider that timed out or fell over, a gateway hiccup. */
@@ -87,6 +188,19 @@ export async function chatStep(o: StepInput): Promise<Awaited<ReturnType<typeof 
         return chatStep({ ...o, web: false });
       }
       const limit = status === 504 ? TIMEOUT_RETRIES : BACKOFF_MS.length;
+      // A provider that refuses part of the request it cannot do (only tool_choice "auto", say) will refuse it again: no retries, the backup at once.
+      const unsupported = status === 400 && /not (currently )?supported|unsupported|tool_choice/i.test(err instanceof Error ? err.message : "");
+      if (unsupported && backup && backup !== o.model && !o.onBackup && !o.signal?.aborted) {
+        o.onRetry?.(`${o.model} refused this request (${err instanceof Error ? err.message : String(err)}). This step goes to the backup model, ${backup}.`);
+        o.onProgress?.({ chars: 0, note: `${o.model} cannot do this request: this step goes to the backup model, ${backup}` });
+        return chatStep({ ...o, model: backup, onBackup: true });
+      }
+      if (transient && attempt >= limit && backup && backup !== o.model && !o.onBackup && !o.signal?.aborted) {
+        // Its provider keeps failing: this step goes to the backup model; the next step tries the chosen one again.
+        o.onRetry?.(`${o.model} failed ${limit + 1} times (${err instanceof Error ? err.message : String(err)}). This step goes to the backup model, ${backup}.`);
+        o.onProgress?.({ chars: 0, note: `${o.model} keeps failing: this step goes to the backup model, ${backup}` });
+        return chatStep({ ...o, model: backup, onBackup: true });
+      }
       if (!transient || attempt >= limit) throw err;
       const ms = BACKOFF_MS[attempt];
       o.onRetry?.(`${err instanceof Error ? err.message : String(err)} Trying again in ${ms / 1000} s (attempt ${attempt + 2} of ${limit + 1}).`);
@@ -96,13 +210,79 @@ export async function chatStep(o: StepInput): Promise<Awaited<ReturnType<typeof 
   }
 }
 
+/** The person's own AI endpoint, when they use one instead of OneAPI: base URL, API style and how the key is sent. */
+export type ClientEndpoint = { base: string; api: "chat" | "responses" | "messages"; auth: "bearer" | "x-api-key" };
+
+let active: ClientEndpoint | null = null;
+
+/**
+ * Where the studio's AI calls go, set from Settings: OneAPI (null) or the
+ * person's endpoint. It is app configuration like a base URL, so it rides
+ * on every AI request as headers instead of through every function.
+ */
+export const setEndpoint = (e: ClientEndpoint | null) => {
+  active = e;
+};
+
+/** The headers that send a request to the active endpoint with the person's key. */
+export const aiHeaders = (key: string): Record<string, string> => ({
+  "X-OneAPI-Key": key,
+  ...(active ? { "X-Provider-Base": active.base, "X-Provider-Api": active.api, "X-Provider-Auth": active.auth } : {}),
+});
+
+/** A message as sent: a system or tool message may carry its text as parts, to hold a cache breakpoint. */
+export type WireMsg = Msg | { role: "system"; content: Part[] } | { role: "tool"; tool_call_id: string; content: Part[] };
+
+/** Breakpoints a request may carry (Anthropic's limit). */
+const MAX_MARKS = 4;
+const MARK: CacheMark = { type: "ephemeral" };
+const marked = (m: WireMsg) => Array.isArray(m.content) && m.content.some((p) => p.cache_control);
+
+/** The message with a breakpoint on its last text part (its last part when it has no text), or as it was when it cannot carry one. */
+function mark(m: WireMsg): WireMsg {
+  if (m.role === "assistant") return m;
+  if (typeof m.content === "string") return { ...m, content: [{ type: "text", text: m.content, cache_control: MARK }] } as WireMsg;
+  const parts = m.content as Part[];
+  if (!parts.length) return m;
+  const at = parts.map((p) => p.type).lastIndexOf("text");
+  const i = at >= 0 ? at : parts.length - 1;
+  return { ...m, content: parts.map((p, k) => (k === i ? { ...p, cache_control: MARK } : p)) } as WireMsg;
+}
+
+/**
+ * The conversation with prompt-cache breakpoints, so a provider that caches
+ * by breakpoint (Claude, Gemini) bills the unchanged prefix of every step at
+ * the cached rate: the system prompt (with the tools before it), the end of
+ * the previous step's prompt (which the last step wrote to the cache) and the
+ * end of this one (written for the next step), then the task. Breakpoints the
+ * caller set (a shared context) come first. At most four in all; providers
+ * that cache on their own get them removed on the server.
+ */
+export function withCache(messages: Msg[]): WireMsg[] {
+  const out: WireMsg[] = [...messages];
+  let budget = MAX_MARKS - out.filter(marked).length;
+  const lastAssistant = out.map((m) => m.role).lastIndexOf("assistant");
+  const prevEnd = lastAssistant > 0 ? lastAssistant - 1 : -1;
+  const firstUser = out.findIndex((m) => m.role === "user");
+  const wanted = [out.findIndex((m) => m.role === "system"), out.length - 1, prevEnd, firstUser];
+  for (const i of [...new Set(wanted)]) {
+    if (budget <= 0) break;
+    if (i < 0 || out[i].role === "assistant" || marked(out[i])) continue;
+    out[i] = mark(out[i]);
+    budget--;
+  }
+  return out;
+}
+
 async function chatOnce(o: StepInput) {
+  const cached = withCache(o.messages);
+  const messages = !o.raw && cached.some((m) => m.role === "system") && (await dropsSystem(o.key, o.model, o.signal)) ? foldSystem(cached) : cached;
   const res = await fetch("/api/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-OneAPI-Key": o.key },
+    headers: { "Content-Type": "application/json", ...aiHeaders(o.key) },
     body: JSON.stringify({
       model: o.model,
-      messages: o.messages,
+      messages,
       tools: o.tools,
       temperature: o.temperature,
       max_tokens: o.maxTokens ?? 32_000,
@@ -224,40 +404,75 @@ export function parseJson<T>(text: string): T {
   }
 }
 
+/** Usage of several calls added up. */
+export const sumUsage = (p: Usage, q: Usage): Usage => ({
+  prompt_tokens: (p.prompt_tokens ?? 0) + (q.prompt_tokens ?? 0),
+  completion_tokens: (p.completion_tokens ?? 0) + (q.completion_tokens ?? 0),
+  prompt_tokens_details: { cached_tokens: (p.prompt_tokens_details?.cached_tokens ?? 0) + (q.prompt_tokens_details?.cached_tokens ?? 0) },
+});
+
+/**
+ * A model's JSON that parsed but does not fit what the app needs: thrown by
+ * a validator with each problem named, so the model can be asked to fix
+ * exactly those parts.
+ */
+export class SchemaError extends Error {
+  constructor(readonly problems: string[]) {
+    super(problems.join("; "));
+    this.name = "SchemaError";
+  }
+}
+
 /**
  * A completion whose answer must be one JSON object: parsed leniently, and
  * asked for once more when the first answer is not JSON, saying what was
- * wrong (or with twice the room when the answer was cut off). Usage covers
- * both calls.
+ * wrong (or with twice the room when the answer was cut off). With
+ * `validate`, a parsed answer that does not fit is sent back once with its
+ * problems named, to fix those parts and keep the rest; a second miss is
+ * the model's failure, said as such (never as a problem with the brief).
+ * Usage covers every call.
  */
-export async function jsonStep<T>(o: StepInput): Promise<{ value: T; usage: Usage }> {
-  const first = await chatStep(o);
+export async function jsonStep<T>(o: StepInput, validate?: (value: unknown) => T): Promise<{ value: T; usage: Usage }> {
+  const messages = [...o.messages];
+  let reply = await chatStep(o);
+  let usage = reply.usage;
+  let parsed: unknown;
   try {
-    return { value: parseJson<T>(first.text), usage: first.usage };
+    parsed = parseJson<unknown>(reply.text);
   } catch (err) {
-    const cut = first.finish === "length";
+    const cut = reply.finish === "length";
     const what = err instanceof JsonReplyError ? err.message : String(err);
     const near = err instanceof JsonReplyError && err.near ? ` The parser stopped here: «${err.near}».` : "";
     const ask = cut
       ? "Your answer was cut off before the JSON ended. Reply with the complete JSON object again, written more tightly (shorter strings, nothing extra): no prose, no markdown fence."
       : `That was not a valid JSON object (${what}).${near} Reply with the corrected JSON object only: no prose, no markdown fence. Write a double quote inside a string as \\".`;
-    const again = await chatStep({
-      ...o,
-      maxTokens: cut ? Math.min(32_000, (o.maxTokens ?? 16_000) * 2) : o.maxTokens,
-      messages: [...o.messages, { role: "assistant", content: first.text || "(no answer)" }, { role: "user", content: ask }],
-    });
-    const p = first.usage;
-    const q = again.usage;
-    const usage: Usage = {
-      prompt_tokens: (p.prompt_tokens ?? 0) + (q.prompt_tokens ?? 0),
-      completion_tokens: (p.completion_tokens ?? 0) + (q.completion_tokens ?? 0),
-      prompt_tokens_details: { cached_tokens: (p.prompt_tokens_details?.cached_tokens ?? 0) + (q.prompt_tokens_details?.cached_tokens ?? 0) },
-    };
+    messages.push({ role: "assistant", content: reply.text || "(no answer)" }, { role: "user", content: ask });
+    reply = await chatStep({ ...o, maxTokens: cut ? Math.min(32_000, (o.maxTokens ?? 16_000) * 2) : o.maxTokens, messages });
+    usage = sumUsage(usage, reply.usage);
     try {
-      return { value: parseJson<T>(again.text), usage };
+      parsed = parseJson<unknown>(reply.text);
     } catch (second) {
       const said = second instanceof Error ? second.message : String(second);
-      throw new JsonReplyError(`The model answered with broken JSON twice (${said}${again.finish === "length" ? ", cut off at the length limit" : ""}). Try again, or pick another model.`);
+      throw new JsonReplyError(`The model answered with broken JSON twice (${said}${reply.finish === "length" ? ", cut off at the length limit" : ""}). Try again, or pick another model.`);
+    }
+  }
+  if (!validate) return { value: parsed as T, usage };
+  try {
+    return { value: validate(parsed), usage };
+  } catch (err) {
+    if (!(err instanceof SchemaError) && !(err instanceof Error)) throw err;
+    const problems = err instanceof SchemaError ? err.problems : [err.message];
+    messages.push(
+      { role: "assistant", content: reply.text },
+      { role: "user", content: `That JSON does not fit what is needed:\n${problems.map((p) => `- ${p}`).join("\n")}\nFix exactly these parts and keep everything else as it was. Reply with the complete corrected JSON object only: no prose, no markdown fence.` },
+    );
+    const again = await chatStep({ ...o, messages });
+    usage = sumUsage(usage, again.usage);
+    try {
+      return { value: validate(parseJson<unknown>(again.text)), usage };
+    } catch (second) {
+      const said = second instanceof Error ? second.message : String(second);
+      throw new JsonReplyError(`The model's answer did not have the shape the studio needs, twice (${said}). This is the model's output, not a problem with your brief: try again, or pick another model.`);
     }
   }
 }

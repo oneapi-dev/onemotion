@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ChatError, chatStep, jsonStep } from "./llm";
+import { ChatError, chatStep, jsonStep, SchemaError, setBackupModel } from "./llm";
 import { describeProgress } from "./loop";
+
+/** A sent message's text, whether a string or parts (the last message carries a prompt-cache breakpoint). */
+const textOf = (c: unknown): string => (typeof c === "string" ? c : Array.isArray(c) ? c.map((p: { text?: string }) => p.text ?? "").join("") : "");
 
 const reply = (content: string, tokens = 10) => new Response(JSON.stringify({ choices: [{ message: { content } }], usage: { prompt_tokens: tokens, completion_tokens: 1 } }), { status: 200 });
 
@@ -160,7 +163,7 @@ describe("jsonStep", () => {
     vi.stubGlobal("fetch", fetch);
     await jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] });
     const again = JSON.parse((fetch.mock.calls[1] as unknown as [string, RequestInit])[1].body as string);
-    const ask = again.messages.at(-1).content as string;
+    const ask = textOf(again.messages.at(-1).content);
     expect(ask).toMatch(/Expected ',' or ']' after array element/);
     expect(ask).toContain('{"says": "a"} {"says"');
   });
@@ -172,11 +175,77 @@ describe("jsonStep", () => {
     await jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }], maxTokens: 8000 });
     const again = JSON.parse((fetch.mock.calls[1] as unknown as [string, RequestInit])[1].body as string);
     expect(again.max_tokens).toBe(16000);
-    expect(again.messages.at(-1).content).toMatch(/cut off/);
+    expect(textOf(again.messages.at(-1).content)).toMatch(/cut off/);
   });
 
   it("says plainly when the second answer is broken too", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => reply('{"beats": [{"says": "a"} {"says": "b"}]}')));
     await expect(jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] })).rejects.toThrow(/broken JSON twice.*Expected ',' or ']'/);
+  });
+});
+
+describe("jsonStep with a validator", () => {
+  const needsBeats = (v: unknown) => {
+    const beats = (v as { beats?: unknown[] }).beats;
+    if (!Array.isArray(beats) || !beats.length) throw new SchemaError(['"beats" is missing: the concept needs a list of beats.']);
+    return v as { beats: unknown[]; title: string };
+  };
+
+  it("sends a parsed answer that does not fit back once, naming the problem, and keeps the fix", async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(reply('{"title":"Kunci"}')).mockResolvedValueOnce(reply('{"title":"Kunci","beats":[{"says":"satu"}]}'));
+    vi.stubGlobal("fetch", fetch);
+    const r = await jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "concept" }] }, needsBeats);
+    expect(r.value.beats).toHaveLength(1);
+    expect(r.value.title).toBe("Kunci");
+    const second = JSON.parse(fetch.mock.calls[1][1].body as string) as { messages: { content: unknown }[] };
+    expect(textOf(second.messages.at(-1)?.content)).toMatch(/"beats" is missing.*\n.*keep everything else/s);
+    expect(r.usage.prompt_tokens).toBe(20);
+  });
+
+  it("says a second miss is the model's output, not the brief", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => reply('{"title":"x"}')));
+    await expect(jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "c" }] }, needsBeats)).rejects.toThrow(/not a problem with your brief/);
+  });
+});
+
+describe("backup model", () => {
+  it("hands a step whose provider keeps timing out to the backup, once", async () => {
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const model = JSON.parse(String(init.body)).model as string;
+        calls.push(model);
+        return model === "backup-model" ? reply("done") : failed(504, "OneAPI answered 504: The upstream provider timed out.");
+      }),
+    );
+    setBackupModel("backup-model");
+    const notes: string[] = [];
+    const p = chatStep({ key: "k", model: "main-model", messages: [{ role: "user", content: "hi" }], onRetry: (m) => notes.push(m) });
+    await vi.runAllTimersAsync();
+    const r = await p;
+    setBackupModel(null);
+    vi.useRealTimers();
+    expect(r.text).toBe("done");
+    expect(calls).toEqual(["main-model", "main-model", "main-model", "backup-model"]);
+    expect(notes.at(-1)).toMatch(/goes to the backup model, backup-model/);
+  });
+
+  it("hands a request the provider cannot do (tool_choice) to the backup at once, without retries", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const model = JSON.parse(String(init.body)).model as string;
+        calls.push(model);
+        return model === "backup-model" ? reply("done") : failed(400, 'only `"auto"` is supported for `tool_choice`. `"none"`, `"required"`, and named function choices are not currently supported');
+      }),
+    );
+    setBackupModel("backup-model");
+    const r = await chatStep({ key: "k", model: "main-model", messages: [{ role: "user", content: "hi" }] });
+    setBackupModel(null);
+    expect(r.text).toBe("done");
+    expect(calls).toEqual(["main-model", "backup-model"]);
   });
 });

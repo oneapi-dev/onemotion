@@ -43,15 +43,20 @@ function privateV6(ip: string): boolean {
 
 const blocked = (ip: string) => (isIP(ip) === 6 ? privateV6(ip) : privateV4(ip));
 
-/** Resolves a host and refuses it unless every address is public. */
-async function vet(url: URL): Promise<{ address: string; family: number }> {
-  if (url.protocol !== "http:" && url.protocol !== "https:") throw new SiteError("Only http and https websites can be read.");
-  if (url.port && url.port !== "80" && url.port !== "443") throw new SiteError("Only websites on the usual ports can be read.");
+/**
+ * Resolves a host and refuses it unless every address is public. An AI
+ * endpoint (`api`) may use any port; with `allowPrivate` (the desktop app,
+ * where the server runs on the person's own machine) it may also be a local
+ * or private address, such as a model server on localhost.
+ */
+export async function vet(url: URL, o: { api?: boolean; allowPrivate?: boolean } = {}): Promise<{ address: string; family: number }> {
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new SiteError("Only http and https addresses can be used.");
+  if (!o.api && url.port && url.port !== "80" && url.port !== "443") throw new SiteError("Only websites on the usual ports can be read.");
   if (url.username || url.password) throw new SiteError("Addresses with a login in them cannot be read.");
   const host = url.hostname.replace(/^\[|\]$/g, "");
   const addrs = isIP(host) ? [{ address: host, family: isIP(host) }] : await lookup(host, { all: true }).catch(() => []);
-  if (!addrs.length) throw new SiteError("That website could not be found.");
-  if (addrs.some((a) => blocked(a.address))) throw new SiteError("That address points to a private network.");
+  if (!addrs.length) throw new SiteError(o.api ? "That address could not be found." : "That website could not be found.");
+  if (!o.allowPrivate && addrs.some((a) => blocked(a.address))) throw new SiteError("That address points to a private network.");
   return addrs[0];
 }
 

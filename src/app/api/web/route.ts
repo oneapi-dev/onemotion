@@ -12,6 +12,7 @@ const MAX_QUERY = 400;
 export async function POST(req: Request) {
   const key = req.headers.get("x-oneapi-key")?.trim() ?? "";
   if (!key) return Response.json({ error: "Add your OneAPI API key in Settings first." }, { status: 401 });
+  if (req.headers.get("x-provider-base")) return Response.json({ error: "Web search runs on OneAPI; it is off with your own endpoint." }, { status: 400 });
   const body = (await req.json().catch(() => null)) as { query?: unknown; num_results?: unknown } | null;
   const query = typeof body?.query === "string" ? body.query.trim() : "";
   if (!query) return Response.json({ error: "Send a query." }, { status: 400 });

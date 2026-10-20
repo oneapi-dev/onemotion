@@ -1,5 +1,6 @@
+import type { MusicMap } from "../music/analyze";
 import type { Score } from "../music/score";
-import type { Brand } from "./kit/film";
+import type { Brand, Partner } from "./kit/film";
 import type { FilmBeat } from "./timing";
 
 export type FilmFormat = "landscape" | "portrait" | "square";
@@ -9,6 +10,8 @@ export type FilmSpec = {
   format: FilmFormat;
   beats: FilmBeat[];
   brand: Brand;
+  /** The second brand of a collaboration film. */
+  partner?: Partner;
   score: Score;
   /** A built-in music track (src/music/library.ts) to play instead of the composed score; the score's tempo is the track's. */
   track?: string;
@@ -16,6 +19,10 @@ export type FilmSpec = {
   assets?: Record<string, string>;
   /** Where each asset came from (address -> name), so the same image is never fetched twice. */
   assetSources?: Record<string, string>;
+  /** A person's own track, as read when it was added: its tempo, downbeat and drops. */
+  musicMap?: MusicMap;
+  /** The mix: the music's level (0 to 1; src/music/mix.ts when unset), no music at all, and the gain that matched a person's own track to the library's loudness. */
+  mix?: { music?: number; off?: boolean; trim?: number };
 };
 
 /** What the film host renders: the spec, the scene compiled to CommonJS modules by path, and recorded voice lines by beat index. */

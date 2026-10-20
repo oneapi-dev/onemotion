@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { numberWords, spoken } from "./spoken";
+import { DEFAULT_PRONUNCIATIONS, displayWords, mergeLexicons, numberWords, speech, spoken } from "./spoken";
 
 describe("numberWords", () => {
   it("says whole numbers in Indonesian", () => {
@@ -51,5 +51,62 @@ describe("spoken", () => {
   it("leaves other languages and plain text alone", () => {
     expect(spoken("Precio $5", "es")).toBe("Precio $5");
     expect(spoken("Tanpa angka sama sekali.", "id")).toBe("Tanpa angka sama sekali.");
+  });
+});
+
+describe("pronunciations", () => {
+  const lexicon = [
+    { term: "OneAPI", say: "wanapi" },
+    { term: "oneapi.id", say: "wanapi" },
+    { term: "AI", say: "ei ai", lang: "id" },
+    { term: "AI", say: "A I", lang: "en" },
+  ];
+
+  it("says the brand as configured and leaves the display text alone", () => {
+    const s = speech("Coba OneAPI di oneapi.id, mulai $5", "id", lexicon);
+    expect(s.tts).toBe("Coba wanapi di wanapi, mulai lima dolar");
+    expect(s.display).toBe("Coba OneAPI di oneapi.id, mulai $5");
+  });
+
+  it("matches the longest term first, in any case, only on word edges", () => {
+    expect(spoken("ONEAPI and oneapi.id", "en", lexicon)).toBe("wanapi and wanapi");
+    expect(spoken("OneAPIs", "en", lexicon)).toBe("OneAPIs");
+    expect(spoken("MAIN AI", "en", lexicon)).toBe("MAIN A I");
+  });
+
+  it("uses each language's own pronunciation, and capital terms match only in capitals", () => {
+    expect(spoken("AI gateway", "id", lexicon)).toBe("ei ai gateway");
+    expect(spoken("AI gateway", "en", lexicon)).toBe("A I gateway");
+    expect(spoken("pantai ai", "id", lexicon)).toBe("pantai ai");
+  });
+
+  it("applies pronunciations in languages without number rules", () => {
+    expect(spoken("Precio OneAPI $5", "es", lexicon)).toBe("Precio wanapi $5");
+  });
+
+  it("puts spoken times back on the words as written", () => {
+    const s = speech("Try OneAPI for $5", "en", lexicon);
+    expect(s.tts).toBe("Try wanapi for five dollars");
+    // One character a tenth of a second, as a voice aligned it.
+    const times = { start: [...s.tts].map((_, i) => i / 10), end: [...s.tts].map((_, i) => (i + 1) / 10) };
+    const words = displayWords(s, times);
+    expect(words.map((w) => w.text)).toEqual(["Try", "OneAPI", "for", "$5"]);
+    expect(words[1]).toEqual({ text: "OneAPI", start: 0.4, end: 1 });
+    // "$5" spans all of "five dollars".
+    expect(words[3]).toEqual({ text: "$5", start: 1.5, end: 2.7 });
+  });
+
+  it("gives a word with nothing spoken for it its neighbour's time", () => {
+    const s = speech("Hello ~ world", "en", [{ term: "~", say: "" }]);
+    const times = { start: [...s.tts].map((_, i) => i), end: [...s.tts].map((_, i) => i + 1) };
+    const words = displayWords(s, times);
+    expect(words[1].start).toBe(words[0].end);
+  });
+});
+
+describe("mergeLexicons", () => {
+  it("lets a project's pronunciation win over the studio's for the same term and language", () => {
+    const merged = mergeLexicons([{ term: "oneapi", say: "one A P I" }], DEFAULT_PRONUNCIATIONS);
+    expect(spoken("OneAPI di oneapi.id", "id", merged)).toBe("one A P I di wanapi");
   });
 });

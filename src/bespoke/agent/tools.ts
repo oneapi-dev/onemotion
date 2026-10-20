@@ -3,7 +3,10 @@
 import { DIMENSIONS } from "@/engine/plan";
 import type { FilmSpec } from "../film";
 import type { FilmHost } from "../host";
-import { filmTiming } from "../timing";
+import { FILM_FPS, filmTiming } from "../timing";
+import { brokenCues } from "./revise";
+import { LIBRARY } from "@/music/library";
+import { musicStart } from "@/music/analyze";
 import type { SiteInfo } from "@/director/input";
 import { prepareAsset, scaled, sheet } from "./images";
 
@@ -23,8 +26,8 @@ export type Workspace = {
 
 export type CheckResult = { ok: boolean; errors: string[]; modules: Record<string, string> };
 
-/** Checks and compiles the files on the server. */
-export async function compile(files: Record<string, string>, facts: string, signal?: AbortSignal): Promise<CheckResult> {
+/** Checks and compiles the files on the server; without `facts`, numbers on screen are not checked (the person's own words). */
+export async function compile(files: Record<string, string>, facts: string | undefined, signal?: AbortSignal): Promise<CheckResult> {
   const res = await fetch("/api/scene/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ files, facts }), signal });
   const body = (await res.json().catch(() => null)) as (CheckResult & { error?: string }) | null;
   if (!res.ok || !body) throw new Error(body?.error ?? `The check failed (${res.status}).`);
@@ -70,6 +73,20 @@ const MAX_ASSET_BYTES = 1_800_000;
 const PATH = /^scene\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.tsx?$/;
 const lines = (s: string) => s.split("\n").length;
 
+/** The words the rendered frames show, and for a model without sight, what that means. */
+const seenLine = (seen: string, blind?: boolean) =>
+  `\nTEXT ON SCREEN (read from the rendered frames): ${seen ? seen.slice(0, 1500) : "(none)"}${blind ? "\nYou do not receive images on this connection: there is no picture here. Judge only from the QA lines and the text on screen; never conclude that a frame is blank, or that the scene crashed, because you see no picture." : ""}`;
+
+/** Tells the designer when the music's drop lands on the close, so the brand moment can hit with it. */
+function dropLine(spec: FilmSpec): string {
+  const track = LIBRARY.find((x) => x.id === spec.track);
+  const map = spec.musicMap ?? (track?.downbeat !== undefined ? { downbeat: track.downbeat, drops: track.drops ?? [], seconds: track.seconds } : null);
+  if (!map) return "";
+  const { timing } = filmTiming(spec.beats, spec.score);
+  const { dropAt } = musicStart(map, timing.closeAt / FILM_FPS, timing.total / FILM_FPS);
+  return dropAt === null ? "" : ` The music drops (a fuller section kicks in) at frame ${timing.closeAt}, the first frame of the last beat: land the brand moment there.`;
+}
+
 /** The frames that show a film best: its first frame, two-thirds into every beat, and the close. */
 export function keyFrames(spec: FilmSpec): number[] {
   const { timing, beats } = filmTiming(spec.beats, spec.score);
@@ -83,6 +100,8 @@ export function keyFrames(spec: FilmSpec): number[] {
  * own, and the stretch of the film it looks at.
  */
 export type ToolScope = {
+  /** The model does not receive images on this connection: renders come back as the QA and the words on screen, without pictures. */
+  blind?: boolean;
   canWrite?: (path: string) => boolean;
   /** Which files this agent may write, in words, for the refusal. */
   writes?: string;
@@ -168,13 +187,14 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
         return {
           text: [
             `Format ${ws.spec.format}: ${W} x ${H} at 30 fps, ${total} frames (${(total / 30).toFixed(1)} s).`,
-            ...beats.map(
-              (b) =>
-                `${b.id}: frames ${b.start} to ${b.end} | says "${b.says}" | shows: ${b.shows}${b.voice ? ` | voice (${b.spoken ? "recorded, captioned" : "not recorded: estimated times"}): "${b.voice}" | words: ${b.words.map((w) => `${w.text}@${w.at}`).join(" ")}` : ""}`,
-            ),
+            ...beats.map((b, i) => {
+              const moments = ws.spec.beats[i]?.moments ?? [];
+              return `${b.id}: frames ${b.start} to ${b.end} | says "${b.says}" | shows: ${b.shows}${b.voice ? ` | voice (${b.spoken ? "recorded, captioned" : "not recorded: estimated times"}): "${b.voice}" | words: ${b.words.map((w) => `${w.text}@${w.at}`).join(" ")}` : ""}${moments.length ? ` | moments: ${moments.map((m) => `[${m.at}] ${m.what}`).join("; ")}` : ""}`;
+            }),
             `Safe area: ${safe}.`,
             `Brand: ${JSON.stringify({ ...ws.spec.brand, logo: ws.spec.brand.logo ? "(an image; draw it with <Mark/>)" : null })}`,
-            `Music: ${ws.spec.score.genre} at ${ws.spec.score.bpm} bpm; beats start on its beat grid, so hits on beat starts land with the music.`,
+            ...(ws.spec.partner ? [`Partner (a collaboration film; ${ws.spec.partner.lead === "equal" ? "same weight as the brand" : "the brand leads, the partner joins"}): ${JSON.stringify({ ...ws.spec.partner, logo: ws.spec.partner.logo ? "(an image; draw it with <Mark partner/>, both marks with <CoMark/>)" : null })}`] : []),
+            `Music: ${ws.spec.score.genre} at ${ws.spec.score.bpm} bpm; beats start on its beat grid and bar lines, so hits on beat starts land with the music.${dropLine(ws.spec)}`,
           ].join("\n"),
         };
       },
@@ -199,7 +219,8 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
     },
     {
       name: "write_file",
-      description: `Create or overwrite a file in scene/${scope.writes ? ` (yours: ${scope.writes})` : " (scene/index.tsx, scene/components/Name.tsx)"}.`,
+      // Tool descriptions are the same for every agent of a film: they come first in the prompt, so they decide what the agents' prompt caches share. Each agent's own files are in its task.
+      description: "Create or overwrite a file in scene/ (only the files your task says are yours).",
       parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path", "content"] },
       run: async (a) => {
         const p = writable(path(a));
@@ -246,12 +267,14 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
           return { text: `${own.length} problem(s):\n- ${own.join("\n- ")}` };
         }
         passed(r.modules);
-        return { text: "ok: no problems" };
+        // A cue on a word its beat does not say plays at the beat's start: the scene runs, but the moment is off.
+        const cues = report(brokenCues(view(), filmTiming(ws.spec.beats, ws.spec.score).beats).map((e) => e.replace("no longer says", "does not say")));
+        return { text: cues.length ? `compiles, but fix these cues (use a word the beat's voice line really says, as the timing tool lists them):\n- ${cues.join("\n- ")}` : "ok: no problems" };
       },
     },
     {
       name: "render_frames",
-      description: `Render up to 6 frames and look at them. The frames are exactly what the exported video draws.${scope.focus ? ` Your frames are ${scope.focus.from} to ${scope.focus.to}.` : ""}`,
+      description: "Render up to 6 frames and look at them. The frames are exactly what the exported video draws.",
       parameters: { type: "object", properties: { frames: { type: "array", items: { type: "number" } } }, required: ["frames"] },
       run: async (a) => {
         const blocked = await ensure();
@@ -260,8 +283,10 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
         if (!frames.length) return { text: "Give the frames to render." };
         try {
           const r = await host.stills(film(), frames, signal);
+          const text = `rendered frames ${frames.join(", ")}${scope.focus ? ` (your frames are ${scope.focus.from} to ${scope.focus.to})` : ""}${r.warnings.length ? `\nQA:\n- ${r.warnings.join("\n- ")}` : "\nQA: no warnings"}${seenLine(r.seen, scope.blind)}`;
+          if (scope.blind) return { text };
           const urls = await Promise.all(r.images.map((b) => scaled(b, H > W ? 540 : 960)));
-          return { text: `rendered frames ${frames.join(", ")}${r.warnings.length ? `\nQA:\n- ${r.warnings.join("\n- ")}` : "\nQA: no warnings"}`, images: urls.map((url, i) => ({ label: `frame ${frames[i]}`, url })) };
+          return { text, images: urls.map((url, i) => ({ label: `frame ${frames[i]}`, url })) };
         } catch (err) {
           return { text: `The scene crashed while rendering: ${err instanceof Error ? err.message : String(err)}` };
         }
@@ -269,9 +294,8 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
     },
     {
       name: "contact_sheet",
-      description: scope.focus
-        ? `Render your stretch (${scope.focus.label}: its start, a third in, two thirds in, its end) and the seams with the beats on either side, as one tiled image.`
-        : "Render the key moments (the first frame, two-thirds into every beat, the close) as one tiled image: the fastest way to judge the whole film.",
+      description:
+        "Render the key moments of your part as one tiled image: for the whole film, the first frame, two-thirds into every beat and the close; for one beat, its start, a third in, two thirds in, its end and the seams with the beats on either side. The fastest way to judge your work.",
       parameters: { type: "object", properties: {} },
       run: async () => {
         const blocked = await ensure();
@@ -279,11 +303,12 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
         const { frames, labels } = sheetFrames();
         try {
           const r = await host.stills(film(), frames, signal);
+          if (scope.blind) return { text: `contact sheet: ${labels.join("; ")}${r.warnings.length ? `\nQA:\n- ${r.warnings.join("\n- ")}` : "\nQA: no warnings"}${seenLine(r.seen, true)}` };
           const P = H > W;
           const cols = P ? 5 : W === H ? 4 : 3;
           const url = await sheet(r.images, labels, cols, P ? 300 : W === H ? 420 : 640);
           return {
-            text: `contact sheet: ${labels.join("; ")} (left to right, top to bottom)${r.warnings.length ? `\nQA:\n- ${r.warnings.join("\n- ")}` : "\nQA: no warnings"}`,
+            text: `contact sheet: ${labels.join("; ")} (left to right, top to bottom)${r.warnings.length ? `\nQA:\n- ${r.warnings.join("\n- ")}` : "\nQA: no warnings"}${seenLine(r.seen, false)}`,
             images: [{ label: `contact sheet: ${labels.join("; ")}`, url }],
           };
         } catch (err) {
@@ -348,7 +373,8 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
               : ready.tone === "light"
                 ? ` It is a light one-colour mark: on a light background draw it with <Asset name="${name}" tone="dark" />.`
                 : "";
-          return { text: `saved as asset "${name}" (${ready.width} x ${ready.height}, ${body.type}). Draw it with <Asset name="${name}" width={...} height={...} />.${tone}`, images: [{ label: `asset ${name}`, url: ready.preview }] };
+          const saved = `saved as asset "${name}" (${ready.width} x ${ready.height}, ${body.type}). Draw it with <Asset name="${name}" width={...} height={...} />.${tone}`;
+          return scope.blind ? { text: saved } : { text: saved, images: [{ label: `asset ${name}`, url: ready.preview }] };
         } catch (err) {
           return { text: `That image could not be used: ${err instanceof Error ? err.message : String(err)}` };
         }

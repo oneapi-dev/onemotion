@@ -20,8 +20,11 @@ You are the LEAD of a small team building this film. Its beats (${o.beats.map((b
 4. scene/index.tsx: export \`fonts\` and \`background\`, render the persistent stage (background, the world, the camera if the film flies through one) and \`<Beats of={BEATS} overlap={${OVERLAP}} />\` from @kit (\`import { BEATS } from "./beats"\`) where the beats belong in it. Transitions between beats belong to the stage. ${BEATS_INDEX} is generated: never write it.
 5. \`check\`, then \`finish\` with NOTES FOR THE BEAT AGENTS: for every beat, where its content sits (a region in px, or the camera station), what to import from theme and components, how it enters and how it exits to meet its neighbours. Be concrete: px, component names, frames.
 
-The beat files are stubs for now (they render nothing), so your renders show only the stage. Keep the foundation small and solid: the beat agents carry the content.`;
+${BASELINE_NOTE} The baseline beats import BG, INK, ACCENT, SUPPORT, DISPLAY, TEXT and MONO from scene/theme.ts: keep those exports (add your own beside them). Keep the foundation small and solid: the beat agents carry the content.`;
 }
+
+/** What every designer is told about the film it starts from. */
+export const BASELINE_NOTE = `THE FILM ALREADY PLAYS: the studio wrote a baseline from the concept (scene/theme.ts, scene/index.tsx and one file per beat), so every beat already shows its words with a finished moment from the kit. That is the floor, not the film: it is plain and generic. Make every beat your own (the concept's world and metaphor, its hero picture, its supporting layers, its motion, its sounds), rewrite whatever you like, and never leave a beat thinner or emptier than the baseline: a beat cut to a sketch goes back to the baseline.`;
 
 export function beatTask(o: { context: string; beat: Beat; index: number; beats: Beat[]; notes: string; shared: Record<string, string>; assets: string[] }): string {
   const { beat: b, beats } = o;
@@ -49,6 +52,8 @@ ${Object.entries(o.shared)
   .map(([p, src]) => `--- ${p} ---\n${src}`)
   .join("\n\n")}
 
+Your file starts as the studio's baseline for this beat (it already shows the words; \`read_file\` it): make it this concept's moment, never thinner than the baseline.
+
 Work in few replies (at most 8): write your file, \`check\`, \`contact_sheet\` (your stretch and the seams with your neighbours), fix everything you see and every QA warning, render again, then \`finish\` with one line on what you built.`;
 }
 
@@ -61,16 +66,13 @@ export function soloTask(o: { context: string; beats: Beat[] }): string {
 
 You build this whole film yourself, from the first frame to the last, in at most ${SOLO_STEPS} replies. Plan the budget: about a third to build, the rest to look and fix.
 
-1. Call \`timing\` once (the beats in frames). Fetch the logos the film needs in one reply, before you write code; never fetch the same image twice.
-2. Write scene/theme.ts, the components and scene/index.tsx, at most 3 files per reply. Each beat (${o.beats.map((b) => b.id).join(", ")}) can live in ${beatFile("<id>")} rendered by \`<Beats of={BEATS} overlap={${OVERLAP}} />\` from @kit (\`import { BEATS } from "./beats"\`; ${BEATS_INDEX} is generated, never write it), or you may time everything in your own components: your choice. A beat file left as it is renders nothing.
+${BASELINE_NOTE}
+
+1. Call \`timing\` once (the beats in frames), \`read_file\` the baseline's files, and \`contact_sheet\` to see where you start. Fetch the logos the film needs in one reply, before you write code; never fetch the same image twice.
+2. Rewrite scene/theme.ts, the components and scene/index.tsx into this concept's world, at most 3 files per reply. Each beat (${o.beats.map((b) => b.id).join(", ")}) lives in ${beatFile("<id>")} rendered by \`<Beats of={BEATS} overlap={${OVERLAP}} />\` from @kit (\`import { BEATS } from "./beats"\`; ${BEATS_INDEX} is generated, never write it), or you may time everything in your own components: your choice. Rewrite every beat file into its own moment.
 3. \`check\` in the reply that writes the last file, fix every error.
 4. \`contact_sheet\` of the whole film, then look like an art director: is every beat filled and showing its "says"? collisions, contrast (logos and text clearly readable), empty halves of the frame, slides instead of one world, the concept's look. Fix everything in one reply, render again. At least three look-and-fix passes; use \`render_frames\` to look closely at a beat.
 5. \`finish\` only when the film is genuinely good.`;
-}
-
-/** The lead's task when beats are still empty stubs: a film must never show an empty beat. */
-export function emptyBeatsTask(ids: string[]): string {
-  return `These beats are still empty and show nothing: ${ids.join(", ")}. Write them now (${ids.map((id) => beatFile(id)).join(", ")}), each showing its "says" and "shows" from the concept in the same style as the other beats, then \`check\`, \`contact_sheet\` and \`finish\`.`;
 }
 
 /** The lead's task when the whole film does not pass the check: fix those errors and nothing else. */
@@ -84,9 +86,30 @@ A name declared twice in one file: keep one declaration and delete the other. A 
 }
 
 /** What the beat agents are told when the foundation never passed the check and was dropped. */
-export const NO_FOUNDATION = "The lead's foundation did not pass the check and was dropped. There is no theme and there are no shared components: build your beat with the kit alone, on the plain stage in scene/index.tsx, in the concept's palette and type.";
+export const NO_FOUNDATION = "The lead's foundation did not pass the check and was dropped: the stage and theme are the studio's baseline (scene/index.tsx, scene/theme.ts) and there are no shared components. Build your beat with the kit and the baseline theme, in the concept's palette and type.";
 
 export const LEAD_INTEGRATE = `All beats are written by their agents. Now make it one film:
 1. \`contact_sheet\` for the whole film.
 2. Fix the seams between beats (an exit meeting the next entry), consistency (type sizes, colours, positions of recurring things), overlaps and every QA warning. You may edit any file now, beats included, except ${BEATS_INDEX}.
 3. Render again what you changed, then \`finish\`.`;
+
+/** Replies the designer gets to carry out one note on a finished film. */
+export const REVISE_NOTE_STEPS = 14;
+
+/** The designer's task for a note on a finished film: change what the editor planned, keep the rest. */
+export function reviseTask(o: { context: string; note: string; summary: string; design: string; targets: string[]; locked: string[]; broken: string[]; changedBeats: string[] }): string {
+  return `${o.context}
+
+The film above is FINISHED and its files are in scene/ (read what you change before you change it). The person wrote a note about it, and the editor turned the note into a plan. Carry out the plan by editing the existing files: keep every part that the plan does not mention exactly as it is (layouts, components, timings, colours, words). This is a revision, not a new film.
+
+THE NOTE: ${o.note}
+THE PLAN: ${o.summary}
+WHAT TO CHANGE IN THE CODE:
+${o.design || "(nothing beyond the beats listed below)"}
+${o.targets.length ? `ONLY THESE BEATS: ${o.targets.join(", ")}. Leave every other beat's code alone.` : ""}
+${o.changedBeats.length ? `BEATS WHOSE WORDS, LINE OR LENGTH CHANGED (\`timing\` has their new frames and words): ${o.changedBeats.join(", ")}. Make their on-screen words and cues match.` : ""}
+${o.broken.length ? `CUES THAT NO LONGER FIND THEIR BEAT OR WORD (fix every one, or the film stops on it):\n${o.broken.map((b) => `- ${b}`).join("\n")}` : ""}
+LOCKED (the person asked these not to change): ${o.locked.length ? o.locked.join(", ") : "nothing"}.
+
+Work in few replies: \`timing\` if beats changed, read the files you change, edit them, \`check\`, then \`render_frames\` or \`contact_sheet\` of the beats you changed and compare with what the note asked. Fix what you see, then \`finish\` with one line on what changed.`;
+}

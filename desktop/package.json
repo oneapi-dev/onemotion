@@ -1,0 +1,10 @@
+{
+  "name": "onemotion-desktop",
+  "productName": "OneMotion",
+  "version": "0.2.0",
+  "description": "OneMotion: describe a video, an AI designs it, your computer renders it.",
+  "author": "OneAPI",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.cjs"
+}

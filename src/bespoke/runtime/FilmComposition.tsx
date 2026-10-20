@@ -2,6 +2,7 @@ import { Audio } from "@remotion/media";
 import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as JSXRuntime from "react/jsx-runtime";
+import { flushSync } from "react-dom";
 import * as Remotion from "remotion";
 import { AbsoluteFill, Sequence, staticFile, useDelayRender } from "remotion";
 import { DIMENSIONS } from "../../engine/plan";
@@ -22,12 +23,13 @@ import { QaProbe } from "./qa";
 const cjs = (ns: object) => Object.assign({ __esModule: true }, ns, { default: (ns as { default?: unknown }).default ?? ns });
 const EXTERNALS = { react: cjs(React), "react/jsx-runtime": cjs(JSXRuntime), remotion: cjs(Remotion), "@kit": cjs(Kit) };
 
-/** The music bed under the picture, and how far it dips under a voice line (about -8 dB). */
-const MUSIC_LEVEL = 0.65;
-const DUCK = 0.4;
-const DUCK_FRAMES = 6;
+import { defaultLevel, DUCK, DUCK_FRAMES } from "../../music/mix";
+import { musicStart } from "../../music/analyze";
 
 export const filmFrames = (input: FilmInput) => filmTiming(input.spec.beats, input.spec.score).timing.total;
+
+/** Where in a track the film starts (seconds): its close on a drop when one fits, else the first downbeat. */
+const startOf = (downbeat: number, drops: number[], seconds: number, t: ReturnType<typeof filmTiming>["timing"]) => musicStart({ downbeat, drops, seconds }, t.closeAt / FILM_FPS, t.total / FILM_FPS).start;
 
 /**
  * A bespoke film: the scene the model wrote, given its clock (useFilm), its
@@ -53,13 +55,14 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover,
       beat: (id) => (typeof id === "number" ? beats[id] : beats.find((b) => b.id === id)) ?? beats[0],
       cue: makeCue(beats, timing.total, FILM_FPS),
       brand: spec.brand,
+      partner: spec.partner ?? null,
       assets: spec.assets ?? {},
       // With a recorded voice, the captions take the bottom band.
       safe: P
         ? { top: Math.round(H * 0.07), bottom: Math.round(H * (voiced ? 0.78 : 0.86)), left: 60, right: W - 60 }
         : { top: 70, bottom: H - (voiced ? 180 : 90), left: 100, right: W - 100 },
     };
-  }, [W, H, spec.format, spec.brand, spec.assets, timing.total, beats]);
+  }, [W, H, spec.format, spec.brand, spec.partner, spec.assets, timing.total, beats]);
 
   const ready = useFonts(scene.fonts ?? {});
   const Scene = scene.default;
@@ -87,7 +90,9 @@ function useFonts(req: Record<string, string[]>): boolean {
     let live = true;
     loadFonts(JSON.parse(key)).then(
       () => {
-        if (live) setState({ key, ready: true });
+        // The frame may be taken only once the scene is mounted with its fonts: the ready render is committed
+        // synchronously, then the frame is released (released before, a still is the bare background).
+        if (live) flushSync(() => setState({ key, ready: true }));
         continueRender(handle);
       },
       (err: unknown) => cancelRender(err instanceof Error ? err : new Error(String(err))),
@@ -101,11 +106,13 @@ function useFonts(req: Record<string, string[]>): boolean {
 
 const FilmSound: React.FC<{ input: FilmInput; timing: ReturnType<typeof filmTiming>["timing"] }> = ({ input, timing: t }) => {
   const { spec, voiceover, music } = input;
+  // The person turned the music off: the voice alone.
+  if (spec.mix?.off) return <Sound music={null} voiceover={voiceover} spec={spec} timing={t} />;
   // A made bed (ElevenLabs Music) first, then a built-in track, then the composer.
-  if (music) return <Sound music={music} voiceover={voiceover} spec={spec} timing={t} fade />;
+  if (music) return <Sound music={music} trimBefore={spec.musicMap ? Math.round(startOf(spec.musicMap.downbeat, spec.musicMap.drops, spec.musicMap.seconds, t) * FILM_FPS) : undefined} voiceover={voiceover} spec={spec} timing={t} fade />;
   const track = LIBRARY.find((x) => x.id === spec.track);
-  // The track starts on its first beat, so the film's beat grid (at its tempo) lands on the music's.
-  if (track) return <Sound music={staticFile(`music/${track.id}.mp3`)} trimBefore={Math.round(track.firstBeat * FILM_FPS)} voiceover={voiceover} spec={spec} timing={t} fade />;
+  // The film's bars are the music's bars, and its close lands on a drop when the track has one that fits.
+  if (track) return <Sound music={staticFile(`music/${track.id}.mp3`)} trimBefore={Math.round(startOf(track.downbeat ?? track.firstBeat, track.drops ?? [], track.seconds, t) * FILM_FPS)} voiceover={voiceover} spec={spec} timing={t} fade />;
   return <ComposedSound input={input} timing={t} />;
 };
 
@@ -129,6 +136,8 @@ const Sound: React.FC<{ music: string | null; trimBefore?: number; fade?: boolea
     const from = t.starts[i] + lead;
     return [{ src, from, to: from + Math.ceil(b.voiceSeconds * FILM_FPS) }];
   });
+  // A bed: quieter under a voice-over; a person's own track first matched to the library's loudness.
+  const base = Math.min(1, Math.max(0, (spec.mix?.music ?? defaultLevel(lines.length > 0)) * (spec.mix?.trim ?? 1)));
   const level = (f: number) => {
     let dip = 0;
     for (const l of lines) {
@@ -136,12 +145,14 @@ const Sound: React.FC<{ music: string | null; trimBefore?: number; fade?: boolea
       const out = Math.min(1, Math.max(0, (l.to + DUCK_FRAMES - f) / DUCK_FRAMES));
       dip = Math.max(dip, Math.min(into, out));
     }
-    const tail = fade ? Math.min(1, Math.max(0, (t.total - f) / FADE_FRAMES)) : 1;
-    return MUSIC_LEVEL * (1 - (1 - DUCK) * dip) * tail;
+    // The bed fades over the film's last bar (the film ends on a bar line), not a fixed second.
+    const fadeFrames = Math.max(FADE_FRAMES, Math.round(4 * t.beat));
+    const tail = fade ? Math.min(1, Math.max(0, (t.total - f) / fadeFrames)) : 1;
+    return base * (1 - (1 - DUCK) * dip) * tail;
   };
   return (
     <>
-      {track ? <Audio src={track} trimBefore={trimBefore} volume={lines.length || fade ? level : MUSIC_LEVEL} /> : null}
+      {track && base > 0 ? <Audio src={track} trimBefore={trimBefore} volume={lines.length || fade ? level : base} /> : null}
       {lines.map((l, i) => (
         <Sequence key={i} from={l.from} durationInFrames={l.to - l.from + 15} layout="none">
           <Audio src={l.src} volume={1} />

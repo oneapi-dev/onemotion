@@ -1,19 +1,69 @@
 // Shells for UI moments: windows, a phone, a cursor, the brand's mark. What
 // goes inside (a dashboard, an editor, a chat) is the scene's to invent.
 // Adapted from remotion-opus-skill's kit (MIT, (c) 2026 direkturcrypto).
-import type { CSSProperties, ReactNode } from "react";
-import { Img } from "remotion";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useDelayRender } from "remotion";
 import { useFilm } from "./film";
 import { pop, prog } from "./motion";
 import { Sfx } from "./sound";
 
-/** The brand's logo, or a monogram tile in its colour when it has none. */
-export const Mark = ({ size, style }: { size: number; style?: CSSProperties }) => {
-  const { brand } = useFilm();
-  if (brand.logo) return <Img src={brand.logo} style={{ width: size, height: size, objectFit: "contain", flex: "none", ...style }} />;
+/** The longest a picture may hold a frame back: a picture that never reports in is drawn as it is. */
+const PICTURE_WAIT_MS = 5000;
+
+/**
+ * An image the render waits for, but never forever: it lets the frame go on
+ * load, on error or after PICTURE_WAIT_MS, whichever comes first. (Remotion's
+ * Img can miss a load that fires before its decode() fails, and then holds
+ * every still until the render times out.)
+ */
+export const Picture = ({ src, style }: { src: string; style?: CSSProperties }) => {
+  const { delayRender, continueRender } = useDelayRender();
+  const [handle] = useState(() => delayRender(`picture ${src.slice(0, 40)}`, { timeoutInMilliseconds: PICTURE_WAIT_MS * 4 }));
+  const ref = useRef<HTMLImageElement>(null);
+  useLayoutEffect(() => {
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      continueRender(handle);
+    };
+    const img = ref.current;
+    if (!img) return go();
+    img.addEventListener("load", go);
+    img.addEventListener("error", go);
+    if (img.complete) img.decode().then(go, go);
+    const timer = setTimeout(go, PICTURE_WAIT_MS);
+    return () => {
+      clearTimeout(timer);
+      img.removeEventListener("load", go);
+      img.removeEventListener("error", go);
+      go();
+    };
+  }, [handle, continueRender]);
+  return <img ref={ref} src={src} decoding="sync" alt="" style={style} />;
+};
+
+/** The brand's logo (the partner's with `partner`, in a collaboration film), or a monogram tile in its colour when it has none. */
+export const Mark = ({ size, style, partner }: { size: number; style?: CSSProperties; partner?: boolean }) => {
+  const film = useFilm();
+  const brand = (partner && film.partner) || film.brand;
+  if (brand.logo) return <Picture src={brand.logo} style={{ width: size, height: size, objectFit: "contain", flex: "none", ...style }} />;
   return (
     <div style={{ width: size, height: size, borderRadius: size * 0.24, background: brand.colors[0] ?? "#111", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: size * 0.56, fontFamily: "Inter, sans-serif", flex: "none", ...style }}>
       {brand.name.slice(0, 1).toUpperCase()}
+    </div>
+  );
+};
+
+/** A collaboration's two marks: the brand's, a thin "×" and the partner's (only the brand's when the film has no partner). */
+export const CoMark = ({ size, color = "currentColor", style }: { size: number; color?: string; style?: CSSProperties }) => {
+  const { partner } = useFilm();
+  if (!partner) return <Mark size={size} style={style} />;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: size * 0.32, flex: "none", ...style }}>
+      <Mark size={size} />
+      <span style={{ fontFamily: "Inter, sans-serif", fontWeight: 300, fontSize: size * 0.5, lineHeight: 1, color, opacity: 0.6 }}>×</span>
+      <Mark size={size} partner />
     </div>
   );
 };
@@ -88,7 +138,7 @@ export const Cursor = ({ t, x, y, clicks = [], dark = false, ring = "#111", size
       {sound ? clicks.map((c) => <Sfx key={c} name="click" at={c - 1} volume={0.9} />) : null}
       <div style={{ position: "absolute", left: x, top: y, width: 0, height: 0, pointerEvents: "none" }}>
         {ripple >= 0 ? <div style={{ position: "absolute", left: -6 - 30 * ripple, top: -6 - 30 * ripple, width: 12 + 60 * ripple, height: 12 + 60 * ripple, borderRadius: "50%", border: `3px solid ${ring}`, opacity: 1 - ripple }} /> : null}
-        <Img src={dark ? POINTER_DARK : POINTER_LIGHT} style={{ position: "absolute", left: -2, top: -2, width: size, height: size * 1.38, transformOrigin: "0 0", transform: `scale(${1 - press * 0.12})` }} />
+        <Picture src={dark ? POINTER_DARK : POINTER_LIGHT} style={{ position: "absolute", left: -2, top: -2, width: size, height: size * 1.38, transformOrigin: "0 0", transform: `scale(${1 - press * 0.12})` }} />
       </div>
     </>
   );
@@ -125,5 +175,5 @@ export const Asset = ({ name, width, height, tone, style }: { name: string; widt
     console.warn(`[QA] asset "${name}" was never fetched (have: ${Object.keys(assets).filter((k) => !k.includes("@")).join(", ") || "none"})`);
     return null;
   }
-  return <Img src={src} style={{ width, height, objectFit: "contain", flex: "none", ...style }} />;
+  return <Picture src={src} style={{ width, height, objectFit: "contain", flex: "none", ...style }} />;
 };

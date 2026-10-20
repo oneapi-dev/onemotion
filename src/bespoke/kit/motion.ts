@@ -45,3 +45,45 @@ export const typed = (s: string, t: number, at: number, cps = 1.4) => s.slice(0,
 export const remap = (v: number, a: number, b: number, c: number, d: number) => c + (d - c) * clamp01((v - a) / (b - a || 1));
 
 export const mix = (a: number, b: number, p: number) => a + (b - a) * p;
+
+// Craft curves and envelopes. Values from Emil Kowalski's "animate" skill (MIT), the
+// "anatomy" skill by wheresryan22 (MIT) and pbakaus's impeccable "animate" (Apache-2.0),
+// rewritten as pure functions of the frame.
+
+/** Arrivals of UI and type: quick out, long settle (Emil Kowalski's ease-out). */
+export const arriveE = Easing.bezier(0.23, 1, 0.32, 1);
+/** Moves and morphs between two rests on screen. */
+export const moveE = Easing.bezier(0.77, 0, 0.175, 1);
+/** Panels, sheets and drawers sliding in. */
+export const panelE = Easing.bezier(0.32, 0.72, 0, 1);
+
+/** A critically damped 0 to 1 from frame `at`, settled in about `dur` frames: no overshoot (colour, brightness, the size of text). */
+export const settle = (t: number, at: number, dur = 18) => {
+  if (t <= at) return 0;
+  const x = ((t - at) / dur) * 6;
+  return 1 - (1 + x) * Math.exp(-x);
+};
+
+/**
+ * An event's envelope: rises over `rise` frames (never a one-frame jump),
+ * peaks at 1 and decays with time constant `fall`. Overlapping events add.
+ */
+export const burst = (t: number, at: number, rise = 3, fall = 8) => {
+  const age = t - at;
+  if (age <= 0) return 0;
+  const up = clamp01(age / rise);
+  return up * up * (3 - 2 * up) * (age > rise ? Math.exp(-(age - rise) / fall) : 1);
+};
+
+/** Spring settings that land with a hint of weight (damping ratio about 0.8): Remotion's default (damping 10) is visibly bouncy. */
+export const weighty = { damping: 16, stiffness: 100, mass: 1 } as const;
+
+/** The start frame of item `i` of a list revealed one after another, `step` frames apart, the whole spread capped at `cap` frames. */
+export const stagger = (at: number, i: number, n: number, step = 2, cap = 18) => at + i * Math.min(step, n > 1 ? cap / (n - 1) : step);
+
+/** A clip-path that wipes an element in from `from` ("top" reveals downward) between frames `at` and `at + dur`. */
+export const wipeIn = (t: number, at: number, dur = 16, from: "top" | "bottom" | "left" | "right" = "bottom") => {
+  const hide = (1 - prog(t, at, at + dur, moveE)) * 100;
+  const sides = { top: `0 0 ${hide}% 0`, bottom: `${hide}% 0 0 0`, left: `0 ${hide}% 0 0`, right: `0 0 0 ${hide}%` };
+  return `inset(${sides[from]})`;
+};

@@ -4,8 +4,10 @@ import { renderMediaOnWeb, renderStillOnWeb } from "@remotion/web-renderer";
 import { DIMENSIONS } from "@/engine/plan";
 import type { FilmInput, FilmSpec } from "./film";
 import { FilmComposition, filmFrames } from "./runtime/FilmComposition";
-import { qaWarnings } from "./runtime/qa";
+import { cueMisses } from "./kit/film";
+import { coverage, FLAT_SPREAD, flatness, qaSeen, qaWarnings, SPARSE_SHARE } from "./runtime/qa";
 import { FILM_FPS } from "./timing";
+import { profileOf, REMOTION_LICENSE_KEY, type RenderProfile, type Target } from "@/studio/renderTarget";
 
 /** A film as the Studio holds it: the spec, the compiled scene, and recorded voice lines and a music bed as Blobs. */
 export type WireFilm = { spec: FilmSpec; modules: Record<string, string>; voiceover?: Record<number, Blob>; music?: Blob };
@@ -27,10 +29,70 @@ export function toInput(film: WireFilm): FilmInput {
   return { spec: film.spec, modules: film.modules, voiceover, music: film.music ? urlOf(film.music) : undefined };
 }
 
+/**
+ * renderStillOnWeb waits for each frame with requestAnimationFrame, which
+ * never fires in a hidden tab, so the agents' renders stall the moment the
+ * person switches tabs (the MP4 export has its own keepalive; stills do
+ * not). While stills render, a frame requested in a hidden tab is answered
+ * by a worker's tick instead: worker timers are not throttled.
+ */
+async function withBackgroundFrames<T>(run: () => Promise<T>): Promise<T> {
+  if (typeof Worker === "undefined" || typeof document === "undefined") return run();
+  const url = URL.createObjectURL(new Blob(["setInterval(() => postMessage(0), 16);"], { type: "application/javascript" }));
+  const worker = new Worker(url);
+  const waiting = new Map<number, FrameRequestCallback>();
+  let next = 0;
+  const raf = window.requestAnimationFrame;
+  const cancel = window.cancelAnimationFrame;
+  worker.onmessage = () => {
+    const due = [...waiting.values()];
+    waiting.clear();
+    for (const cb of due) cb(performance.now());
+  };
+  window.requestAnimationFrame = (cb) => {
+    if (!document.hidden) return raf.call(window, cb);
+    const id = -++next;
+    waiting.set(id, cb);
+    return id;
+  };
+  window.cancelAnimationFrame = (id) => {
+    if (id < 0) waiting.delete(id);
+    else cancel.call(window, id);
+  };
+  try {
+    return await run();
+  } finally {
+    window.requestAnimationFrame = raf;
+    window.cancelAnimationFrame = cancel;
+    for (const cb of waiting.values()) raf.call(window, cb);
+    waiting.clear();
+    worker.terminate();
+    URL.revokeObjectURL(url);
+  }
+}
+
 const composition = (input: FilmInput) => {
   const { width, height } = DIMENSIONS[input.spec.format];
   return { id: "film", component: FilmComposition, width, height, fps: FILM_FPS, durationInFrames: filmFrames(input), defaultProps: input };
 };
+
+/** How empty a rendered still is: one flat colour, or nearly nothing on its background (a dot on a blank page). */
+async function emptiness(image: Blob): Promise<"flat" | "sparse" | null> {
+  try {
+    const bmp = await createImageBitmap(image);
+    const c = new OffscreenCanvas(96, 54);
+    const ctx = c.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(bmp, 0, 0, 96, 54);
+    bmp.close();
+    const px = ctx.getImageData(0, 0, 96, 54).data;
+    if (flatness(px) < FLAT_SPREAD) return "flat";
+    const share = coverage(px);
+    return share < SPARSE_SHARE ? "sparse" : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Where a bespoke film runs: in this page, next to the Studio. It holds
@@ -64,34 +126,47 @@ export class FilmHost {
     return () => this.listeners.delete(fn);
   }
 
-  async stills(film: WireFilm, frames: number[], signal?: AbortSignal, quality = 0.82): Promise<{ images: Blob[]; warnings: string[] }> {
-    const run = this.queue.then(async () => {
-      signal?.throwIfAborted();
-      this.rendering();
-      const input = { ...toInput(film), qa: true };
-      const comp = composition(input);
-      qaWarnings.length = 0;
-      const images: Blob[] = [];
-      for (const frame of frames) {
-        const f = Math.max(0, Math.min(comp.durationInFrames - 1, Math.round(frame)));
-        const still = await renderStillOnWeb({ composition: comp, inputProps: input, frame: f, signal: signal ?? null, delayRenderTimeoutInMilliseconds: 120_000 });
-        images.push(await still.blob({ format: "jpeg", quality }));
-      }
-      return { images, warnings: [...new Set(qaWarnings)].slice(0, 30) };
-    });
+  async stills(film: WireFilm, frames: number[], signal?: AbortSignal, quality = 0.82): Promise<{ images: Blob[]; warnings: string[]; seen: string }> {
+    const run = this.queue.then(() =>
+      withBackgroundFrames(async () => {
+        signal?.throwIfAborted();
+        this.rendering();
+        const input = { ...toInput(film), qa: true };
+        const comp = composition(input);
+        qaWarnings.length = 0;
+        qaSeen.length = 0;
+        cueMisses.clear();
+        const images: Blob[] = [];
+        for (const frame of frames) {
+          const f = Math.max(0, Math.min(comp.durationInFrames - 1, Math.round(frame)));
+          const still = await renderStillOnWeb({ composition: comp, inputProps: input, frame: f, signal: signal ?? null, delayRenderTimeoutInMilliseconds: 120_000, licenseKey: REMOTION_LICENSE_KEY });
+          const image = await still.blob({ format: "jpeg", quality });
+          images.push(image);
+          const empty = await emptiness(image);
+          if (empty === "flat") qaWarnings.push(`frame ${f}: the frame is nearly empty (one flat colour): something meaningful should be on screen`);
+          else if (empty === "sparse") qaWarnings.push(`frame ${f}: the frame is nearly empty (almost nothing on the background): the beat's hero should fill 50 to 75 % of the frame width, with its supporting layers around it`);
+        }
+        return { images, warnings: [...new Set([...cueMisses, ...qaWarnings])].slice(0, 30), seen: [...new Set(qaSeen)].join(" ").slice(0, 4000) };
+      }),
+    );
     this.queue = run.catch(() => undefined);
     return run;
   }
 
-  async exportMp4(film: WireFilm, onProgress: (p: number) => void, signal?: AbortSignal): Promise<Blob> {
+  async exportMp4(film: WireFilm, onProgress: (p: number) => void, signal?: AbortSignal, target?: Target, profile: RenderProfile = profileOf()): Promise<Blob> {
     const input = toInput(film);
     this.rendering();
+    const t = target ?? { container: "mp4", videoCodec: "h264", audioCodec: "aac" };
     const result = await renderMediaOnWeb({
       composition: composition(input),
       inputProps: input,
-      container: "mp4",
-      videoCodec: "h264",
-      videoBitrate: "high",
+      container: t.container,
+      videoCodec: t.videoCodec,
+      audioCodec: t.audioCodec,
+      videoBitrate: profile.videoBitrate,
+      hardwareAcceleration: profile.hardwareAcceleration,
+      scale: profile.scale,
+      licenseKey: REMOTION_LICENSE_KEY,
       signal,
       onProgress: (p) => onProgress(p.progress),
     });

@@ -1,0 +1,53 @@
+# OneMotion for Windows: an NSIS installer per user, no admin rights needed.
+# Built with desktop/ as the project (npm run desktop:dist): the app holds only
+# the main process and no node_modules (built from the repo root, electron-builder
+# would pack the root's); the studio's server ships beside it as a resource
+# (desktop/server, staged by scripts/stage-desktop.mjs). It is copied as
+# "server/**" from this folder because electron-builder drops a node_modules
+# folder at the root of any copied source.
+appId: id.oneapi.onemotion
+productName: OneMotion
+copyright: Copyright © 2026 OneAPI
+directories:
+  app: .
+  output: ../dist-desktop
+  buildResources: assets
+files:
+  - main.cjs
+  - assets/**
+  - package.json
+  - "!server/**"
+  - "!electron-builder.yml"
+extraResources:
+  - from: .
+    to: .
+    filter:
+      - server/**
+asar: true
+electronVersion: 44.9.0
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: assets/icon.png
+  # Code signing: set CSC_LINK / CSC_KEY_PASSWORD (or Azure Trusted Signing) in CI.
+  # Unsigned builds work but Windows SmartScreen warns on first run.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: OneMotion
+  deleteAppDataOnUninstall: false
+  # A license agreement page: add `license: desktop/assets/EULA.txt` once legal has written the EULA.
+# Auto-update: electron-updater is not wired yet; see docs/v2/desktop.md.
+publish: null

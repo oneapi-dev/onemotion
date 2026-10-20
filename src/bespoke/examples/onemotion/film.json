@@ -1,0 +1,13 @@
+{
+  "format": "landscape",
+  "brand": { "name": "OneMotion", "url": "oneapi.id", "logo": null, "colors": ["#FF5B1F"] },
+  "score": { "genre": "corporate-pop", "bpm": 120, "seed": 11 },
+  "track": "advertime",
+  "beats": [
+    { "id": "b1", "says": "Satu kalimat.", "voice": "Cukup satu kalimat tentang video yang kamu mau.", "shows": "a graphite poster: the words land, the brief types itself under them", "seconds": 4 },
+    { "id": "b2", "says": "Jadi konsep.", "voice": "Art director AI memilih gaya, warna, dan hurufnya.", "shows": "a paper field wipes in: palette chips, a type specimen, one look circled", "seconds": 4.5 },
+    { "id": "b3", "says": "Jadi animasi.", "voice": "Motion designer AI menulis animasinya, frame demi frame.", "shows": "an orange field wipes up: a strip of frames fills in, an object travelling through them", "seconds": 4.5 },
+    { "id": "b4", "says": "Jadi MP4.", "voice": "Lalu komputermu merendernya jadi MP4.", "shows": "a graphite field: a file card renders to done and a check is drawn", "seconds": 4 },
+    { "id": "b5", "says": "OneMotion", "voice": "OneMotion. Ceritakan videomu, sisanya kami kerjakan.", "shows": "a paper field: the mark, the wordmark and the line", "seconds": 4.5 }
+  ]
+}

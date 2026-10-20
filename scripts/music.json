@@ -8,21 +8,282 @@
   },
   "seconds": 90,
   "tracks": [
-    { "id": "advertime", "path": "upbeat/Advertime.mp3", "sha256": "6f0d4433cf788304d60add551cc460dd877865e6d84a2ab3fa7d15ba3f55d6ce", "title": "Advertime", "artist": "Rafael Krux", "mood": "uplifting, positive and light: acoustic guitars, piano and light percussion; made for commercials", "tags": ["uplifting", "acoustic", "commercial", "friendly"], "bpm": 120, "firstBeat": 0.2 },
-    { "id": "inspiration", "path": "upbeat/Inspiration.mp3", "sha256": "a254227da398809c79a0c753073a3a92c7341672abc92bb0166b6326e126f0b4", "title": "Inspiration", "artist": "Rafael Krux", "mood": "positive, uplifting and inspiring; suits commercials and advertising", "tags": ["uplifting", "inspiring", "commercial"], "bpm": 120, "firstBeat": 0.33 },
-    { "id": "motions", "path": "upbeat/Motions.mp3", "sha256": "af6380fde14f41dc4762a0a69c558bfd03a8a88c10cb5c8f578a6d0bcb4750be", "title": "Motions", "artist": "Rafael Krux", "mood": "emotional, uplifting and inspiring: warm cinematic piano and soft orchestral strings", "tags": ["emotional", "piano", "cinematic", "story"], "bpm": 123, "firstBeat": 0.02 },
-    { "id": "inventing-flight", "path": "upbeat/Inventing Flight.mp3", "sha256": "916e736efa3caed4ea8534e727670dbac41af0fb44f00fa667aebaab9b2b6407", "title": "Inventing Flight", "artist": "Bryan Teoh", "mood": "delightful, pleasant and grand: discovery, a nature-documentary feel", "tags": ["discovery", "grand", "warm"], "bpm": 115, "firstBeat": 0.01 },
-    { "id": "screen-saver", "path": "upbeat/Screen Saver.mp3", "sha256": "b37bded5c858af6220ed513fdd0d6bba476d71c3a2aacc9746433f51354d33f7", "title": "Screen Saver", "artist": "Kevin MacLeod", "mood": "playful bleepy electronic: blips and bloops, light and steady", "tags": ["playful", "electronic", "tech", "light"], "bpm": 120, "firstBeat": 0.23 },
-    { "id": "arpent", "path": "electronic/Arpent.mp3", "sha256": "ef06d8b524c196a31954dfb1f3261e7d37459e43f4afd9df31ee2965c6094a56", "title": "Arpent", "artist": "Kevin MacLeod", "mood": "upbeat, uplifting and inspiring electronic: technology and innovation", "tags": ["tech", "electronic", "uplifting", "product"], "bpm": 120, "firstBeat": 0.27 },
-    { "id": "beat-one", "path": "electronic/Beat One.mp3", "sha256": "930dd4c6c88a2abb153f52e56a7c74bd041008f5afa4835602469dba3676aed8", "title": "Beat One", "artist": "Kevin MacLeod", "mood": "upbeat drum and bass style: minimal, cool, modern and dark", "tags": ["dark", "modern", "electronic", "developer"], "bpm": 120, "firstBeat": 0.02 },
-    { "id": "hear-what-they-say", "path": "electronic/Hear What They Say.mp3", "sha256": "e950afff85274572226e6a9f8b4a4bf260f9df2ad6509435cacee8afa5f8bb59", "title": "Hear What They Say", "artist": "Kevin MacLeod", "mood": "8-bit synths playing an epic, triumphant tune", "tags": ["8-bit", "retro", "game", "triumphant"], "bpm": 115, "firstBeat": 0.01 },
-    { "id": "meditating-beat", "path": "electronic/Meditating Beat.mp3", "sha256": "e498c2015a413e6cba5ab8dbef2a60cdebf7c4d4a97f9edd84851752ff49d3b6", "title": "Meditating Beat", "artist": "Kevin MacLeod", "mood": "a relaxed beat between corporate and casual gaming", "tags": ["relaxed", "corporate", "steady"], "bpm": 92, "firstBeat": 0.35 },
-    { "id": "adding-the-sun", "path": "chill/Adding the Sun.mp3", "sha256": "00180cd2ffd21eb397449e9a96081502f16e4e7c82cc9a98570e6ea7256594ed", "title": "Adding the Sun", "artist": "Kevin MacLeod", "mood": "energizing and uplifting, bright and easy", "tags": ["bright", "uplifting", "easy"], "bpm": 90.5, "firstBeat": 0.38 },
-    { "id": "starcourt-mall", "path": "chill/Soundtrack From the Starcourt Mall.mp3", "sha256": "9199da36aefbe7974a75ad22084768ec77c1a98e14ac14ce36f193ece668b867", "title": "Soundtrack From the Starcourt Mall", "artist": "Bryan Teoh", "mood": "retro-futuristic and chill: an eighties synth feel", "tags": ["synthwave", "retro", "chill", "night"], "bpm": 103.5, "firstBeat": 0.13 },
-    { "id": "planeteer-reaction", "path": "chill/Planeteer Reaction.mp3", "sha256": "48ea5f463fea19eaa478ba12b88c41bca8a6fe22b3e2eb814a06e3f3a912cdbc", "title": "Planeteer Reaction", "artist": "Bryan Teoh", "mood": "psychedelic and celestial: spacey, floating, hypnotic", "tags": ["space", "ambient", "hypnotic"], "bpm": 117.5, "firstBeat": 0 },
-    { "id": "kings-trailer", "path": "epic/Kings Trailer.mp3", "sha256": "872747c75bd9dcb12134e7d6b4870238eb72c5557753a77232ee22fa1d2fd21a", "title": "Kings Trailer", "artist": "Rafael Krux", "mood": "uplifting, positive and epic: a big cinematic orchestra with energetic drums", "tags": ["epic", "orchestral", "trailer", "big"], "bpm": 97.5, "firstBeat": 0.08 },
-    { "id": "driving-concern", "path": "scoring/Driving Concern.mp3", "sha256": "35407f04ab4e982883a62b5bf559cace11404d979e3ebe59e404aef4e988832f", "title": "Driving Concern", "artist": "Kevin MacLeod", "mood": "tense and driving: keeps interest while sounding a warning; for problems before a solution", "tags": ["tense", "problem", "driving"], "bpm": 112.5, "firstBeat": 0.14 },
-    { "id": "funky-energy", "path": "scoring/Funky Energy Loop.mp3", "sha256": "b7990b4287cc345b2f42af743c96e26e126b2b03adfad661961a28640fb94c55", "title": "Funky Energy Loop", "artist": "Kevin MacLeod", "mood": "funky energy made to sit under people talking: pushes the pace without distracting from the voice", "tags": ["funky", "voice-over", "energy", "explainer"], "bpm": 115, "firstBeat": 0.42 },
-    { "id": "final-step", "path": "scoring/Final Step.mp3", "sha256": "e523423901ec34d960e048dc545c21b5c268bdda8ac873fab17ad15fd5aeef0d", "title": "Final Step", "artist": "Rafael Krux", "mood": "energetic action drive: running, urgency, momentum", "tags": ["action", "urgent", "momentum"], "bpm": 120, "firstBeat": 0.19 }
+    {
+      "id": "advertime",
+      "path": "upbeat/Advertime.mp3",
+      "sha256": "6f0d4433cf788304d60add551cc460dd877865e6d84a2ab3fa7d15ba3f55d6ce",
+      "title": "Advertime",
+      "artist": "Rafael Krux",
+      "mood": "uplifting, positive and light: acoustic guitars, piano and light percussion; made for commercials",
+      "tags": [
+        "uplifting",
+        "acoustic",
+        "commercial",
+        "friendly"
+      ],
+      "bpm": 120,
+      "firstBeat": 0.2,
+      "downbeat": 0.88,
+      "drops": [
+        32.88
+      ]
+    },
+    {
+      "id": "inspiration",
+      "path": "upbeat/Inspiration.mp3",
+      "sha256": "a254227da398809c79a0c753073a3a92c7341672abc92bb0166b6326e126f0b4",
+      "title": "Inspiration",
+      "artist": "Rafael Krux",
+      "mood": "positive, uplifting and inspiring; suits commercials and advertising",
+      "tags": [
+        "uplifting",
+        "inspiring",
+        "commercial"
+      ],
+      "bpm": 120,
+      "firstBeat": 0.33,
+      "downbeat": 0.31,
+      "drops": []
+    },
+    {
+      "id": "motions",
+      "path": "upbeat/Motions.mp3",
+      "sha256": "af6380fde14f41dc4762a0a69c558bfd03a8a88c10cb5c8f578a6d0bcb4750be",
+      "title": "Motions",
+      "artist": "Rafael Krux",
+      "mood": "emotional, uplifting and inspiring: warm cinematic piano and soft orchestral strings",
+      "tags": [
+        "emotional",
+        "piano",
+        "cinematic",
+        "story"
+      ],
+      "bpm": 123,
+      "firstBeat": 0.02,
+      "downbeat": 0.01,
+      "drops": [
+        15.62,
+        35.132,
+        83.912
+      ]
+    },
+    {
+      "id": "inventing-flight",
+      "path": "upbeat/Inventing Flight.mp3",
+      "sha256": "916e736efa3caed4ea8534e727670dbac41af0fb44f00fa667aebaab9b2b6407",
+      "title": "Inventing Flight",
+      "artist": "Bryan Teoh",
+      "mood": "delightful, pleasant and grand: discovery, a nature-documentary feel",
+      "tags": [
+        "discovery",
+        "grand",
+        "warm"
+      ],
+      "bpm": 115,
+      "firstBeat": 0.01,
+      "downbeat": 1.073,
+      "drops": [
+        5.247,
+        34.465
+      ]
+    },
+    {
+      "id": "screen-saver",
+      "path": "upbeat/Screen Saver.mp3",
+      "sha256": "b37bded5c858af6220ed513fdd0d6bba476d71c3a2aacc9746433f51354d33f7",
+      "title": "Screen Saver",
+      "artist": "Kevin MacLeod",
+      "mood": "playful bleepy electronic: blips and bloops, light and steady",
+      "tags": [
+        "playful",
+        "electronic",
+        "tech",
+        "light"
+      ],
+      "bpm": 120,
+      "firstBeat": 0.23,
+      "downbeat": 1.05,
+      "drops": []
+    },
+    {
+      "id": "beat-one",
+      "path": "electronic/Beat One.mp3",
+      "sha256": "930dd4c6c88a2abb153f52e56a7c74bd041008f5afa4835602469dba3676aed8",
+      "title": "Beat One",
+      "artist": "Kevin MacLeod",
+      "mood": "upbeat drum and bass style: minimal, cool, modern and dark",
+      "tags": [
+        "dark",
+        "modern",
+        "electronic",
+        "developer"
+      ],
+      "bpm": 120,
+      "firstBeat": 0.02,
+      "downbeat": 1.11,
+      "drops": []
+    },
+    {
+      "id": "hear-what-they-say",
+      "path": "electronic/Hear What They Say.mp3",
+      "sha256": "e950afff85274572226e6a9f8b4a4bf260f9df2ad6509435cacee8afa5f8bb59",
+      "title": "Hear What They Say",
+      "artist": "Kevin MacLeod",
+      "mood": "8-bit synths playing an epic, triumphant tune",
+      "tags": [
+        "8-bit",
+        "retro",
+        "game",
+        "triumphant"
+      ],
+      "bpm": 115,
+      "firstBeat": 0.01,
+      "downbeat": 0.872,
+      "drops": [
+        67.654,
+        34.263
+      ]
+    },
+    {
+      "id": "meditating-beat",
+      "path": "electronic/Meditating Beat.mp3",
+      "sha256": "e498c2015a413e6cba5ab8dbef2a60cdebf7c4d4a97f9edd84851752ff49d3b6",
+      "title": "Meditating Beat",
+      "artist": "Kevin MacLeod",
+      "mood": "a relaxed beat between corporate and casual gaming",
+      "tags": [
+        "relaxed",
+        "corporate",
+        "steady"
+      ],
+      "bpm": 92,
+      "firstBeat": 0.35,
+      "downbeat": 0.3,
+      "drops": []
+    },
+    {
+      "id": "adding-the-sun",
+      "path": "chill/Adding the Sun.mp3",
+      "sha256": "00180cd2ffd21eb397449e9a96081502f16e4e7c82cc9a98570e6ea7256594ed",
+      "title": "Adding the Sun",
+      "artist": "Kevin MacLeod",
+      "mood": "energizing and uplifting, bright and easy",
+      "tags": [
+        "bright",
+        "uplifting",
+        "easy"
+      ],
+      "bpm": 90.5,
+      "firstBeat": 0.38,
+      "downbeat": 0.26,
+      "drops": []
+    },
+    {
+      "id": "starcourt-mall",
+      "path": "chill/Soundtrack From the Starcourt Mall.mp3",
+      "sha256": "9199da36aefbe7974a75ad22084768ec77c1a98e14ac14ce36f193ece668b867",
+      "title": "Soundtrack From the Starcourt Mall",
+      "artist": "Bryan Teoh",
+      "mood": "retro-futuristic and chill: an eighties synth feel",
+      "tags": [
+        "synthwave",
+        "retro",
+        "chill",
+        "night"
+      ],
+      "bpm": 103.5,
+      "firstBeat": 0.13,
+      "downbeat": 0.24,
+      "drops": []
+    },
+    {
+      "id": "planeteer-reaction",
+      "path": "chill/Planeteer Reaction.mp3",
+      "sha256": "48ea5f463fea19eaa478ba12b88c41bca8a6fe22b3e2eb814a06e3f3a912cdbc",
+      "title": "Planeteer Reaction",
+      "artist": "Bryan Teoh",
+      "mood": "psychedelic and celestial: spacey, floating, hypnotic",
+      "tags": [
+        "space",
+        "ambient",
+        "hypnotic"
+      ],
+      "bpm": 117.5,
+      "firstBeat": 0,
+      "downbeat": 0.01,
+      "drops": []
+    },
+    {
+      "id": "kings-trailer",
+      "path": "epic/Kings Trailer.mp3",
+      "sha256": "872747c75bd9dcb12134e7d6b4870238eb72c5557753a77232ee22fa1d2fd21a",
+      "title": "Kings Trailer",
+      "artist": "Rafael Krux",
+      "mood": "uplifting, positive and epic: a big cinematic orchestra with energetic drums",
+      "tags": [
+        "epic",
+        "orchestral",
+        "trailer",
+        "big"
+      ],
+      "bpm": 97.5,
+      "firstBeat": 0.08,
+      "downbeat": 0.925,
+      "drops": []
+    },
+    {
+      "id": "driving-concern",
+      "path": "scoring/Driving Concern.mp3",
+      "sha256": "35407f04ab4e982883a62b5bf559cace11404d979e3ebe59e404aef4e988832f",
+      "title": "Driving Concern",
+      "artist": "Kevin MacLeod",
+      "mood": "tense and driving: keeps interest while sounding a warning; for problems before a solution",
+      "tags": [
+        "tense",
+        "problem",
+        "driving"
+      ],
+      "bpm": 112.5,
+      "firstBeat": 0.14,
+      "downbeat": 1.107,
+      "drops": []
+    },
+    {
+      "id": "funky-energy",
+      "path": "scoring/Funky Energy Loop.mp3",
+      "sha256": "b7990b4287cc345b2f42af743c96e26e126b2b03adfad661961a28640fb94c55",
+      "title": "Funky Energy Loop",
+      "artist": "Kevin MacLeod",
+      "mood": "funky energy made to sit under people talking: pushes the pace without distracting from the voice",
+      "tags": [
+        "funky",
+        "voice-over",
+        "energy",
+        "explainer"
+      ],
+      "bpm": 115,
+      "firstBeat": 0.42,
+      "downbeat": 1.985,
+      "drops": []
+    },
+    {
+      "id": "final-step",
+      "path": "scoring/Final Step.mp3",
+      "sha256": "e523423901ec34d960e048dc545c21b5c268bdda8ac873fab17ad15fd5aeef0d",
+      "title": "Final Step",
+      "artist": "Rafael Krux",
+      "mood": "energetic action drive: running, urgency, momentum",
+      "tags": [
+        "action",
+        "urgent",
+        "momentum"
+      ],
+      "bpm": 120,
+      "firstBeat": 0.19,
+      "downbeat": 0.15,
+      "drops": [
+        18.15
+      ]
+    }
   ]
 }

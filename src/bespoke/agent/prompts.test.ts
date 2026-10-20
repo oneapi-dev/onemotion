@@ -18,7 +18,8 @@ describe("prompts", () => {
   it("has the agents follow the look and avoid slides, and the review check for them", () => {
     expect(agentPrompt()).toContain("The concept's \"look\" is your style brief");
     expect(agentPrompt()).toContain("Two levels of text at most per beat");
-    expect(reviewPrompt()).toContain("6. Slide checks");
+    expect(reviewPrompt()).toContain("6. Story checks");
+    expect(reviewPrompt()).toContain("7. Slide checks");
   });
 
   it("tells the creative director how recent films looked", () => {

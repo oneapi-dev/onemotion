@@ -7,12 +7,49 @@ import { useCurrentFrame } from "remotion";
  * these warnings next to the pictures, which catch most but not all of it.
  */
 
+/** Below this spread of brightness (0 to 255) a frame is one flat colour: nothing on it. */
+export const FLAT_SPREAD = 3;
+
+/** The standard deviation of brightness over RGBA pixels: how much is going on in a frame. */
+export function flatness(rgba: Uint8ClampedArray): number {
+  let n = 0;
+  let sum = 0;
+  let sq = 0;
+  for (let i = 0; i + 2 < rgba.length; i += 4) {
+    const y = 0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2];
+    sum += y;
+    sq += y * y;
+    n++;
+  }
+  if (!n) return 0;
+  const mean = sum / n;
+  return Math.sqrt(Math.max(0, sq / n - mean * mean));
+}
+
+/** The words visible on the stills being rendered now (what a viewer reads), collected with the warnings. */
+export const qaSeen: string[] = [];
+
+/** Below this share of the frame (0..1) differing from its background, a held frame is nearly empty. */
+export const SPARSE_SHARE = 0.04;
+
+/** The share of RGBA pixels that differ clearly from the frame's dominant colour: how much is on screen. */
+export function coverage(rgba: Uint8ClampedArray): number {
+  const lum: number[] = [];
+  for (let i = 0; i + 2 < rgba.length; i += 4) lum.push(0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2]);
+  if (!lum.length) return 0;
+  // The dominant colour: the most common brightness, in steps of 8.
+  const bins = new Map<number, number>();
+  for (const y of lum) bins.set(Math.round(y / 8), (bins.get(Math.round(y / 8)) ?? 0) + 1);
+  const base = [...bins].sort((a, b) => b[1] - a[1])[0][0] * 8;
+  return lum.filter((y) => Math.abs(y - base) > 14).length / lum.length;
+}
+
 /** Warnings from the stills being rendered now; the film host empties it before a job and reads it after. */
 export const qaWarnings: string[] = [];
 
 const MAX_ELEMENTS = 2000;
-/** Rendered text shorter than this (px, at full size) is hard to read on a phone. */
-const MIN_TEXT_PX = 16;
+/** Rendered text shorter than this (px, at full size) is hard to read on a phone: 40 px in portrait, 28 in landscape and square. */
+const minTextPx = (portrait: boolean) => (portrait ? 40 : 28);
 
 const ownText = (el: Element) =>
   [...el.childNodes]
@@ -65,8 +102,11 @@ function scan(root: HTMLElement, width: number, frame: number) {
     const edge = r.left < box.left - 2 ? "left" : r.right > box.right + 2 ? "right" : r.top < box.top - 2 ? "top" : r.bottom > box.bottom + 2 ? "bottom" : null;
     if (edge) warn(`text ${label} is cut by the ${edge} edge of the frame`);
     if (fit && el.scrollWidth > el.clientWidth + 2) warn(`text ${label} is clipped by its own box`);
-    if (text && r.height / scale < MIN_TEXT_PX) warn(`text ${label} renders ${Math.round(r.height / scale)} px tall: too small to read`);
-    if (text) texts.push({ el, r, block: blockOf(el, root) });
+    if (text && r.height / scale < minTextPx(box.height > box.width)) warn(`text ${label} renders ${Math.round(r.height / scale)} px tall: too small to read`);
+    if (text) {
+      texts.push({ el, r, block: blockOf(el, root) });
+      qaSeen.push(text);
+    }
   }
   collisions(texts, root, warn);
   strokesOverText(texts, root, warn);

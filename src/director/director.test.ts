@@ -107,8 +107,13 @@ describe("normalizePlan", () => {
     for (const s of got.scenes) expect(s.duration).toBeLessThanOrEqual(MAX_SCENE);
   });
 
-  it("refuses a plan with too little left", () => {
+  it("refuses a plan with nothing usable in it", () => {
     expect(() => normalizePlan(plan([sc("hook")]), input())).toThrow(UnusablePlanError);
+  });
+
+  it("makes a film of a single scene: there is no minimum count", () => {
+    const got = normalizePlan(plan([sc("statement", { title: "One idea, held." })]), input());
+    expect(got.scenes.map((s) => s.type)).toEqual(["statement", "cta"]);
   });
 
   it("normalizes the widget scenes", () => {

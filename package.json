@@ -13,9 +13,16 @@
     "test": "vitest run",
     "audio": "node scripts/make-audio.mjs",
     "render": "node scripts/render.mjs",
-    "music": "node scripts/fetch-music.mjs"
+    "music": "node scripts/fetch-music.mjs",
+    "desktop:build": "node scripts/stage-desktop.mjs --build",
+    "desktop:dev": "node scripts/desktop.mjs dev",
+    "desktop:start": "node scripts/desktop.mjs start",
+    "desktop:dist": "npm run desktop:build && electron-builder --projectDir desktop --config electron-builder.yml --win nsis --x64",
+    "desktop:smoke": "node scripts/desktop-smoke.mjs",
+    "bench": "node scripts/benchmark.mjs"
   },
   "dependencies": {
+    "@mediabunny/aac-encoder": "1.56.1",
     "@react-three/fiber": "^9.8.1",
     "@remotion/google-fonts": "4.0.534",
     "@remotion/media": "^4.0.534",
@@ -23,6 +30,7 @@
     "@remotion/three": "^4.0.534",
     "@remotion/web-renderer": "4.0.534",
     "@types/react": "^19",
+    "mediabunny": "1.56.1",
     "next": "16.2.11",
     "node-html-parser": "^7.0.1",
     "react": "19.2.4",
@@ -39,6 +47,8 @@
     "@types/node": "^20",
     "@types/react-dom": "^19",
     "@types/three": "^0.186.0",
+    "electron": "44.9.0",
+    "electron-builder": "26.15.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "vitest": "^3.2.4"

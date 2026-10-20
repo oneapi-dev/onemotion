@@ -1,9 +1,10 @@
 "use client";
 
 import { getLine, putLine } from "@/voice/cache";
-import { composeMusic, speakTimed, VOICE_MODEL, type SpokenWord } from "@/voice/eleven";
-import { spoken } from "@/voice/spoken";
+import { composeMusic, speakTimed, tuningKey, VOICE_MODEL, type SpokenWord, type VoiceTuning } from "@/voice/eleven";
+import { displayWords, speech, type CharTimes, type Pronunciation, type Speech } from "@/voice/spoken";
 import type { FilmSpec } from "./film";
+import type { FilmBeat } from "./timing";
 
 /**
  * A bespoke film's voice-over: every beat's line recorded with the person's
@@ -12,60 +13,110 @@ import type { FilmSpec } from "./film";
  * once per voice and wording.
  */
 
-export type FilmVoice = { voiceId: string; voiceName: string };
+export type FilmVoice = { voiceId: string; voiceName: string; tuning?: VoiceTuning };
 
-const lineKey = (voiceId: string, language: string, text: string) => `film|${VOICE_MODEL}|${voiceId}|${language}|${text}`;
+const lineKey = (voiceId: string, language: string, text: string, tuning?: VoiceTuning) => {
+  const t = tuningKey(tuning);
+  return `film|${VOICE_MODEL}|${voiceId}|${language}|${t ? `${t}|` : ""}${text}`;
+};
 const wordsKey = (key: string) => `${key}|words`;
+const charsKey = (key: string) => `${key}|chars`;
 
 async function durationOf(blob: Blob): Promise<number> {
   const ctx = new OfflineAudioContext(1, 1, 44100);
   return (await ctx.decodeAudioData(await blob.arrayBuffer())).duration;
 }
 
-const linesOf = (spec: FilmSpec, language: string) => spec.beats.flatMap((b, i) => (b.voice?.trim() ? [{ i, text: spoken(b.voice.trim(), language) }] : []));
+/** A beat's narration as written (what the viewer reads) and as it is said. */
+export type FilmLine = { i: number; display: string; speech: Speech };
 
-/** Records the lines not yet recorded with this voice; returns the spec timed to them and each beat's audio. */
-export async function recordFilmVoice(o: { spec: FilmSpec; language: string; apiKey: string; voice: FilmVoice; signal?: AbortSignal; onLine?: (done: number, total: number) => void }): Promise<{ spec: FilmSpec; clips: Record<number, Blob> }> {
-  const lines = linesOf(o.spec, o.language);
+/** Every beat's line: its script as written, and the text the voice is sent (pronunciations and numbers in words). */
+export const filmLines = (spec: FilmSpec, language: string, lexicon: readonly Pronunciation[] = []): FilmLine[] =>
+  spec.beats.flatMap((b, i) => {
+    const display = b.voice?.trim();
+    return display ? [{ i, display, speech: speech(display, language, lexicon) }] : [];
+  });
+
+const readJson = async <T,>(blob: Blob | undefined): Promise<T | null> => {
+  if (!blob) return null;
+  try {
+    return JSON.parse(await blob.text()) as T;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Records the lines not yet recorded with this voice, wording, pronunciation
+ * and tuning; returns the spec timed to them and each beat's audio. A beat
+ * keeps its script as `voice` (captions and cues show the words as written)
+ * and the text the voice read as `tts`. `only` re-records just those beats
+ * (by index) and keeps the others as they are.
+ */
+export async function recordFilmVoice(o: {
+  spec: FilmSpec;
+  language: string;
+  apiKey: string;
+  voice: FilmVoice;
+  lexicon?: readonly Pronunciation[];
+  only?: number[];
+  signal?: AbortSignal;
+  onLine?: (done: number, total: number) => void;
+}): Promise<{ spec: FilmSpec; clips: Record<number, Blob> }> {
+  const lines = filmLines(o.spec, o.language, o.lexicon).filter((l) => !o.only || o.only.includes(l.i));
   const clips: Record<number, Blob> = {};
-  const timed: Record<number, { text: string; seconds: number; words: SpokenWord[] }> = {};
+  const timed: Record<number, { tts: string; seconds: number; words: SpokenWord[] }> = {};
   let done = 0;
   const queue = [...lines];
   // Two at a time: quicker than one by one, within ElevenLabs' concurrency on every plan.
   const worker = async () => {
     for (let line = queue.shift(); line; line = queue.shift()) {
-      const key = lineKey(o.voice.voiceId, o.language, line.text);
+      const tts = line.speech.tts;
+      const key = lineKey(o.voice.voiceId, o.language, tts, o.voice.tuning);
       let audio = await getLine(key);
-      const cachedWords = await getLine(wordsKey(key));
-      let words: SpokenWord[] = cachedWords ? (JSON.parse(await cachedWords.text()) as SpokenWord[]) : [];
-      if (!audio || !cachedWords) {
-        const r = await speakTimed(o.apiKey, o.voice.voiceId, line.text, o.language, o.signal);
+      let chars = await readJson<CharTimes>(await getLine(charsKey(key)));
+      let words = (await readJson<SpokenWord[]>(await getLine(wordsKey(key)))) ?? [];
+      if (!audio || (!chars && !words.length)) {
+        o.signal?.throwIfAborted();
+        const r = await speakTimed(o.apiKey, o.voice.voiceId, tts, o.language, o.signal, o.voice.tuning);
         audio = r.audio;
         words = r.words;
+        chars = r.chars;
         await putLine(key, audio);
         await putLine(wordsKey(key), new Blob([JSON.stringify(words)], { type: "application/json" }));
+        if (chars) await putLine(charsKey(key), new Blob([JSON.stringify(chars)], { type: "application/json" }));
       }
       clips[line.i] = audio;
-      timed[line.i] = { text: line.text, seconds: Math.round((await durationOf(audio)) * 100) / 100, words };
+      // The words as written, at the times the voice says them; without character times, the spoken words.
+      timed[line.i] = { tts, seconds: Math.round((await durationOf(audio)) * 100) / 100, words: chars ? displayWords(line.speech, chars) : words };
       o.onLine?.(++done, lines.length);
     }
   };
   await Promise.all([worker(), worker()]);
   return {
-    spec: { ...o.spec, beats: o.spec.beats.map((b, i) => (timed[i] ? { ...b, voice: timed[i].text, voiceSeconds: timed[i].seconds, words: timed[i].words } : b)) },
+    spec: { ...o.spec, beats: o.spec.beats.map((b, i) => (timed[i] ? { ...b, tts: timed[i].tts, voiceSeconds: timed[i].seconds, words: timed[i].words } : b)) },
     clips,
   };
 }
 
+/** A beat's line without its recording: it times the picture again by estimate until it is recorded. */
+export const unrecorded = (b: FilmBeat): FilmBeat => {
+  const rest = { ...b };
+  delete rest.tts;
+  delete rest.voiceSeconds;
+  delete rest.words;
+  return rest;
+};
+
 /** A film's recorded lines from this browser's store, or null when any is missing. */
 export async function storedFilmVoice(spec: FilmSpec, language: string, voice: FilmVoice): Promise<Record<number, Blob> | null> {
   const clips: Record<number, Blob> = {};
-  for (const b of spec.beats.map((x, i) => ({ x, i }))) {
-    if (!b.x.voice?.trim() || !b.x.words?.length) continue;
-    // A recorded beat already holds its spoken text, so it maps to the same key.
-    const audio = await getLine(lineKey(voice.voiceId, language, b.x.voice.trim()));
+  for (const [i, b] of spec.beats.entries()) {
+    if (!b.voice?.trim() || !b.words?.length) continue;
+    // A recorded beat holds the text the voice read (films made before pronunciations kept it in `voice`).
+    const audio = await getLine(lineKey(voice.voiceId, language, (b.tts ?? b.voice).trim(), voice.tuning));
     if (!audio) return null;
-    clips[b.i] = audio;
+    clips[i] = audio;
   }
   return clips;
 }

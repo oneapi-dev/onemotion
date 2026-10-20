@@ -5,12 +5,13 @@ import type { FilmHost } from "../host";
 import { filmTiming } from "../timing";
 import type { Concept } from "./concept";
 import { scaled } from "./images";
-import { jsonStep, type Part, type Usage } from "./llm";
+import { jsonStep, SchemaError, type Part, type Usage } from "./llm";
+import { sameness, signature } from "./floor";
 
 export type Issue = { tile?: string; severity: "high" | "med" | "low"; problem: string; fix: string };
 export type Review = { score: number; pass: boolean; summary: string; issues: Issue[] };
 
-type Tile = { id: string; frame: number; label: string };
+export type Tile = { id: string; frame: number; label: string };
 
 /** The moments a reviewer needs: the thumbnail, every beat settled, every change between beats, the close. */
 export function reviewTiles(spec: FilmSpec): Tile[] {
@@ -24,8 +25,21 @@ export function reviewTiles(spec: FilmSpec): Tile[] {
   return tiles.map((t, i) => ({ ...t, id: `T${i + 1}` }));
 }
 
+/** Defects measured across the review tiles: beats in a row whose holds look the same. */
+export async function holdSameness(tiles: Tile[], images: Blob[]): Promise<string[]> {
+  const holds = await Promise.all(
+    tiles.map(async (t, i) => {
+      const m = /^hold during (b\d+)/.exec(t.label);
+      return m ? { beat: m[1], frame: t.frame, sig: await signature(images[i]) } : null;
+    }),
+  );
+  return sameness(holds.filter((h): h is NonNullable<typeof h> => h !== null));
+}
+
 function normalizeReview(raw: unknown): Review {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  // A score is the one thing every review has: without it, this is not the review's shape (the model is asked again).
+  if (typeof r.score !== "number" || !Number.isFinite(r.score)) throw new SchemaError(['"score" is missing: reply with {"score": 0-10, "pass": true|false, "summary": "...", "issues": [{"tile", "severity", "problem", "fix"}]}']);
   const issues = (Array.isArray(r.issues) ? r.issues : [])
     .filter((i): i is Record<string, unknown> => Boolean(i) && typeof i === "object")
     .map((i): Issue => ({
@@ -57,9 +71,11 @@ export async function reviewFilm(o: {
   /** The person's product screenshots: the film's UI should match them. */
   refs?: string[];
   signal?: AbortSignal;
-}): Promise<{ review: Review; usage: Usage; warnings: string[] }> {
+}): Promise<{ review: Review | null; usage: Usage; warnings: string[]; seen: string }> {
   const tiles = reviewTiles(o.spec);
-  const { images, warnings } = await o.host.stills({ spec: o.spec, modules: o.modules }, tiles.map((t) => t.frame), o.signal);
+  const stills = await o.host.stills({ spec: o.spec, modules: o.modules }, tiles.map((t) => t.frame), o.signal);
+  const { images, seen } = stills;
+  const warnings = [...stills.warnings, ...(await holdSameness(tiles, images))];
   const portrait = o.spec.format === "portrait";
   const urls = await Promise.all(images.map((b) => scaled(b, portrait ? 720 : 1280)));
   const parts: Part[] = [
@@ -82,6 +98,12 @@ export async function reviewFilm(o: {
       { type: "image_url", image_url: { url } },
     ]),
   ];
-  const r = await jsonStep({ key: o.key, model: o.model, messages: [{ role: "system", content: o.system }, { role: "user", content: parts }], temperature: 0.2, maxTokens: 6000, signal: o.signal });
-  return { review: normalizeReview(r.value), usage: r.usage, warnings };
+  try {
+    const r = await jsonStep({ key: o.key, model: o.model, messages: [{ role: "system", content: o.system }, { role: "user", content: parts }], temperature: 0.2, maxTokens: 6000, signal: o.signal }, normalizeReview);
+    return { review: r.value, usage: r.usage, warnings, seen };
+  } catch (err) {
+    if (o.signal?.aborted) throw err;
+    // The model could not give a review in shape: the automated QA still stands on its own.
+    return { review: null, usage: {}, warnings, seen };
+  }
 }

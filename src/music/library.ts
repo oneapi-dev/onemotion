@@ -12,6 +12,9 @@ export type LibraryTrack = {
   bpm: number;
   firstBeat: number;
   seconds: number;
+  /** The first beat of a bar, and the drops (energy jumps at a bar line, strongest first), in seconds: scripts/analyze-music.mjs. */
+  downbeat?: number;
+  drops?: number[];
 };
 
 /** FreePD, CC0 1.0 Universal Public Domain Dedication. */
@@ -29,7 +32,11 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 120,
     "firstBeat": 0.2,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 0.88,
+    "drops": [
+      32.88
+    ]
   },
   {
     "id": "inspiration",
@@ -43,7 +50,9 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 120,
     "firstBeat": 0.33,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 0.31,
+    "drops": []
   },
   {
     "id": "motions",
@@ -58,7 +67,13 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 123,
     "firstBeat": 0.02,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 0.01,
+    "drops": [
+      15.62,
+      35.132,
+      83.912
+    ]
   },
   {
     "id": "inventing-flight",
@@ -72,7 +87,12 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 115,
     "firstBeat": 0.01,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 1.073,
+    "drops": [
+      5.247,
+      34.465
+    ]
   },
   {
     "id": "screen-saver",
@@ -87,22 +107,9 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 120,
     "firstBeat": 0.23,
-    "seconds": 90
-  },
-  {
-    "id": "arpent",
-    "title": "Arpent",
-    "artist": "Kevin MacLeod",
-    "mood": "upbeat, uplifting and inspiring electronic: technology and innovation",
-    "tags": [
-      "tech",
-      "electronic",
-      "uplifting",
-      "product"
-    ],
-    "bpm": 120,
-    "firstBeat": 0.27,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 1.05,
+    "drops": []
   },
   {
     "id": "beat-one",
@@ -117,7 +124,9 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 120,
     "firstBeat": 0.02,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 1.11,
+    "drops": []
   },
   {
     "id": "hear-what-they-say",
@@ -132,7 +141,12 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 115,
     "firstBeat": 0.01,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 0.872,
+    "drops": [
+      67.654,
+      34.263
+    ]
   },
   {
     "id": "meditating-beat",
@@ -146,7 +160,9 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 92,
     "firstBeat": 0.35,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 0.3,
+    "drops": []
   },
   {
     "id": "adding-the-sun",
@@ -160,7 +176,9 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 90.5,
     "firstBeat": 0.38,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 0.26,
+    "drops": []
   },
   {
     "id": "starcourt-mall",
@@ -175,7 +193,9 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 103.5,
     "firstBeat": 0.13,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 0.24,
+    "drops": []
   },
   {
     "id": "planeteer-reaction",
@@ -189,7 +209,9 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 117.5,
     "firstBeat": 0,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 0.01,
+    "drops": []
   },
   {
     "id": "kings-trailer",
@@ -204,7 +226,9 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 97.5,
     "firstBeat": 0.08,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 0.925,
+    "drops": []
   },
   {
     "id": "driving-concern",
@@ -218,7 +242,9 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 112.5,
     "firstBeat": 0.14,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 1.107,
+    "drops": []
   },
   {
     "id": "funky-energy",
@@ -233,7 +259,9 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 115,
     "firstBeat": 0.42,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 1.985,
+    "drops": []
   },
   {
     "id": "final-step",
@@ -247,6 +275,10 @@ export const LIBRARY: LibraryTrack[] = [
     ],
     "bpm": 120,
     "firstBeat": 0.19,
-    "seconds": 90
+    "seconds": 90,
+    "downbeat": 0.15,
+    "drops": [
+      18.15
+    ]
   }
 ];

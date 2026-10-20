@@ -54,6 +54,18 @@ Turn on **Narrate my videos** in Settings and add your own [ElevenLabs](https://
   npm run render -- my-video.json
   ```
 
+### Windows desktop app
+
+The same studio as an installable app that renders on the computer it runs on, with no Node.js needed on that machine:
+
+```bash
+npm run desktop:dist     # dist-desktop/OneMotion Setup <version>.exe
+npm run desktop:smoke    # checks the bundled server
+npm run bench            # export benchmark on this machine, per quality profile
+```
+
+How it is built and secured: [docs/v2/desktop.md](docs/v2/desktop.md). What changed in v2, what was verified and what is left: [docs/v2/README.md](docs/v2/README.md).
+
 ## How it works
 
 ```

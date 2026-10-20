@@ -14,7 +14,6 @@ Each file is the first 90 seconds of the original, loudness-normalized and faded
 | motions.mp3 | Motions | Rafael Krux | `af6380fde14f41dc…` |
 | inventing-flight.mp3 | Inventing Flight | Bryan Teoh | `916e736efa3caed4…` |
 | screen-saver.mp3 | Screen Saver | Kevin MacLeod | `b37bded5c858af62…` |
-| arpent.mp3 | Arpent | Kevin MacLeod | `ef06d8b524c196a3…` |
 | beat-one.mp3 | Beat One | Kevin MacLeod | `930dd4c6c88a2abb…` |
 | hear-what-they-say.mp3 | Hear What They Say | Kevin MacLeod | `e950afff85274572…` |
 | meditating-beat.mp3 | Meditating Beat | Kevin MacLeod | `e498c2015a413e6c…` |

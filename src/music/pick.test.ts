@@ -36,11 +36,33 @@ describe("trackOf", () => {
 });
 
 describe("trackFor", () => {
-  const concept = (music: string) => normalizeConcept({ music, beats: [{ says: "a" }, { says: "b" }] });
+  const concept = (music: string) => normalizeConcept({ music, beats: [{ says: "a", shows: "a card" }, { says: "b", shows: "the logo" }] });
 
   it("takes the director's pick, or none for composed", () => {
-    expect(trackFor(concept("arpent"), 1)).toBe("arpent");
+    expect(trackFor(concept("screen-saver"), 1)).toBe("screen-saver");
     expect(trackFor(concept("composed"), 1)).toBeUndefined();
+  });
+
+  it("never repeats a recent film's track, even when the director picks it again", () => {
+    // The art director picks the same "tech" track for every tech product; four films in a row must not all play it.
+    const played: string[] = [];
+    for (let i = 0; i < 4; i++) played.unshift(trackFor(concept("screen-saver"), i, played.slice(0, 4)) as string);
+    expect(new Set(played).size).toBe(4);
+    expect(played[3]).toBe("screen-saver");
+    // The stand-in is close in mood: an electronic, tech-feeling track.
+    const standIn = LIBRARY.find((t) => t.id === played[2]);
+    expect(standIn?.tags.some((x) => ["tech", "electronic"].includes(x))).toBe(true);
+  });
+
+  it("plays the art director's next pick for the vibe before guessing one", () => {
+    const c = normalizeConcept({ music: "motions", music_alternates: ["inspiration", "motions", "nope", "adding-the-sun"], beats: [{ says: "a", shows: "a card" }] });
+    expect(c.musicAlternates).toEqual(["inspiration", "adding-the-sun"]);
+    expect(trackFor(c, 3, ["motions"])).toBe("inspiration");
+    expect(trackFor(c, 3, ["motions", "inspiration"])).toBe("adding-the-sun");
+  });
+
+  it("never offers a track that is no longer in the library", () => {
+    expect(LIBRARY.some((t) => t.id === "arpent")).toBe(false);
   });
 
   it("avoids the recent films' tracks when the director picked none", () => {

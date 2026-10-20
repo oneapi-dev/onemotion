@@ -15,16 +15,24 @@ export type AgentEvent = { kind: "say" | "tool" | "error"; text: string };
 export type Spend = { input: number; output: number; cached: number; usd: number };
 export type Price = { input: number; output: number } | null;
 
-/** Renders kept in the conversation: older ones are replaced, so the context does not balloon with pictures. */
+/**
+ * Renders kept in the conversation: older ones are replaced, so the context
+ * does not balloon with pictures. Replacing one changes the conversation from
+ * that message on, which the prompt cache must then write again: so renders
+ * are cleared in batches (when more than KEEP + SLACK have piled up, down to
+ * KEEP), not one every step.
+ */
 const KEEP_IMAGE_MESSAGES = 2;
+const PRUNE_SLACK = 2;
 const NUDGES = 2;
 /** Steps that may time out at the provider (after their retries) before a run gives up. */
 const MAX_TIMEOUTS = 2;
 
-function pruneImages(messages: Msg[]) {
+export function pruneImages(messages: Msg[]) {
   // The task (the first user message) keeps its reference screenshots; only renders are pruned.
   const task = messages.findIndex((m) => m.role === "user");
   const withImages = messages.flatMap((m, i) => (i !== task && m.role === "user" && Array.isArray(m.content) && m.content.some((p) => p.type === "image_url") ? [i] : []));
+  if (withImages.length <= KEEP_IMAGE_MESSAGES + PRUNE_SLACK) return;
   for (const i of withImages.slice(0, -KEEP_IMAGE_MESSAGES)) {
     const m = messages[i] as Extract<Msg, { role: "user" }>;
     m.content = (m.content as Part[]).map((p) => (p.type === "image_url" ? { type: "text", text: "[an earlier render, removed to save context; render again if you need it]" } : p));

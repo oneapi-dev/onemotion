@@ -10,3 +10,8 @@ next-env.d.ts
 .motion-audio-tmp/
 .opencode-context.md
 .playwright-mcp/
+
+# Desktop builds
+desktop/server/
+dist-desktop/
+dist-desktop-new/

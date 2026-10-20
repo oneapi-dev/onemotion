@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeCue } from "./kit/film";
+import { cueMisses, makeCue } from "./kit/film";
 import { FILM_FPS, VOICE_LEAD, filmTiming, type FilmBeat } from "./timing";
 
 const beats: FilmBeat[] = [
@@ -32,6 +32,16 @@ describe("makeCue", () => {
     expect(cue("b2:one")).toBe(b[1].words[3].at);
   });
 
+  it("takes a phrase, at its first word where the whole phrase is said, and never throws on one", () => {
+    expect(cue("b1:every model")).toBe(b[0].words[2].at);
+    expect(cue("b1:key every+0.5")).toBe(b[0].words[1].at + 15);
+    // "one key" is said in b2 after "cloud,": its "one" is the fourth word, not a phrase start elsewhere.
+    expect(cue("b2:one key")).toBe(b[1].words[3].at);
+    cueMisses.clear();
+    expect(cue("b1:model every")).toBe(b[0].start);
+    expect([...cueMisses][0]).toMatch(/does not say "model every"/);
+  });
+
   it("keeps the beat forms", () => {
     expect(cue("b2")).toBe(b[1].start);
     expect(cue("b2.end")).toBe(b[1].end);
@@ -39,8 +49,47 @@ describe("makeCue", () => {
     expect(cue("end")).toBe(timing.total - 1);
   });
 
-  it("says what a beat does say when a word is not in it", () => {
-    expect(() => cue("b1:gateway")).toThrow(/does not say "gateway".*One key, every model\./);
+  it("never stops the film on a word a beat does not say: it falls back to the beat's start and says so", () => {
+    cueMisses.clear();
+    expect(cue("b1:gateway")).toBe(cue("b1"));
+    expect([...cueMisses][0]).toMatch(/does not say "gateway".*One key, every model\./);
     expect(() => cue("b9")).toThrow(/no beat "b9"/);
+  });
+});
+
+describe("narration and transitions", () => {
+  it("never ends a beat before its recorded line ends, at any tempo", () => {
+    for (let bpm = 60; bpm <= 180; bpm += 7) {
+      for (const voiceSeconds of [0.6, 1.1, 2.37, 3.1, 4.49, 7.9, 12.3]) {
+        const list: FilmBeat[] = [
+          { id: "b1", says: "a", shows: "", seconds: 1, voice: "a", voiceSeconds },
+          { id: "b2", says: "b", shows: "", seconds: 1, voice: "b", voiceSeconds },
+          { id: "b3", says: "c", shows: "", seconds: 1, voice: "c", voiceSeconds },
+        ];
+        const { timing } = filmTiming(list, { bpm });
+        list.forEach((_, i) => {
+          const lineEnd = timing.starts[i] + Math.ceil((VOICE_LEAD + voiceSeconds) * FILM_FPS);
+          // The line is over, with a breath, before the next beat (and its transition) starts.
+          expect(lineEnd + 3).toBeLessThanOrEqual(timing.starts[i] + timing.frames[i]);
+        });
+      }
+    }
+  });
+
+  it("holds one continuous beat as long as the brief asks", () => {
+    const { timing } = filmTiming([{ id: "b1", says: "one shot", shows: "", seconds: 45 }], { bpm: 100 });
+    expect(timing.total / FILM_FPS).toBeGreaterThanOrEqual(45);
+    expect(timing.total / FILM_FPS).toBeLessThan(46);
+  });
+});
+
+describe("the music's ending", () => {
+  it("ends every film on a bar line, so the last bar of music is whole", () => {
+    for (const bpm of [90.5, 103.5, 115, 120, 123]) {
+      for (const secs of [[3], [2.5, 3.1], [1.2, 2.2, 4.4, 3]]) {
+        const { timing } = filmTiming(secs.map((s, i) => ({ id: `b${i + 1}`, says: "x", shows: "", seconds: s })), { bpm });
+        expect(timing.beats.reduce((a, b) => a + b, 0) % 4).toBe(0);
+      }
+    }
   });
 });

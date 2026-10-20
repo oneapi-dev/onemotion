@@ -1,31 +1,26 @@
 "use client";
 
-import { canRenderMediaOnWeb, renderMediaOnWeb } from "@remotion/web-renderer";
+import { renderMediaOnWeb } from "@remotion/web-renderer";
 import { DIMENSIONS, FPS, type VideoInput } from "@/engine/plan";
 import { Video, planFrames } from "@/engine/Video";
+import { pickTarget, profileOf, REMOTION_LICENSE_KEY, type RenderProfile, type Target } from "./renderTarget";
 
 /**
- * Renders a video to MP4 in this browser: every frame drawn, encoded with
- * the browser's own H.264 encoder (WebCodecs), muxed with the soundtrack.
- * No server takes part.
+ * Renders a video in this browser: every frame drawn, encoded with the
+ * browser's own encoders (WebCodecs), muxed with the soundtrack. No server
+ * takes part.
  */
 
-export type ExportCheck = { ok: true } | { ok: false; reason: string };
+export type ExportCheck = { ok: true; target: Target; note?: string } | { ok: false; reason: string };
 
-export async function checkExport(format: VideoInput["format"]): Promise<ExportCheck> {
+export async function checkExport(format: VideoInput["format"], profile: RenderProfile = profileOf()): Promise<ExportCheck> {
   const { width, height } = DIMENSIONS[format];
-  try {
-    const res = await canRenderMediaOnWeb({ width, height, container: "mp4", videoCodec: "h264" });
-    if (res.canRender) return { ok: true };
-    const issue = res.issues.find((i) => i.severity === "error");
-    return { ok: false, reason: issue?.message ?? "This browser cannot encode MP4." };
-  } catch (err) {
-    return { ok: false, reason: err instanceof Error ? err.message : "This browser cannot encode MP4." };
-  }
+  return pickTarget(width, height, profile.scale);
 }
 
-export async function exportMp4(input: VideoInput, onProgress: (p: number) => void, signal: AbortSignal): Promise<Blob> {
+export async function exportMp4(input: VideoInput, onProgress: (p: number) => void, signal: AbortSignal, target?: Target, profile: RenderProfile = profileOf()): Promise<Blob> {
   const { width, height } = DIMENSIONS[input.format];
+  const t = target ?? { container: "mp4", videoCodec: "h264", audioCodec: "aac", ext: "mp4" };
   const result = await renderMediaOnWeb({
     composition: {
       id: "video",
@@ -37,9 +32,13 @@ export async function exportMp4(input: VideoInput, onProgress: (p: number) => vo
       defaultProps: input,
     },
     inputProps: input,
-    container: "mp4",
-    videoCodec: "h264",
-    videoBitrate: "high",
+    container: t.container,
+    videoCodec: t.videoCodec,
+    audioCodec: t.audioCodec,
+    videoBitrate: profile.videoBitrate,
+    hardwareAcceleration: profile.hardwareAcceleration,
+    scale: profile.scale,
+    licenseKey: REMOTION_LICENSE_KEY,
     signal,
     onProgress: (p) => onProgress(p.progress),
   });

@@ -10,6 +10,7 @@ import { AUDIO_EXT } from "./music";
 import type { Plan } from "./plan";
 import { VOICE_LEAD, moveWindow, type Timing } from "./rig";
 import { chatTimes, checkTimes, kineticTimes } from "./timing";
+import { defaultLevel, DUCK } from "@/music/mix";
 
 const file = (name: string) => staticFile(`audio/${name}.${AUDIO_EXT}`);
 
@@ -22,10 +23,7 @@ type Hit = { name: string; at: number; volume: number; frames?: number };
  * a ding when a number lands). Effects start two frames early: sound that
  * leads the picture reads as in sync.
  */
-/** How far the music dips while the voiceover speaks (about -8 dB), and how many frames the dip takes. */
-const DUCK = 0.4;
-/** The music bed under the picture: a bed, not the show (about -3 dB from full). */
-const MUSIC_LEVEL = 0.65;
+/** How many frames the music's dip under a voiceover line takes. */
 const DUCK_FRAMES = 6;
 /** Frames a built-in track fades out over at the end of the video. */
 const FADE_FRAMES = 36;
@@ -49,6 +47,8 @@ export const Soundtrack: React.FC<{ plan: Plan; timing: Timing; voiceover?: Reco
     const from = t.starts[i] + lead;
     return [{ src, from, to: from + Math.ceil(s.narration_seconds * 30) }];
   });
+  // A bed, not the show: quieter under a voiceover (src/music/mix.ts).
+  const MUSIC_LEVEL = defaultLevel(lines.length > 0);
   const musicLevel = (f: number) => {
     let dip = 0;
     for (const l of lines) {

@@ -87,7 +87,8 @@ export const MAX_TOTAL = 40;
 export const HARD_MAX = 45;
 const HARD_SLACK = 5;
 export const MAX_SCENE = 7;
-export const MIN_SCENES = 3;
+/** A plan shortened to fit its length keeps at least this many scenes; any plan with one usable scene is a film. */
+export const MIN_SCENES = 2;
 export const MAX_SCENES = 10;
 /** Longest voiceover line for one scene, in characters. */
 export const NARRATION_MAX = 220;
@@ -384,11 +385,12 @@ export function normalizePlan(raw: Partial<Plan> & { scenes?: PlanScene[] }, inp
     const n = normalizeScene(scene, shots);
     if (n) scenes.push(n);
   }
+  // Nothing usable at all is the model's failure; one usable scene is a film.
+  if (!scenes.length) throw new UnusablePlanError("no usable scenes");
   const body = scenes.filter((s) => s.type !== "cta").slice(0, MAX_SCENES - 1);
   const closers = scenes.filter((s) => s.type === "cta");
   const cta = closers[closers.length - 1] ?? { type: "cta" as const, duration: 3, title: fitText(firstNonEmpty(input.site?.domain, p.brand), 24) || "Learn more" };
   scenes = [...body, cta];
-  if (scenes.length < MIN_SCENES) throw new UnusablePlanError(`only ${scenes.length} usable scenes`);
   const [lo, hi] = lengthWindow(input.prompt ?? "", p.archetype);
   scenes = trimToLength(scenes, Math.min(HARD_MAX, hi + HARD_SLACK));
   // Effects last: they depend on where each scene ended up.

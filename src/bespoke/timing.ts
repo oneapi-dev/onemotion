@@ -12,8 +12,12 @@ export type FilmBeat = {
   shows: string;
   /** How long the beat wants to be. */
   seconds: number;
-  /** Its voice-over line, as spoken (numbers as words). */
+  /** Its voice-over line as written: the script, what captions show. */
   voice?: string;
+  /** The text the voice was sent for it (pronunciations applied, numbers in words), once recorded. */
+  tts?: string;
+  /** Moments inside the beat, in order: when (a word of its line, or seconds into the beat) and what happens. */
+  moments?: { at: string; what: string }[];
   /** Length of its recorded voice-over line, when there is one: the beat is never shorter. */
   voiceSeconds?: number;
   /** When each word of the recording is spoken, in seconds from the start of the line. */
@@ -22,6 +26,8 @@ export type FilmBeat = {
 
 /** Seconds after a beat starts before its voice-over line: the hit first, then the voice. */
 export const VOICE_LEAD = 0.2;
+/** Seconds a recorded line is over before its beat ends: a breath before the next beat's transition. */
+const VOICE_TAIL = 0.3;
 
 const MIN_BEAT_SECONDS = 0.8;
 
@@ -54,14 +60,19 @@ export function filmTiming(beats: FilmBeat[], score: Pick<Score, "bpm">): { timi
   const n = Math.max(1, beats.length);
   const beat = (FILM_FPS * 60) / score.bpm;
   const lengths = beats.map((b, i) => {
-    const want = Math.max(MIN_BEAT_SECONDS, b.seconds, b.voiceSeconds ? b.voiceSeconds + VOICE_LEAD + 0.4 : 0);
-    const k = Math.max(i === n - 1 ? 8 : 2, Math.round((want * FILM_FPS) / beat));
+    const want = Math.max(MIN_BEAT_SECONDS, b.seconds);
+    // A recorded line is spoken in full, with a breath, before the next beat starts: rounded up to the grid, never down.
+    const voiced = b.voiceSeconds ? Math.ceil(((b.voiceSeconds + VOICE_LEAD + VOICE_TAIL) * FILM_FPS) / beat) : 0;
+    const k = Math.max(i === n - 1 ? 8 : 2, Math.round((want * FILM_FPS) / beat), voiced);
     return i === n - 1 ? k : k + (k % 2);
   });
   if (n > 1) {
     const before = lengths.slice(0, n - 1).reduce((a, b) => a + b, 0);
     if (before % 4) lengths[n - 2] += 4 - (before % 4);
   }
+  // The film ends on a bar line, so the music's last bar is whole and fades out with it instead of being cut mid-bar.
+  const all = lengths.reduce((a, b) => a + b, 0);
+  if (all % 4) lengths[n - 1] += 4 - (all % 4);
   const startBeats: number[] = [];
   lengths.reduce((at, k) => {
     startBeats.push(at);

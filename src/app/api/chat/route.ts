@@ -1,4 +1,5 @@
-import { chatResilient, OneAPIError } from "@/server/oneapi";
+import { OneAPIError } from "@/server/oneapi";
+import { complete, endpointOf, type Endpoint } from "@/server/provider";
 
 // One step of the bespoke agent: a reply may take a few minutes on a reasoning model.
 export const maxDuration = 300;
@@ -15,7 +16,13 @@ const STEP_TIMEOUT = 280_000;
  */
 export async function POST(req: Request) {
   const key = req.headers.get("x-oneapi-key")?.trim() ?? "";
-  if (!key) return Response.json({ error: "Add your OneAPI API key in Settings first." }, { status: 401 });
+  if (!key) return Response.json({ error: "Add your API key in Settings first." }, { status: 401 });
+  let ep: Endpoint;
+  try {
+    ep = endpointOf(req);
+  } catch (err) {
+    return Response.json({ error: err instanceof Error ? err.message : "Bad endpoint." }, { status: 400 });
+  }
   const raw = await req.text();
   if (raw.length > MAX_BODY) return Response.json({ error: "This step is too large to send." }, { status: 413 });
   let body: { model?: unknown; messages?: unknown; tools?: unknown; temperature?: unknown; max_tokens?: unknown; web?: unknown };
@@ -32,7 +39,7 @@ export async function POST(req: Request) {
   if (typeof body.temperature === "number") request.temperature = Math.max(0, Math.min(2, body.temperature));
   if (typeof body.max_tokens === "number") request.max_tokens = Math.max(256, Math.min(64_000, Math.round(body.max_tokens)));
   // OneAPI web search: the gateway gives the model web_search and web_fetch and runs them (billed per search).
-  if (body.web === true) request.plugins = [{ id: "web", max_results: 3 }];
+  if (body.web === true && !ep.custom) request.plugins = [{ id: "web", max_results: 3 }];
   // The answer comes back as lines of JSON (NDJSON): progress while the model writes, then the answer or the error.
   // The person sees the step move, and the connection is never idle.
   const encoder = new TextEncoder();
@@ -41,7 +48,7 @@ export async function POST(req: Request) {
       const send = (line: unknown) => ctrl.enqueue(encoder.encode(`${JSON.stringify(line)}\n`));
       let last = 0;
       try {
-        const answer = await chatResilient(key, request, AbortSignal.any([AbortSignal.timeout(STEP_TIMEOUT), req.signal]), (p) => {
+        const answer = await complete(ep, key, request, AbortSignal.any([AbortSignal.timeout(STEP_TIMEOUT), req.signal]), (p) => {
           const now = Date.now();
           if (now - last < 400 && !p.note) return;
           last = now;

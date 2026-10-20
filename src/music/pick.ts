@@ -5,7 +5,7 @@ import { hashOf } from "./rng";
 /** The built-in tracks that suit each of the director's music moods. */
 const BY_MOOD: Record<Music, string[]> = {
   bright: ["advertime", "inspiration", "adding-the-sun", "inventing-flight"],
-  drive: ["arpent", "final-step", "funky-energy", "driving-concern"],
+  drive: ["final-step", "funky-energy", "driving-concern", "beat-one"],
   calm: ["meditating-beat", "planeteer-reaction", "starcourt-mall", "motions"],
   pulse: ["beat-one", "screen-saver", "hear-what-they-say", "funky-energy"],
   epic: ["kings-trailer", "motions", "driving-concern", "final-step"],
