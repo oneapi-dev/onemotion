@@ -6,17 +6,15 @@ import { describe, expect, it } from "vitest";
 /** Emitting the kit's declarations runs the TypeScript compiler: seconds. */
 const EMIT_MS = 30_000;
 
+/** Line endings are the checkout's business (CRLF on Windows), not the API's. */
+const lf = (x: string) => x.replace(/\r\n/g, "\n");
+
 describe("the kit's API in the prompt", () => {
   it(
     "is the kit as it is now (run `npm run kit:api` after changing the kit)",
     () => {
       const now = execFileSync(process.execPath, ["scripts/kit-api.mjs", "--stdout"], { cwd: process.cwd(), encoding: "utf8" });
-      // Line endings are the checkout's business (CRLF on Windows), not the API's.
-      expect(readFileSync(path.join(process.cwd(), "src", "bespoke", "kit", "api.txt"), "utf8").replace(/
-/g, "
-")).toBe(now.replace(/
-/g, "
-"));
+      expect(lf(readFileSync(path.join(process.cwd(), "src", "bespoke", "kit", "api.txt"), "utf8"))).toBe(lf(now));
     },
     EMIT_MS,
   );
