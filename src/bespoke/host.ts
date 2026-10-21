@@ -5,8 +5,8 @@ import { DIMENSIONS } from "@/engine/plan";
 import type { FilmInput, FilmSpec } from "./film";
 import { FilmComposition, filmFrames } from "./runtime/FilmComposition";
 import { cueMisses } from "./kit/film";
-import { coverage, FLAT_SPREAD, flatness, qaSeen, qaWarnings, SPARSE_SHARE } from "./runtime/qa";
-import { FILM_FPS } from "./timing";
+import { coverage, FLAT_SPREAD, flatness, frozenBeats, qaPrints, qaSeen, qaWarnings, SPARSE_SHARE } from "./runtime/qa";
+import { FILM_FPS, filmTiming } from "./timing";
 import { profileOf, REMOTION_LICENSE_KEY, type RenderProfile, type Target } from "@/studio/renderTarget";
 
 /** A film as the Studio holds it: the spec, the compiled scene, and recorded voice lines and a music bed as Blobs. */
@@ -135,6 +135,7 @@ export class FilmHost {
         const comp = composition(input);
         qaWarnings.length = 0;
         qaSeen.length = 0;
+        qaPrints.clear();
         cueMisses.clear();
         const images: Blob[] = [];
         for (const frame of frames) {
@@ -146,6 +147,7 @@ export class FilmHost {
           if (empty === "flat") qaWarnings.push(`frame ${f}: the frame is nearly empty (one flat colour): something meaningful should be on screen`);
           else if (empty === "sparse") qaWarnings.push(`frame ${f}: the frame is nearly empty (almost nothing on the background): the beat's hero should fill 50 to 75 % of the frame width, with its supporting layers around it`);
         }
+        qaWarnings.push(...frozenBeats(filmTiming(film.spec.beats, film.spec.score).beats, qaPrints));
         return { images, warnings: [...new Set([...cueMisses, ...qaWarnings])].slice(0, 30), seen: [...new Set(qaSeen)].join(" ").slice(0, 4000) };
       }),
     );

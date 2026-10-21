@@ -112,8 +112,42 @@ const FilmSound: React.FC<{ input: FilmInput; timing: ReturnType<typeof filmTimi
   if (music) return <Sound music={music} trimBefore={spec.musicMap ? Math.round(startOf(spec.musicMap.downbeat, spec.musicMap.drops, spec.musicMap.seconds, t) * FILM_FPS) : undefined} voiceover={voiceover} spec={spec} timing={t} fade />;
   const track = LIBRARY.find((x) => x.id === spec.track);
   // The film's bars are the music's bars, and its close lands on a drop when the track has one that fits.
+  if (track && spec.cues?.length) return <Sound music={null} segments={segmentsOf(track, spec, t)} voiceover={voiceover} spec={spec} timing={t} fade />;
   if (track) return <Sound music={staticFile(`music/${track.id}.mp3`)} trimBefore={Math.round(startOf(track.downbeat ?? track.firstBeat, track.drops ?? [], track.seconds, t) * FILM_FPS)} voiceover={voiceover} spec={spec} timing={t} fade />;
   return <ComposedSound input={input} timing={t} />;
+};
+
+/** One track's stretch of a film with several: global frames it plays (crossfades included) and where in the file it starts. */
+export type Segment = { src: string; from: number; to: number; trimBefore: number; fadeIn: number; fadeOut: number };
+
+/**
+ * A film's tracks as segments: the first from the film's start (as a single track would play), each
+ * later one from the start of its beat, its downbeat landing on that beat, the two overlapping half a
+ * bar on either side of it.
+ */
+export function segmentsOf(first: (typeof LIBRARY)[number], spec: FilmInput["spec"], t: ReturnType<typeof filmTiming>["timing"]): Segment[] {
+  const half = Math.max(6, Math.round(2 * t.beat));
+  const switches = (spec.cues ?? [])
+    .map((c) => ({ track: LIBRARY.find((x) => x.id === c.track), at: t.starts[spec.beats.findIndex((b) => b.id === c.from)] }))
+    .filter((c): c is { track: (typeof LIBRARY)[number]; at: number } => Boolean(c.track) && Number.isFinite(c.at) && c.at > half && c.at < t.total - half);
+  const out: Segment[] = [];
+  const firstStart = Math.round(startOf(first.downbeat ?? first.firstBeat, first.drops ?? [], first.seconds, t) * FILM_FPS);
+  out.push({ src: staticFile(`music/${first.id}.mp3`), from: 0, to: switches.length ? switches[0].at + half : t.total, trimBefore: firstStart, fadeIn: 0, fadeOut: switches.length ? half * 2 : 0 });
+  switches.forEach((c, i) => {
+    const next = switches[i + 1];
+    const downbeat = Math.round((c.track.downbeat ?? c.track.firstBeat) * FILM_FPS);
+    // The new track's downbeat on the beat; when the file has no room before it, it starts on the beat itself.
+    const lead = Math.min(half, downbeat);
+    out.push({ src: staticFile(`music/${c.track.id}.mp3`), from: c.at - lead, to: next ? next.at + half : t.total, trimBefore: downbeat - lead, fadeIn: half + lead, fadeOut: next ? half * 2 : 0 });
+  });
+  return out;
+}
+
+/** An equal-power envelope for a segment at global frame f: no dip and no bump in the middle of a crossfade. */
+const envelope = (s: Segment, f: number) => {
+  const up = s.fadeIn ? Math.min(1, Math.max(0, (f - s.from) / s.fadeIn)) : 1;
+  const down = s.fadeOut ? Math.min(1, Math.max(0, (s.to - f) / s.fadeOut)) : 1;
+  return Math.sin((up * Math.PI) / 2) * Math.sin((down * Math.PI) / 2);
 };
 
 /** The music composed for the film's beats. */
@@ -128,7 +162,7 @@ const ComposedSound: React.FC<{ input: FilmInput; timing: ReturnType<typeof film
 /** Frames a finished bed fades out over at the end of the film (a composed score ends on its own hit). */
 const FADE_FRAMES = 36;
 
-const Sound: React.FC<{ music: string | null; trimBefore?: number; fade?: boolean; voiceover?: Record<number, string>; spec: FilmInput["spec"]; timing: ReturnType<typeof filmTiming>["timing"] }> = ({ music: track, trimBefore, fade, voiceover, spec, timing: t }) => {
+const Sound: React.FC<{ music: string | null; segments?: Segment[]; trimBefore?: number; fade?: boolean; voiceover?: Record<number, string>; spec: FilmInput["spec"]; timing: ReturnType<typeof filmTiming>["timing"] }> = ({ music: track, segments, trimBefore, fade, voiceover, spec, timing: t }) => {
   const lead = Math.round(VOICE_LEAD * FILM_FPS);
   const lines = spec.beats.flatMap((b, i) => {
     const src = voiceover?.[i];
@@ -153,6 +187,13 @@ const Sound: React.FC<{ music: string | null; trimBefore?: number; fade?: boolea
   return (
     <>
       {track && base > 0 ? <Audio src={track} trimBefore={trimBefore} volume={lines.length || fade ? level : base} /> : null}
+      {base > 0
+        ? segments?.map((s, i) => (
+            <Sequence key={`m${i}`} from={s.from} durationInFrames={Math.max(1, s.to - s.from)} layout="none">
+              <Audio src={s.src} trimBefore={s.trimBefore} volume={(f) => level(f + s.from) * envelope(s, f + s.from)} />
+            </Sequence>
+          ))
+        : null}
       {lines.map((l, i) => (
         <Sequence key={i} from={l.from} durationInFrames={l.to - l.from + 15} layout="none">
           <Audio src={l.src} volume={1} />

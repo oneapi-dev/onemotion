@@ -51,3 +51,39 @@ Each file is the first 90 seconds of the original, loudness-normalized and faded
 | desert-conflict.mp3 | Desert Conflict | Rafael Krux | `c8f0e9755b70d225…` |
 | midnight-green-house.mp3 | Midnight in the Green House | Kevin MacLeod | `2a13476ce634cb8e…` |
 | funshine.mp3 | Funshine | Kevin MacLeod | `b98b226927367a97…` |
+| release-the-hybrids.mp3 | Release the Hybrids | Bryan Teoh | `5bb3ef1893dfffb9…` |
+| experimental-test-subject.mp3 | Experimental Test Subject | Kevin MacLeod | `180bb665c8d90f22…` |
+| spec-ops.mp3 | Spec Ops | Rafael Krux | `02e9ffe34f58edb2…` |
+| shenzhen-nightlife.mp3 | Shenzhen Nightlife | Kevin MacLeod | `d341e5b295429e71…` |
+| energizing.mp3 | Energizing | Kevin MacLeod | `6b6f002c9721debb…` |
+| study-and-relax.mp3 | Study and Relax | Kevin MacLeod | `9cba2a3c2d1c9d36…` |
+| mana-two.mp3 | Mana Two - Part 1 | Kevin MacLeod | `41047f29ea1679a0…` |
+| kalimba-relaxation.mp3 | Kalimba Relaxation Music | Kevin MacLeod | `96e24b49f4da2956…` |
+| dreams-of-vain.mp3 | Dreams of Vain | Rafael Krux | `9891b7815c32d914…` |
+| the-drama.mp3 | The Drama | Rafael Krux | `ea747a7c490ac82f…` |
+| beginning-of-conflict.mp3 | Beginning of Conflict | Rafael Krux | `acb1b7f9bd6f3eeb…` |
+| action-strike.mp3 | Action Strike | Rafael Krux | `0a2305ad157fc35f…` |
+| hit-n-smash.mp3 | Hit n Smash | Rafael Krux | `222b2220958c1525…` |
+| waltz-for-naseem.mp3 | A Waltz For Naseem | dogsounds | `989363a9d03c6ac5…` |
+| icicles-melting.mp3 | Icicles Melting | Kevin MacLeod | `88e18af61d663b2b…` |
+| desert-fox.mp3 | Desert Fox | Rafael Krux | `2e27c2d79fdeea66…` |
+| natural-vibes.mp3 | Natural Vibes | Kevin MacLeod | `12ac1554aa7d48a4…` |
+| and-just-like-that.mp3 | And Just Like That | Bryan Teoh | `75e6438a8d6d1dcb…` |
+| slice-of-life.mp3 | Slice of Life | Bryan Teoh | `39e0543fbeb06ced…` |
+| pickled-pink.mp3 | Pickled Pink | Kevin MacLeod | `3eacbde6e5322792…` |
+| happy-whistling-ukulele.mp3 | Happy Whistling Ukulele | Rafael Krux | `ed4059c8fba8673d…` |
+| drop-point.mp3 | Drop Point | Bryan Teoh | `00082677a2ca637d…` |
+| fake-it.mp3 | Fake It Til You Fake It | Kevin MacLeod | `12f4697e38c7fd9e…` |
+| compy-jazz.mp3 | Compy Jazz | Kevin MacLeod | `bd7e017374891f01…` |
+| stompin-at-midnight.mp3 | Stompin at Midnight | Kevin MacLeod | `25ba68fb3cc8f063…` |
+| neptunian-princess.mp3 | Neptunian Princess | Bryan Teoh | `f81ff8af1417ce13…` |
+| bollywood-groove.mp3 | Bollywood Groove | Kevin MacLeod | `3b4249f3027222d4…` |
+| del-rio-bravo.mp3 | Del Rio Bravo | Kevin MacLeod | `517cea42e2004b49…` |
+| shining-stars.mp3 | Shining Stars | Rafael Krux | `751697ea7b30ae69…` |
+| pond.mp3 | Pond | Rafael Krux | `68bf0d67ca7c3304…` |
+| romantic-inspiration.mp3 | Romantic Inspiration | Rafael Krux | `5d96bd468d1edde0…` |
+| going-bananas.mp3 | Going Bananas | Kevin MacLeod | `7bc328be13de6d0c…` |
+| fensters-explanation.mp3 | Fenster's Explanation | Kevin MacLeod | `c9f773e0a153f637…` |
+| spring-chicken.mp3 | Spring Chicken | Kevin MacLeod | `cb6e536674d7cade…` |
+| hopeful.mp3 | Hopeful | Kevin MacLeod | `cbd585a3c26795a9…` |
+| horns.mp3 | Horns | Kevin MacLeod | `9010a70fee557d1d…` |

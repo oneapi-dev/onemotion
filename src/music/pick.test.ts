@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Plan } from "../engine/plan";
 import { normalizeConcept, trackFor } from "../bespoke/agent/concept";
 import { LIBRARY } from "./library";
-import { trackOf } from "./pick";
+import { BY_MOOD, QUICK_MAX_BPM, trackOf } from "./pick";
 import { scoreOf } from "./score";
 
 const plan = (angle: string, music: Plan["music"] = "bright") => ({ angle, music, scenes: [{}, {}, {}] }) as unknown as Plan;
@@ -20,7 +20,9 @@ describe("trackOf", () => {
     const a = trackOf(plan("One key for every model."));
     expect(a).not.toBeNull();
     expect(trackOf(plan("One key for every model."))?.id).toBe(a?.id);
-    expect(["advertime", "inspiration", "adding-the-sun", "inventing-flight"]).toContain(a?.id);
+    expect(BY_MOOD.bright).toContain(a?.id);
+    // Under the template camera's tempo limit.
+    expect(a!.bpm).toBeLessThan(QUICK_MAX_BPM);
   });
 
   it("varies across takes and moods", () => {

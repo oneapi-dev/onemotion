@@ -6,7 +6,7 @@ export type BeatWord = { text: string; at: number; end: number; };
 export type Film = { fps: number; W: number; H: number; P: boolean; format: "landscape" | "portrait" | "square"; total: number; beats: Beat[]; beat: (id: string | number) => Beat; cue: (c: string) => number; brand: Brand; partner: Partner | null; assets: Record<string, string>; safe: { top: number; bottom: number; left: number; right: number; }; };
 export declare const useFilm: () => Film;
 --- @kit/beat ---
-export type BeatScope = { beat: Beat; len: number; cue: (c: string) => number; };
+export type BeatScope = { beat: Beat; len: number; cue: (c: string) => number; steps: (n: number, from?: string, to?: string) => number[]; };
 export declare const useBeat: () => BeatScope;
 export declare const Beats: (props: { of: Record<string, ComponentType>; overlap?: number; }) => JSX.Element;
 --- @kit/world ---

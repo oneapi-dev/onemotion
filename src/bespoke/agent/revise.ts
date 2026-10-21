@@ -293,7 +293,7 @@ Rules:
 - Answer the note, all of it, and touch nothing else. A note about typography changes type (faces from the film's palette and font list, sizes, weights, tracking, line breaks, hierarchy), never the narration. A note about music changes the track, never the picture. A note about animation or timing changes motion curves, durations, staggers and when things happen; it keeps the words and the voice.
 - The person's locks are listed in the message. Never plan an edit to a locked part.
 - Make the change real: a note like "more cinematic" becomes specific decisions (slower camera with a long ease, fewer cuts, a wider then tighter framing, a darker palette moment, a held silence before the reveal), not adjectives.
-- "edits" holds only fields that change. Keep the facts: numbers, prices and names on screen come from the film's facts.
+- "edits" holds only fields that change. Numbers, prices and names on screen come from the film's facts, except where the note gives its own: the note is the person's word and wins. A note that sets new prices, a discount or a new claim replaces the old figures everywhere they appear (every beat's "says" and "voice", and the "design" for the code), written exactly as the note writes them; never keep or round back to the old ones.
 - Structure ("add", "remove", lengths) changes only when the note asks for it.
 - Built-in tracks: ${LIBRARY.map((t) => `${t.id} (${t.mood}, ${t.bpm} BPM)`).join("; ")}.`;
 }
@@ -307,7 +307,7 @@ export function reviseMessage(o: { note: string; locks: Locks; targets: string[]
     o.targets.length ? `THE PERSON SELECTED: ${o.targets.join(", ")} (edit only these beats)` : "",
     `FILM: "${o.concept.title}", ${o.concept.style}; look ${o.concept.look?.direction ?? ""}; type ${o.concept.typography.display} / ${o.concept.typography.text}; palette ${JSON.stringify(o.concept.palette)}; music ${o.spec.track ?? `${o.spec.score.genre} (composed)`} at ${o.spec.score.bpm} BPM.`,
     `BEATS:\n${o.spec.beats.map((b) => `- ${b.id} (${b.seconds.toFixed(1)} s): says "${b.says}" | voice "${b.voice ?? ""}" | shows: ${b.shows}`).join("\n")}`,
-    `FACTS: ${o.concept.facts.join(" | ") || "(the brief's)"}`,
+    `FACTS: ${o.concept.facts.join(" | ") || "(the brief's)"} (the NOTE wins over any of these)`,
     "Return the plan JSON.",
   ]
     .filter(Boolean)

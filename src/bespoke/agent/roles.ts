@@ -102,6 +102,7 @@ The film above is FINISHED and its files are in scene/ (read what you change bef
 
 THE NOTE: ${o.note}
 THE PLAN: ${o.summary}
+Where the note and the plan disagree on a number, a price or a word, the note wins: put the note's figures on screen exactly as it writes them (they are in the facts).
 WHAT TO CHANGE IN THE CODE:
 ${o.design || "(nothing beyond the beats listed below)"}
 ${o.targets.length ? `ONLY THESE BEATS: ${o.targets.join(", ")}. Leave every other beat's code alone.` : ""}

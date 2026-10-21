@@ -786,5 +786,660 @@ export const LIBRARY: LibraryTrack[] = [
     "seconds": 90,
     "downbeat": 1.374,
     "drops": []
+  },
+  {
+    "id": "release-the-hybrids",
+    "title": "Release the Hybrids",
+    "artist": "Bryan Teoh",
+    "mood": "industrial anticipation that builds, then kicks in hard: machines waking up",
+    "tags": [
+      "industrial",
+      "tension",
+      "build",
+      "tech"
+    ],
+    "bpm": 123,
+    "firstBeat": 0.28,
+    "seconds": 90,
+    "downbeat": 1.723,
+    "drops": [
+      71.967,
+      9.528,
+      50.504
+    ]
+  },
+  {
+    "id": "experimental-test-subject",
+    "title": "Experimental Test Subject",
+    "artist": "Kevin MacLeod",
+    "mood": "rhythm-heavy and curious: percussion-led suspense, a lab or a system at work",
+    "tags": [
+      "rhythm",
+      "suspense",
+      "percussion",
+      "lab"
+    ],
+    "bpm": 116,
+    "firstBeat": 0.14,
+    "seconds": 90,
+    "downbeat": 0.797,
+    "drops": []
+  },
+  {
+    "id": "spec-ops",
+    "title": "Spec Ops",
+    "artist": "Rafael Krux",
+    "mood": "action and dark suspense: an elite squad with high-tech toys",
+    "tags": [
+      "action",
+      "dark",
+      "tech",
+      "suspense"
+    ],
+    "bpm": 96,
+    "firstBeat": 0.41,
+    "seconds": 90,
+    "downbeat": 2.285,
+    "drops": [
+      32.285
+    ]
+  },
+  {
+    "id": "shenzhen-nightlife",
+    "title": "Shenzhen Nightlife",
+    "artist": "Kevin MacLeod",
+    "mood": "erhu club music: a night city, an Asian lead over a dance beat (kicks in after the intro)",
+    "tags": [
+      "club",
+      "asian",
+      "night",
+      "dance"
+    ],
+    "bpm": 128,
+    "firstBeat": 0.24,
+    "seconds": 90,
+    "downbeat": 1.368,
+    "drops": []
+  },
+  {
+    "id": "energizing",
+    "title": "Energizing",
+    "artist": "Kevin MacLeod",
+    "mood": "pure and bright: energy to start the day, clean and positive",
+    "tags": [
+      "bright",
+      "positive",
+      "clean"
+    ],
+    "bpm": 90.5,
+    "firstBeat": 0.02,
+    "seconds": 90,
+    "downbeat": 0.02,
+    "drops": [
+      37.147,
+      5.324,
+      66.318
+    ]
+  },
+  {
+    "id": "study-and-relax",
+    "title": "Study and Relax",
+    "artist": "Kevin MacLeod",
+    "mood": "lo-fi beat like a worn record: relaxed, warm, focused",
+    "tags": [
+      "lofi",
+      "relaxed",
+      "warm",
+      "focus"
+    ],
+    "bpm": 115.5,
+    "firstBeat": 0.03,
+    "seconds": 90,
+    "downbeat": 0.02,
+    "drops": [
+      66.514
+    ]
+  },
+  {
+    "id": "mana-two",
+    "title": "Mana Two - Part 1",
+    "artist": "Kevin MacLeod",
+    "mood": "calm ambient drift: clouds and air, minimal",
+    "tags": [
+      "ambient",
+      "calm",
+      "minimal"
+    ],
+    "bpm": 117,
+    "firstBeat": 0.41,
+    "seconds": 90,
+    "downbeat": 0.923,
+    "drops": [
+      44,
+      66.564,
+      13.231
+    ]
+  },
+  {
+    "id": "kalimba-relaxation",
+    "title": "Kalimba Relaxation Music",
+    "artist": "Kevin MacLeod",
+    "mood": "gentle kalimba over soft pads: calm, friendly, handmade",
+    "tags": [
+      "kalimba",
+      "calm",
+      "friendly",
+      "acoustic"
+    ],
+    "bpm": 115,
+    "firstBeat": 0.17,
+    "seconds": 90,
+    "downbeat": 1.083,
+    "drops": [
+      5.257,
+      51.17,
+      72.04
+    ]
+  },
+  {
+    "id": "dreams-of-vain",
+    "title": "Dreams of Vain",
+    "artist": "Rafael Krux",
+    "mood": "a satisfying theme for a likeable lead: warm cinematic underscore",
+    "tags": [
+      "cinematic",
+      "warm",
+      "theme"
+    ],
+    "bpm": 126.5,
+    "firstBeat": 0.12,
+    "seconds": 90,
+    "downbeat": 1.443,
+    "drops": [
+      9.032,
+      37.49,
+      65.949
+    ]
+  },
+  {
+    "id": "the-drama",
+    "title": "The Drama",
+    "artist": "Rafael Krux",
+    "mood": "measured drama with cool reverse effects: tension without shouting",
+    "tags": [
+      "drama",
+      "tension",
+      "reverse",
+      "modern"
+    ],
+    "bpm": 120,
+    "firstBeat": 0.24,
+    "seconds": 90,
+    "downbeat": 0.52,
+    "drops": []
+  },
+  {
+    "id": "beginning-of-conflict",
+    "title": "Beginning of Conflict",
+    "artist": "Rafael Krux",
+    "mood": "a mildly retro plot rocket: something is starting",
+    "tags": [
+      "retro",
+      "plot",
+      "build"
+    ],
+    "bpm": 120,
+    "firstBeat": 0.34,
+    "seconds": 90,
+    "downbeat": 0.45,
+    "drops": []
+  },
+  {
+    "id": "action-strike",
+    "title": "Action Strike",
+    "artist": "Rafael Krux",
+    "mood": "epic, dark and dramatic action: a rush for the hill",
+    "tags": [
+      "action",
+      "epic",
+      "dark"
+    ],
+    "bpm": 119.5,
+    "firstBeat": 0.38,
+    "seconds": 90,
+    "downbeat": 0.17,
+    "drops": [
+      32.304
+    ]
+  },
+  {
+    "id": "hit-n-smash",
+    "title": "Hit n Smash",
+    "artist": "Rafael Krux",
+    "mood": "massive and heavy: epic synths and orchestra, a big reveal",
+    "tags": [
+      "epic",
+      "heavy",
+      "synth",
+      "reveal"
+    ],
+    "bpm": 130,
+    "firstBeat": 0.03,
+    "seconds": 90,
+    "downbeat": 0.03,
+    "drops": []
+  },
+  {
+    "id": "waltz-for-naseem",
+    "title": "A Waltz For Naseem",
+    "artist": "dogsounds",
+    "mood": "beautiful, emotional and inspiring orchestral waltz",
+    "tags": [
+      "emotional",
+      "orchestral",
+      "inspiring"
+    ],
+    "bpm": 136,
+    "firstBeat": 0.18,
+    "seconds": 90,
+    "downbeat": 1.504,
+    "drops": [
+      65.033,
+      36.798,
+      5.033
+    ]
+  },
+  {
+    "id": "icicles-melting",
+    "title": "Icicles Melting",
+    "artist": "Kevin MacLeod",
+    "mood": "pizzicato strings, playful and uplifting: small things coming alive",
+    "tags": [
+      "pizzicato",
+      "playful",
+      "uplifting"
+    ],
+    "bpm": 124.5,
+    "firstBeat": 0.22,
+    "seconds": 90,
+    "downbeat": 1.264,
+    "drops": []
+  },
+  {
+    "id": "desert-fox",
+    "title": "Desert Fox",
+    "artist": "Rafael Krux",
+    "mood": "mysterious and atmospheric with middle-eastern melodies",
+    "tags": [
+      "world",
+      "mysterious",
+      "atmospheric"
+    ],
+    "bpm": 120,
+    "firstBeat": 0.36,
+    "seconds": 90,
+    "downbeat": 1.88,
+    "drops": []
+  },
+  {
+    "id": "natural-vibes",
+    "title": "Natural Vibes",
+    "artist": "Kevin MacLeod",
+    "mood": "neutral and nice: an easy upbeat bed that stays out of the way",
+    "tags": [
+      "upbeat",
+      "neutral",
+      "easy"
+    ],
+    "bpm": 133.5,
+    "firstBeat": 0.16,
+    "seconds": 90,
+    "downbeat": 0.01,
+    "drops": [
+      8.999
+    ]
+  },
+  {
+    "id": "and-just-like-that",
+    "title": "And Just Like That",
+    "artist": "Bryan Teoh",
+    "mood": "fun, shiny and clean: playful joy",
+    "tags": [
+      "fun",
+      "shiny",
+      "playful"
+    ],
+    "bpm": 124.5,
+    "firstBeat": 0.05,
+    "seconds": 90,
+    "downbeat": 0.562,
+    "drops": []
+  },
+  {
+    "id": "slice-of-life",
+    "title": "Slice of Life",
+    "artist": "Bryan Teoh",
+    "mood": "the day-to-day of a likeable lead: light, warm, a little quirky",
+    "tags": [
+      "light",
+      "warm",
+      "everyday"
+    ],
+    "bpm": 145.5,
+    "firstBeat": 0.23,
+    "seconds": 90,
+    "downbeat": 0.28,
+    "drops": [
+      13.476
+    ]
+  },
+  {
+    "id": "pickled-pink",
+    "title": "Pickled Pink",
+    "artist": "Kevin MacLeod",
+    "mood": "a lovely ukulele tune: sunny and simple",
+    "tags": [
+      "ukulele",
+      "sunny",
+      "simple"
+    ],
+    "bpm": 101,
+    "firstBeat": 0.41,
+    "seconds": 90,
+    "downbeat": 0.624,
+    "drops": []
+  },
+  {
+    "id": "happy-whistling-ukulele",
+    "title": "Happy Whistling Ukulele",
+    "artist": "Rafael Krux",
+    "mood": "happy and cheerful: ukulele, whistling and light percussion",
+    "tags": [
+      "ukulele",
+      "happy",
+      "whistle"
+    ],
+    "bpm": 130.5,
+    "firstBeat": 0.25,
+    "seconds": 90,
+    "downbeat": 1.21,
+    "drops": [
+      15.922
+    ]
+  },
+  {
+    "id": "drop-point",
+    "title": "Drop Point",
+    "artist": "Bryan Teoh",
+    "mood": "safe-cracking hijinks: boisterous, sneaky fun",
+    "tags": [
+      "heist",
+      "sneaky",
+      "fun"
+    ],
+    "bpm": 115,
+    "firstBeat": 0.47,
+    "seconds": 90,
+    "downbeat": 1.513,
+    "drops": [
+      76.644,
+      47.427
+    ]
+  },
+  {
+    "id": "fake-it",
+    "title": "Fake It Til You Fake It",
+    "artist": "Kevin MacLeod",
+    "mood": "warm jazz piano, light drums and a bass solo",
+    "tags": [
+      "jazz",
+      "piano",
+      "warm"
+    ],
+    "bpm": 133.5,
+    "firstBeat": 0.42,
+    "seconds": 90,
+    "downbeat": 0.02,
+    "drops": [
+      14.402,
+      68.335,
+      52.155
+    ]
+  },
+  {
+    "id": "compy-jazz",
+    "title": "Compy Jazz",
+    "artist": "Kevin MacLeod",
+    "mood": "light comping jazz: relaxed, classy background",
+    "tags": [
+      "jazz",
+      "light",
+      "classy"
+    ],
+    "bpm": 100.5,
+    "firstBeat": 0.09,
+    "seconds": 90,
+    "downbeat": 1.404,
+    "drops": [
+      63.494
+    ]
+  },
+  {
+    "id": "stompin-at-midnight",
+    "title": "Stompin at Midnight",
+    "artist": "Kevin MacLeod",
+    "mood": "big band dance tune: swinging, vintage, lively",
+    "tags": [
+      "big band",
+      "swing",
+      "vintage"
+    ],
+    "bpm": 99,
+    "firstBeat": 0.41,
+    "seconds": 90,
+    "downbeat": 2.358,
+    "drops": []
+  },
+  {
+    "id": "neptunian-princess",
+    "title": "Neptunian Princess",
+    "artist": "Bryan Teoh",
+    "mood": "50s and seductive: a slinky, mysterious lounge",
+    "tags": [
+      "lounge",
+      "50s",
+      "slinky"
+    ],
+    "bpm": 115,
+    "firstBeat": 0.12,
+    "seconds": 90,
+    "downbeat": 1.585,
+    "drops": [
+      28.716,
+      5.759,
+      60.02
+    ]
+  },
+  {
+    "id": "bollywood-groove",
+    "title": "Bollywood Groove",
+    "artist": "Kevin MacLeod",
+    "mood": "exotic flair: a groove, then choirs kick in",
+    "tags": [
+      "world",
+      "indian",
+      "groove"
+    ],
+    "bpm": 111,
+    "firstBeat": 0.25,
+    "seconds": 90,
+    "downbeat": 1.822,
+    "drops": [
+      71.011,
+      23.443
+    ]
+  },
+  {
+    "id": "del-rio-bravo",
+    "title": "Del Rio Bravo",
+    "artist": "Kevin MacLeod",
+    "mood": "Latin-flavoured dance music: festive, bouncy",
+    "tags": [
+      "latin",
+      "dance",
+      "festive"
+    ],
+    "bpm": 130,
+    "firstBeat": 0.23,
+    "seconds": 90,
+    "downbeat": 0.742,
+    "drops": []
+  },
+  {
+    "id": "shining-stars",
+    "title": "Shining Stars",
+    "artist": "Rafael Krux",
+    "mood": "soft, evolving and uplifting: gentle voices and warm piano",
+    "tags": [
+      "soft",
+      "uplifting",
+      "piano"
+    ],
+    "bpm": 109,
+    "firstBeat": 0.46,
+    "seconds": 90,
+    "downbeat": 2.111,
+    "drops": [
+      19.726,
+      57.157
+    ]
+  },
+  {
+    "id": "pond",
+    "title": "Pond",
+    "artist": "Rafael Krux",
+    "mood": "positive, gentle and soft, flowing like water: inspiring and playful",
+    "tags": [
+      "gentle",
+      "flowing",
+      "positive"
+    ],
+    "bpm": 120,
+    "firstBeat": 0.26,
+    "seconds": 90,
+    "downbeat": 0.27,
+    "drops": [
+      18.27,
+      42.27,
+      64.27
+    ]
+  },
+  {
+    "id": "romantic-inspiration",
+    "title": "Romantic Inspiration",
+    "artist": "Rafael Krux",
+    "mood": "uplifting and emotional cinematic orchestra",
+    "tags": [
+      "emotional",
+      "cinematic",
+      "uplifting"
+    ],
+    "bpm": 100,
+    "firstBeat": 0.17,
+    "seconds": 90,
+    "downbeat": 2.39,
+    "drops": [
+      45.59
+    ]
+  },
+  {
+    "id": "going-bananas",
+    "title": "Going Bananas",
+    "artist": "Kevin MacLeod",
+    "mood": "playful and energizing: a beach party",
+    "tags": [
+      "playful",
+      "energizing",
+      "fun"
+    ],
+    "bpm": 130.5,
+    "firstBeat": 0.28,
+    "seconds": 90,
+    "downbeat": 0.33,
+    "drops": [
+      22.399,
+      66.537
+    ]
+  },
+  {
+    "id": "fensters-explanation",
+    "title": "Fenster's Explanation",
+    "artist": "Kevin MacLeod",
+    "mood": "upbeat funky drums and a comic groove",
+    "tags": [
+      "funky",
+      "comic",
+      "upbeat"
+    ],
+    "bpm": 109.5,
+    "firstBeat": 0.51,
+    "seconds": 90,
+    "downbeat": 0.32,
+    "drops": [
+      20.046
+    ]
+  },
+  {
+    "id": "spring-chicken",
+    "title": "Spring Chicken",
+    "artist": "Kevin MacLeod",
+    "mood": "a bright sunny day in 1952: cheerful retro",
+    "tags": [
+      "retro",
+      "cheerful",
+      "sunny"
+    ],
+    "bpm": 120,
+    "firstBeat": 0.26,
+    "seconds": 90,
+    "downbeat": 0.74,
+    "drops": [
+      32.74,
+      72.74
+    ]
+  },
+  {
+    "id": "hopeful",
+    "title": "Hopeful",
+    "artist": "Kevin MacLeod",
+    "mood": "a simple fun piece, casual and light",
+    "tags": [
+      "casual",
+      "light",
+      "simple"
+    ],
+    "bpm": 100,
+    "firstBeat": 0.44,
+    "seconds": 90,
+    "downbeat": 0.43,
+    "drops": []
+  },
+  {
+    "id": "horns",
+    "title": "Horns",
+    "artist": "Kevin MacLeod",
+    "mood": "reggae and comedy melted together: brassy and laid-back",
+    "tags": [
+      "reggae",
+      "brass",
+      "laid-back"
+    ],
+    "bpm": 94.5,
+    "firstBeat": 0.13,
+    "seconds": 90,
+    "downbeat": 0.5,
+    "drops": [
+      41.135
+    ]
   }
 ];

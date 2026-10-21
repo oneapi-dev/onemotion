@@ -21,6 +21,12 @@ export type BeatScope = {
    * converted to this beat's time.
    */
   cue: (c: string) => number;
+  /**
+   * When each of n things lands: n local frames spread evenly from cue `from` to cue `to` (12 % to
+   * 70 % into the beat by default), so a hold is told in steps (the rows of a receipt, the points of
+   * a list, the hops of a request) instead of shown all at once.
+   */
+  steps: (n: number, from?: string, to?: string) => number[];
 };
 
 /** @internal What <World> and <Beats> give each beat. */
@@ -35,16 +41,23 @@ export const useBeat = (): BeatScope => {
 /** @internal A beat's scope: its length, and cue() in its own time. */
 export function beatScope(film: Film, b: Beat): BeatScope {
   const len = b.end - b.start;
+  const cue = (c: string) => {
+    const s = c.trim();
+    if (s === "end") return len - 1;
+    const at = /^@(\d*\.?\d+)$/.exec(s);
+    if (at) return Math.round(len * Number(at[1]));
+    if (/^(b\d+|end)\b/.test(s)) return film.cue(s) - b.start;
+    return film.cue(`${b.id}:${s}`) - b.start;
+  };
   return {
     beat: b,
     len,
-    cue: (c) => {
-      const s = c.trim();
-      if (s === "end") return len - 1;
-      const at = /^@(\d*\.?\d+)$/.exec(s);
-      if (at) return Math.round(len * Number(at[1]));
-      if (/^(b\d+|end)\b/.test(s)) return film.cue(s) - b.start;
-      return film.cue(`${b.id}:${s}`) - b.start;
+    cue,
+    steps: (n, from = "@0.12", to = "@0.7") => {
+      const a = cue(from);
+      const z = cue(to);
+      const k = Math.max(0, Math.floor(n));
+      return Array.from({ length: k }, (_, i) => Math.round(k === 1 ? a : a + ((z - a) * i) / (k - 1)));
     },
   };
 }

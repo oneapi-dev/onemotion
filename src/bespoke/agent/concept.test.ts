@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filmSpecOf, normalizeConcept, UnusableConceptError } from "./concept";
+import { filmSpecOf, musicPlanOf, normalizeConcept, UnusableConceptError } from "./concept";
 
 const raw = {
   title: "Switchboard",
@@ -151,5 +151,27 @@ describe("the shot list", () => {
     });
     expect(c.beats[0]).toMatchObject({ purpose: "the viewer learns the price fell", enters: "the old price alone", leaves: "the new price beside it" });
     expect(c.beats[1].purpose).toBeUndefined();
+  });
+});
+
+describe("the music plan", () => {
+  const beats = [{ id: "b1" }, { id: "b2" }, { id: "b3" }, { id: "b4" }];
+  it("keeps library tracks on later beats, in order, each a change from the one before, at most two", () => {
+    const plan = musicPlanOf(
+      [
+        { track: "goodnightmare", from: "b3" },
+        { track: "fresh-focus", from: "b2" },
+        { track: "fresh-focus", from: "b4" },
+        { track: "no-such-track", from: "b2" },
+        { track: "groovin", from: "b1" },
+      ],
+      beats,
+      "advertime",
+    );
+    expect(plan).toEqual([
+      { track: "fresh-focus", from: "b2" },
+      { track: "goodnightmare", from: "b3" },
+    ]);
+    expect(musicPlanOf("nope", beats, "advertime")).toEqual([]);
   });
 });

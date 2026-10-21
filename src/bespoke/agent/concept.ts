@@ -30,6 +30,8 @@ export type Concept = {
   music: string;
   /** The art director's next two picks for this film's vibe, best first: played when its first pick was heard in a recent film. */
   musicAlternates?: string[];
+  /** Tracks that take over at later beats, after the first ("music"): at most two. */
+  musicPlan?: { track: string; from: string }[];
   /** Whether the film has a voice-over (false when the brief asks for none). */
   voiceover: boolean;
   /** The facts the film states, copied from the brief and the pages read: the agents' short list. */
@@ -245,11 +247,32 @@ export function normalizeConcept(input: unknown): Concept {
     score: raw.score,
     music: LIBRARY.some((t) => t.id === raw.music) || raw.music === "composed" ? String(raw.music) : "",
     musicAlternates: Array.isArray(raw.music_alternates) ? [...new Set(raw.music_alternates.filter((m): m is string => typeof m === "string" && m !== raw.music && LIBRARY.some((t) => t.id === m)))].slice(0, 2) : [],
+    ...(musicPlanOf(raw.music_plan, beats, String(raw.music ?? "")).length ? { musicPlan: musicPlanOf(raw.music_plan, beats, String(raw.music ?? "")) } : {}),
     voiceover: raw.voiceover !== false,
     facts: Array.isArray(raw.facts) ? raw.facts.map((f) => str(f, 240)).filter(Boolean).slice(0, 25) : [],
     whyDifferent: str(raw.why_different),
     ...(notes.length ? { notes } : {}),
   };
+}
+
+/**
+ * The tracks that take over at later beats: library tracks only, each on a real beat after the first,
+ * in the film's order, a different track from the one playing before it, at most two.
+ */
+export function musicPlanOf(raw: unknown, beats: { id: string }[], first: string): { track: string; from: string }[] {
+  if (!Array.isArray(raw)) return [];
+  const at = (id: string) => beats.findIndex((b) => b.id === id);
+  const plan = raw
+    .filter(isRecord)
+    .map((e) => ({ track: str(e.track, 60), from: str(e.from, 8) }))
+    .filter((e) => LIBRARY.some((t) => t.id === e.track) && at(e.from) > 0)
+    .sort((a, b) => at(a.from) - at(b.from));
+  const out: { track: string; from: string }[] = [];
+  for (const e of plan) {
+    const before = out.length ? out[out.length - 1].track : first;
+    if (e.track !== before && !out.some((x) => x.from === e.from)) out.push(e);
+  }
+  return out.slice(0, 2);
 }
 
 /** The film a concept describes, in the chosen format, with the website's logo and colour when it was read. */
@@ -294,5 +317,7 @@ export function filmSpecOf(concept: Concept, format: FilmFormat, site: SiteInfo 
     // A built-in track sets the tempo the beats snap to.
     score: track ? { ...normalizeScore(concept.score, concept.beats.length, "corporate-pop", seed), bpm: track.bpm } : normalizeScore(concept.score, concept.beats.length, "corporate-pop", seed),
     ...(track ? { track: track.id } : {}),
+    // The plan's later tracks play after whichever first track the film ended up with.
+    ...(track && concept.musicPlan?.some((c) => c.track !== track.id) ? { cues: concept.musicPlan.filter((c, i, all) => c.track !== (i ? all[i - 1].track : track.id)) } : {}),
   };
 }

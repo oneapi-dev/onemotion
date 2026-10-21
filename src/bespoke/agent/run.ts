@@ -20,7 +20,7 @@ import { LEAD_INTEGRATE, NO_FOUNDATION, REVISE_NOTE_STEPS, SOLO_STEPS, beatTask,
 import { applyRevision, brokenCues, normalizeRevision, reviseMessage, revisePrompt, type Locks, type RevisionPlan } from "./revise";
 import { assetNames, compile, sceneTools, webSearchTool, type AgentTool, type Workspace } from "./tools";
 import { missingFigures, unshownBeats } from "./coverage";
-import { holdSameness, reviewTiles, settledWarnings } from "./review";
+import { holdSameness, probeFrames, reviewTiles, settledWarnings } from "./review";
 import { EXTRA_REVIEWS, MIN_SCORE, SHORT_FIX, thinness, tooShort } from "./floor";
 
 /** A film being made or made: what the Studio keeps of a bespoke run. */
@@ -50,7 +50,7 @@ export type FilmState = {
 
 /** The automated QA's warnings worth a fix round: defects measured on the frames, not taste. */
 export function qaIssues(warnings: string[]): string[] {
-  return warnings.filter((w) => /cut by the|clipped by its own box|too small to read|overlap|runs over text|nearly empty|does not say|look nearly the same|covered by another element|empty card/.test(w)).slice(0, 16);
+  return warnings.filter((w) => /cut by the|clipped by its own box|too small to read|overlap|runs over text|nearly empty|does not say|look nearly the same|covered by another element|empty card|freezes like slides/.test(w)).slice(0, 16);
 }
 
 /** What a recent film was, so the next one is different. */
@@ -564,8 +564,9 @@ export async function makeFilm(o: {
   /** Renders the labelled stills of the film as it is now and measures them, without a reviewer. */
   const measure = async (modules: Record<string, string>) => {
     const tiles = reviewTiles(spec);
-    const s = await host.stills({ spec, modules }, tiles.map((t) => t.frame), o.signal, 0.5);
-    return { seen: s.seen, warnings: settledWarnings(tiles, [...s.warnings, ...(await holdSameness(tiles, s.images))]) };
+    const probes = probeFrames(spec);
+    const s = await host.stills({ spec, modules }, [...tiles.map((t) => t.frame), ...probes], o.signal, 0.5);
+    return { seen: s.seen, warnings: settledWarnings(tiles, [...s.warnings, ...(await holdSameness(tiles, s.images.slice(0, tiles.length)))], probes) };
   };
   /** What the art director checks the film against: the brief and the concept's facts (whole web pages carry other offers and prices). */
   const reviewFacts = `${o.brief}
@@ -722,6 +723,8 @@ export async function reviseFilm(o: {
   // The person's selection wins over the editor's.
   if (o.targets.length) plan.targets = o.targets;
   const applied = applyRevision(before, plan, o.locks);
+  // A note's numbers are the person's own (new prices, a discount): facts from now on, for this edit and the next.
+  if (/\d/.test(o.note)) applied.concept = { ...applied.concept, facts: [...applied.concept.facts, `The person's note, which wins over older facts: ${o.note.replace(/\s+/g, " ").trim().slice(0, 400)}`] };
   const ledger = addUsage(before.spend, usage, price);
   const log = (text: string, kind: AgentEvent["kind"] = "tool"): AgentEvent => ({ kind, text: `[edit] ${text}` });
   let film: FilmState = {
@@ -748,7 +751,7 @@ export async function reviseFilm(o: {
   // Words the person typed by hand are facts too: a number they wrote is theirs to show.
   const hand = before.textEdits ?? [];
   const partner = before.spec.partner;
-  const facts = `${o.brief}\n${factsOf(o.brief, o.site, o.models)}${partner ? `\nPartner: ${partner.name} (${partner.url})` : ""}${hand.length ? `\n${hand.map((e) => e.now).join("\n")}` : ""}`;
+  const facts = `${o.brief}\n${factsOf(o.brief, o.site, o.models)}${partner ? `\nPartner: ${partner.name} (${partner.url})` : ""}${hand.length ? `\n${hand.map((e) => e.now).join("\n")}` : ""}\n${film.concept.facts.join("\n")}`;
   const broken = brokenCues(film.files, filmTiming(film.spec.beats, film.spec.score).beats);
   const changedBeats = film.spec.beats.filter((b) => {
     const was = before.spec.beats.find((x) => x.id === b.id);
@@ -760,7 +763,7 @@ export async function reviseFilm(o: {
     if (!host) throw new Error("The preview is not ready.");
     code = true;
     const { agent: system } = await loadPrompts();
-    const context = [`BRIEF:\n${o.brief}`, `FACTS (the only numbers and claims allowed on screen):\n${[before.concept.facts.map((f) => `- ${f}`).join("\n"), factsOf(o.brief, o.site, o.models)].filter(Boolean).join("\n")}`, film.spec.partner ? partnerNote(film.spec.partner) : "", `CONCEPT:\n${JSON.stringify({ ...film.concept, score: film.spec.score }, null, 1)}`, hand.length ? `THE PERSON'S OWN WORDS (typed by hand on screen; keep each one exactly as written, character for character, where it is):\n${hand.map((e) => `- ${JSON.stringify(e.now)}`).join("\n")}` : "", before.colorEdits?.length ? `THE PERSON'S OWN COLOURS (swapped by hand; keep them unless the note asks to change them):\n${before.colorEdits.map((e) => `- ${e.now} where the film had ${e.was}`).join("\n")}` : ""].filter(Boolean).join("\n\n");
+    const context = [`BRIEF:\n${o.brief}`, `FACTS (the only numbers and claims allowed on screen; the person's note wins over older ones):\n${[film.concept.facts.map((f) => `- ${f}`).join("\n"), factsOf(o.brief, o.site, o.models)].filter(Boolean).join("\n")}`, film.spec.partner ? partnerNote(film.spec.partner) : "", `CONCEPT:\n${JSON.stringify({ ...film.concept, score: film.spec.score }, null, 1)}`, hand.length ? `THE PERSON'S OWN WORDS (typed by hand on screen; keep each one exactly as written, character for character, where it is):\n${hand.map((e) => `- ${JSON.stringify(e.now)}`).join("\n")}` : "", before.colorEdits?.length ? `THE PERSON'S OWN COLOURS (swapped by hand; keep them unless the note asks to change them):\n${before.colorEdits.map((e) => `- ${e.now} where the film had ${e.was}`).join("\n")}` : ""].filter(Boolean).join("\n\n");
     const locked = (Object.entries(o.locks) as [keyof Locks, boolean][]).filter(([, v]) => v).map(([k]) => k);
     const ws: Workspace = { spec: film.spec, facts, files: film.files, modules: null, dirty: true };
     const blind = !(await seesImages(o.key, o.model, o.signal));

@@ -1,5 +1,6 @@
 import { useLayoutEffect, type RefObject } from "react";
 import { useCurrentFrame } from "remotion";
+import { FILM_FPS } from "../timing";
 
 /**
  * Automated QA on the frames rendered for the model: text cut by the frame
@@ -46,6 +47,109 @@ export function coverage(rgba: Uint8ClampedArray): number {
 
 /** Warnings from the stills being rendered now; the film host empties it before a job and reads it after. */
 export const qaWarnings: string[] = [];
+
+/**
+ * What one station shows on a still: every element's box relative to the station (so the camera's
+ * slow push cancels out), its opacity, its words and style, and what its canvases have drawn.
+ */
+export type Print = { keys: string[]; nums: number[] };
+
+/** The prints of the stills being rendered now, by frame and station ("*" for a film without a World); the film host empties it before a job. */
+export const qaPrints = new Map<number, Map<string, Print>>();
+
+/** Two holds of one beat at least this many frames apart that print the same: the beat stood still. */
+export const FROZEN_FRAMES = 30;
+
+/** How far (a share of the station) a box may shift, or an opacity change, and still count as unmoved. */
+const STILL = 0.003;
+
+/** Whether two prints show the same thing: the same elements, none moved, resized, faded or redrawn by more than a hair. */
+export function samePrint(a: Print, b: Print): boolean {
+  if (a.keys.length !== b.keys.length || a.nums.length !== b.nums.length) return false;
+  for (let i = 0; i < a.keys.length; i++) if (a.keys[i] !== b.keys[i]) return false;
+  for (let i = 0; i < a.nums.length; i++) if (Math.abs(a.nums[i] - b.nums[i]) > STILL) return false;
+  return true;
+}
+
+/**
+ * Beats that freeze: two of their stills at least FROZEN_FRAMES apart print the same, so after its
+ * entrance nothing on the beat's station moved, counted, drew or changed (the camera's push aside).
+ * The close is left out: a final lockup may hold. One warning names them all, at the first frozen frame.
+ */
+export function frozenBeats(beats: { id: string; start: number; end: number }[], prints: Map<number, Map<string, Print>>): string[] {
+  const frames = [...prints.keys()].sort((a, b) => a - b);
+  const spans: string[] = [];
+  let first: number | null = null;
+  for (const b of beats.slice(0, -1)) {
+    const own = frames.filter((f) => f >= b.start && f < b.end);
+    let longest: [number, number] | null = null;
+    let from = 0;
+    for (let i = 1; i < own.length; i++) {
+      const pa = prints.get(own[i - 1]);
+      const pb = prints.get(own[i]);
+      const a = pa?.get(b.id) ?? pa?.get("*");
+      const c = pb?.get(b.id) ?? pb?.get("*");
+      if (!a || !c || !samePrint(a, c)) {
+        from = i;
+        continue;
+      }
+      if (own[i] - own[from] >= FROZEN_FRAMES && (!longest || own[i] - own[from] > longest[1] - longest[0])) longest = [own[from], own[i]];
+    }
+    if (!longest) continue;
+    first ??= longest[1];
+    spans.push(`${b.id} (frames ${longest[0]} to ${longest[1]}, ${((longest[1] - longest[0]) / FILM_FPS).toFixed(1)} s)`);
+  }
+  if (!spans.length || first === null) return [];
+  return [
+    `frame ${first}: the film freezes like slides: ${spans.join(", ")} hold${spans.length === 1 ? "s" : ""} perfectly still after the entrance (nothing moves, counts, draws or changes; the camera's push does not count). A beat is a shot, not a slide: keep the line being read still, and give the hold a second action that carries the beat's idea (the number counts on, the next row lands, a line draws to the next thing, the cursor clicks, a stamp lands, the hero turns or travels toward the next station)`,
+  ];
+}
+
+/** A canvas's drawing as two numbers: its mean coverage and brightness on a 16 x 9 sample. */
+function canvasSample(c: HTMLCanvasElement): number[] {
+  try {
+    const s = document.createElement("canvas");
+    s.width = 16;
+    s.height = 9;
+    const ctx = s.getContext("2d");
+    if (!ctx || !c.width || !c.height) return [0, 0];
+    ctx.drawImage(c, 0, 0, 16, 9);
+    const px = ctx.getImageData(0, 0, 16, 9).data;
+    let a = 0;
+    let y = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      a += px[i + 3];
+      y += (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) * (px[i + 3] / 255);
+    }
+    return [a / (144 * 255), y / (144 * 255)];
+  } catch {
+    return [0, 0];
+  }
+}
+
+/** The print of every station on this still (the whole frame when there is no World). */
+function prints(root: HTMLElement): Map<string, Print> {
+  const out = new Map<string, Print>();
+  const stations = [...root.querySelectorAll<HTMLElement>("[data-station]")];
+  const groups: [string, HTMLElement][] = stations.length ? stations.map((s) => [s.dataset.station ?? "", s]) : [["*", root]];
+  for (const [id, host] of groups) {
+    const ref = host.getBoundingClientRect();
+    if (ref.width < 1 || ref.height < 1) continue;
+    const keys: string[] = [];
+    const nums: number[] = [];
+    let n = 0;
+    for (const el of host.querySelectorAll("*")) {
+      if (++n > MAX_ELEMENTS) break;
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      keys.push(`${el.tagName}|${ownText(el)}|${cs.transform}|${cs.clipPath}|${cs.strokeDashoffset}|${cs.backgroundColor}|${cs.color}`);
+      nums.push((r.left - ref.left) / ref.width, (r.top - ref.top) / ref.height, r.width / ref.width, r.height / ref.height, Number(cs.opacity || 1));
+      if (el instanceof HTMLCanvasElement) nums.push(...canvasSample(el));
+    }
+    out.set(id, { keys, nums });
+  }
+  return out;
+}
 
 const MAX_ELEMENTS = 2000;
 /** Rendered text shorter than this (px, at full size) is hard to read on a phone: 40 px in portrait, 28 in landscape and square. */
@@ -116,6 +220,7 @@ function scan(root: HTMLElement, width: number, frame: number) {
   collisions(texts, root, warn);
   strokesOverText(texts, root, warn);
   emptyCards(root, box, scale, covers, warn);
+  qaPrints.set(frame, prints(root));
 }
 
 /**

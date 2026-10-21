@@ -15,6 +15,11 @@ export type FilmSpec = {
   score: Score;
   /** A built-in music track (src/music/library.ts) to play instead of the composed score; the score's tempo is the track's. */
   track?: string;
+  /**
+   * More built-in tracks after the first, each taking over at the start of a beat (a calm problem, then
+   * the product kicking in): the new track's downbeat lands on that beat, crossfaded over half a bar.
+   */
+  cues?: { track: string; from: string }[];
   /** Real images the agents fetched (logos, icons), by name, as data URLs. "name@light" is a one-colour logo repainted white for dark backgrounds, "name@dark" one repainted dark. */
   assets?: Record<string, string>;
   /** Where each asset came from (address -> name), so the same image is never fetched twice. */

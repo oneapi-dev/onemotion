@@ -10,7 +10,7 @@ import { FilmHost, type WireFilm } from "./host";
 import { FilmComposition, filmFrames } from "./runtime/FilmComposition";
 import { FILM_FPS, filmTiming, type FilmBeat } from "./timing";
 
-type Example = { name: string; film: { format: FilmSpec["format"]; brand: FilmSpec["brand"]; partner?: FilmSpec["partner"]; assets?: FilmSpec["assets"]; track?: string; score: unknown; beats: FilmBeat[] }; files: Record<string, string> };
+type Example = { name: string; film: { format: FilmSpec["format"]; brand: FilmSpec["brand"]; partner?: FilmSpec["partner"]; assets?: FilmSpec["assets"]; track?: string; cues?: FilmSpec["cues"]; score: unknown; beats: FilmBeat[] }; files: Record<string, string> };
 
 /**
  * The bespoke lab: runs a hand-written example scene through the same path a
@@ -52,7 +52,7 @@ export default function BespokeLab() {
       // ?track=<id> plays a built-in track; the beats snap to its tempo.
       const track = LIBRARY.find((t) => t.id === (new URLSearchParams(window.location.search).get("track") ?? ex.film.track));
       // A film copied from the studio brings its partner and fetched logos.
-      const extra = { ...(ex.film.partner ? { partner: ex.film.partner } : {}), ...(ex.film.assets ? { assets: ex.film.assets } : {}) };
+      const extra = { ...(ex.film.partner ? { partner: ex.film.partner } : {}), ...(ex.film.assets ? { assets: ex.film.assets } : {}), ...(ex.film.cues ? { cues: ex.film.cues } : {}) };
       const spec: FilmSpec = track ? { format: ex.film.format, brand: ex.film.brand, beats, score: { ...score, bpm: track.bpm }, track: track.id, ...extra } : { format: ex.film.format, brand: ex.film.brand, beats, score, ...extra };
       // ?music=1 plays a finished bed (as an ElevenLabs Music track would) instead of the composed score.
       const bed = new URLSearchParams(window.location.search).get("music") === "1" ? await (await fetch("/audio/bright.mp3")).blob() : undefined;

@@ -2,6 +2,7 @@
 
 import type { FilmSpec } from "../film";
 import type { FilmHost } from "../host";
+import { FROZEN_FRAMES } from "../runtime/qa";
 import { filmTiming } from "../timing";
 import type { Concept } from "./concept";
 import { scaled } from "./images";
@@ -26,13 +27,36 @@ export function reviewTiles(spec: FilmSpec): Tile[] {
 }
 
 /**
+ * Earlier holds the QA renders and the reviewer never sees: each lies FROZEN_FRAMES before its beat's
+ * hold tile, once the camera has landed, so the pair shows whether the beat froze after its entrance.
+ * The close is left out (a final lockup may hold).
+ */
+export function probeFrames(spec: FilmSpec): number[] {
+  const { beats } = filmTiming(spec.beats, spec.score);
+  return beats
+    .slice(0, -1)
+    .map((b) => ({ b, at: Math.round(b.start + (b.end - b.start) * 0.65) - FROZEN_FRAMES }))
+    .filter(({ b, at }) => at >= b.start + LANDED)
+    .map(({ at }) => at);
+}
+
+/** Frames into a beat by which the camera has landed on its station and the first entrances are in. */
+const LANDED = 15;
+
+/**
  * The QA's warnings without those measured mid-move: on a transition tile the camera is travelling
  * between two stations, so text crossing the frame edge, a frame between stations, type shrunk by the
  * pull-back and words still rising into place are the move, not defects (the holds are measured too).
+ * A probe frame (probeFrames) is there for the freeze check alone: its other warnings are dropped.
  */
-export function settledWarnings(tiles: Tile[], warnings: string[]): string[] {
+export function settledWarnings(tiles: Tile[], warnings: string[], probes: number[] = []): string[] {
   const moving = new Set(tiles.filter((t) => t.label.startsWith("transition")).map((t) => t.frame));
-  return warnings.filter((w) => !(moving.has(Number(/^frame (\d+):/.exec(w)?.[1])) && /cut by the|nearly empty|clipped by its own box|too small to read|overlap|runs over text|covered by another element|empty card/.test(w)));
+  const probed = new Set(probes);
+  return warnings.filter((w) => {
+    const f = Number(/^frame (\d+):/.exec(w)?.[1]);
+    if (probed.has(f) && !moving.has(f) && !tiles.some((t) => t.frame === f)) return false;
+    return !(moving.has(f) && /cut by the|nearly empty|clipped by its own box|too small to read|overlap|runs over text|covered by another element|empty card/.test(w));
+  });
 }
 
 /** Defects measured across the review tiles: beats in a row whose holds look the same. */
@@ -83,9 +107,11 @@ export async function reviewFilm(o: {
   signal?: AbortSignal;
 }): Promise<{ review: Review | null; usage: Usage; warnings: string[]; seen: string }> {
   const tiles = reviewTiles(o.spec);
-  const stills = await o.host.stills({ spec: o.spec, modules: o.modules }, tiles.map((t) => t.frame), o.signal);
-  const { images, seen } = stills;
-  const warnings = settledWarnings(tiles, [...stills.warnings, ...(await holdSameness(tiles, images))]);
+  const probes = probeFrames(o.spec);
+  const stills = await o.host.stills({ spec: o.spec, modules: o.modules }, [...tiles.map((t) => t.frame), ...probes], o.signal);
+  const images = stills.images.slice(0, tiles.length);
+  const { seen } = stills;
+  const warnings = settledWarnings(tiles, [...stills.warnings, ...(await holdSameness(tiles, images))], probes);
   const portrait = o.spec.format === "portrait";
   const urls = await Promise.all(images.map((b) => scaled(b, portrait ? 720 : 1280)));
   const parts: Part[] = [

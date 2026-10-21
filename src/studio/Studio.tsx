@@ -737,7 +737,7 @@ export function Studio() {
     if (patch.track) {
       const t = LIBRARY.find((x) => x.id === patch.track);
       if (!t) return;
-      film = { ...film, musicKey: undefined, spec: { ...film.spec, track: t.id, musicMap: undefined, score: { ...film.spec.score, bpm: t.bpm }, mix: { ...film.spec.mix, trim: undefined } } };
+      film = { ...film, musicKey: undefined, spec: { ...film.spec, track: t.id, cues: undefined, musicMap: undefined, score: { ...film.spec.score, bpm: t.bpm }, mix: { ...film.spec.mix, trim: undefined } } };
       setFilmMusic(null);
     }
     if (patch.upload) {

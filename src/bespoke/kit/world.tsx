@@ -315,6 +315,7 @@ export const World = ({
             return (
               <div
                 key={b.id}
+                data-station={b.id}
                 style={{ position: "absolute", left: s.x, top: s.y, width: s.w, height: s.h, boxSizing: "border-box", padding: pad, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", transform: s.roll ? `rotate(${s.roll}deg)` : undefined, filter: blur }}
               >
                 <Sequence from={from} durationInFrames={Math.max(1, total - from)} layout="none" name={b.id}>
