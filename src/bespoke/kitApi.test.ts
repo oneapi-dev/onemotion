@@ -11,7 +11,12 @@ describe("the kit's API in the prompt", () => {
     "is the kit as it is now (run `npm run kit:api` after changing the kit)",
     () => {
       const now = execFileSync(process.execPath, ["scripts/kit-api.mjs", "--stdout"], { cwd: process.cwd(), encoding: "utf8" });
-      expect(readFileSync(path.join(process.cwd(), "src", "bespoke", "kit", "api.txt"), "utf8")).toBe(now);
+      // Line endings are the checkout's business (CRLF on Windows), not the API's.
+      expect(readFileSync(path.join(process.cwd(), "src", "bespoke", "kit", "api.txt"), "utf8").replace(/
+/g, "
+")).toBe(now.replace(/
+/g, "
+"));
     },
     EMIT_MS,
   );
