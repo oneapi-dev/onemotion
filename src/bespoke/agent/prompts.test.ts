@@ -37,6 +37,27 @@ describe("prompts", () => {
     expect(reviewPrompt()).toContain("fade or slide out for the next one");
   });
 
+  it("carries antislop's rules to the creative director, the designer and the reviewer, without its questions to the person", () => {
+    for (const p of [conceptPrompt(), agentPrompt()]) {
+      expect(p).toContain("# Anti-slop");
+      expect(p).toContain("The swap test");
+      expect(p).toContain("no em dashes or en dashes");
+    }
+    expect(conceptPrompt()).toContain('"dials": "ENERGY n / RHYTHM n / MOTION n');
+    expect(conceptPrompt()).toContain("(never ask)");
+    expect(reviewPrompt()).toContain("8. Slop checks");
+  });
+
+  it("runs the film as a production: a shot list with states, a reference analysis, motion classes and a critic of three defects", () => {
+    expect(conceptPrompt()).toContain('"purpose": "why this beat exists');
+    expect(conceptPrompt()).toContain('"enters": "the state the frame is in');
+    expect(agentPrompt()).toContain("REFERENCE ANALYSIS");
+    expect(agentPrompt()).toContain("One motion rule per class of object");
+    expect(reviewPrompt()).toContain("# THE THREE LARGEST DEFECTS");
+    expect(reviewPrompt()).toContain('"scores": { "hook"');
+    expect(reviewPrompt()).toContain("At most 3 issues.");
+  });
+
   it("asks the creative director for a story device the viewer can name, not an abstract shape", () => {
     expect(conceptPrompt()).toContain("never an abstract stand-in for an idea (a box, a capsule, a glowing line, particles)");
   });

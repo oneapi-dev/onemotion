@@ -93,6 +93,8 @@ const BEAT_CONCURRENCY = 3;
 /** Review rounds after the build, and the steps the agent gets to fix each one. */
 const MAX_REVIEWS = 2;
 const REVISE_STEPS = 8;
+/** Measured defects handed to one repair round, after the art director's three. */
+const REPAIR_QA = 5;
 /** Steps the lead gets to fix check errors that would stop the film from playing. */
 const REPAIR_STEPS = 4;
 /** How long a film waits for its preview to mount before giving up. */
@@ -547,9 +549,12 @@ export async function makeFilm(o: {
       .map((m) => `${m.id} never shows ${m.figures.join(", ")} on screen (its words: "${spec.beats.find((b) => b.id === m.id)?.says.slice(0, 80)}"): every number a beat promises is on screen at its hold, large enough to read`);
     const silent = silentBeats(spec.beats.length, files);
     const thin = thinness(files, spec.beats.length);
+    // Dashes the brief does not write itself: the tell of generated copy.
+    const dashed = /[—–]/.test(o.brief) ? [] : [...new Set(seen.match(/[^\n—–]{0,24}[—–][^\n—–]{0,24}/g) ?? [])].slice(0, 3);
     return [
       ...qaIssues(warnings),
       ...missing,
+      ...(dashed.length ? [`the on-screen words use dashes (${dashed.map((d) => `"${d.trim()}"`).join(", ")}): rewrite them with a full stop, a comma or a colon`] : []),
       ...slideIssues(files),
       ...(thin ? [thin] : []),
       ...(silent ? [`${silent} beat${silent === 1 ? " has" : "s have"} no sound: every beat gets its <Sfx> on its key reveal (a hit on an impact, ticks on a count); the <World> already plays each camera move`] : []),
@@ -587,9 +592,11 @@ ${agentFacts}`;
     // The automated QA is a gate, not advice: text cut, overlapping, too small or a frame with nothing on it is fixed whatever the review says.
     lastSeen = seen;
     const qa = defects(warnings, seen);
-    lastScore = review?.score ?? 0;
+    // A review that could not be read says nothing about the score: the measured defects decide against the best version.
+    lastScore = review?.score ?? best?.score ?? 0;
     if (!best || lastScore > best.score || (lastScore === best.score && qa.length < best.qa)) best = { files: { ...files }, score: lastScore, qa: qa.length, round };
-    const todo = [...(review?.issues.filter((i) => i.severity !== "low") ?? []).map((i) => `- [${i.severity}] ${i.tile ?? ""} ${i.problem} -> ${i.fix}`), ...qa.map((w) => `- [qa] ${w}`)];
+    // A bounded repair: the art director's three largest defects and the first measured ones. Many notes at once make a film worse.
+    const todo = [...(review?.issues ?? []).map((i) => `- [${i.severity}] ${i.tile ?? ""} ${i.problem} -> ${i.fix}`), ...qa.slice(0, REPAIR_QA).map((w) => `- [qa] ${w}`)];
     lastQa = qa;
     const belowFloor = review !== null && review.score < MIN_SCORE;
     const lastRound = round >= MAX_REVIEWS + (belowFloor || (blind && qa.length) ? EXTRA_REVIEWS : 0);
@@ -597,7 +604,7 @@ ${agentFacts}`;
     if (round >= MAX_REVIEWS) say("review", { kind: "error", text: `${review ? `score ${review.score}/10 is under the studio's floor of ${MIN_SCORE}` : "the QA still finds defects"}: another round` });
     leadMessages.push({
       role: "user",
-      content: `${review ? `The art director reviewed rendered frames of the film with fresh eyes (score ${review.score}/10${review.score < MIN_SCORE ? `; the studio does not ship under ${MIN_SCORE}: this is not finished, make it substantially better, not a token edit` : ""}).` : "The film's frames were rendered and checked."} Fix these in whichever files they live (the [qa] ones are measured on the rendered frames: each one is a real defect), keep what works, check your fixes with renders, then call finish:\n${todo.join("\n")}`,
+      content: `${review ? `The art director judged the rendered frames with fresh eyes (score ${review.score}/10).` : "The film's frames were rendered and checked."} Patch exactly these defects, in place, in the files where they live, and change nothing else: do not rework beats that are not named and do not add effects (the [qa] lines are measured on the frames: each one is real). Then render the frames you changed, confirm each defect is gone, and call finish:\n${todo.join("\n")}`,
     });
     lead.dirty = true;
     r = await agent("lead", leadMessages, leadTools(true), REVISE_STEPS);
@@ -605,7 +612,7 @@ ${agentFacts}`;
   // The reviews are over; measured defects are not taste: one more round fixes what the QA still found (text too small, an empty frame, a missing sound).
   if (lastQa.length && !o.signal?.aborted) {
     say("review", { kind: "tool", text: `fixing ${lastQa.length} measured defect${lastQa.length === 1 ? "" : "s"} the QA still found` });
-    leadMessages.push({ role: "user", content: `Last pass: the automated QA still measures these defects on the rendered frames. Fix every one of them (they are measured, not taste), change nothing else, render the frames to confirm, then call finish:\n${lastQa.map((w) => `- ${w}`).join("\n")}` });
+    leadMessages.push({ role: "user", content: `Last pass: the automated QA still measures these defects on the rendered frames. Fix every one of them (they are measured, not taste), change nothing else, render the frames to confirm, then call finish:\n${lastQa.slice(0, REPAIR_QA).map((w) => `- ${w}`).join("\n")}` });
     lead.dirty = true;
     r = await agent("lead", leadMessages, leadTools(true), REVISE_STEPS);
     // The last pass is measured like a round: it ships only when it is no worse than the best version reviewed.

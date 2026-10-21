@@ -140,3 +140,16 @@ describe("a concept in the model's own shape", () => {
     expect(c.beats[1].says).toContain("$15");
   });
 });
+
+describe("the shot list", () => {
+  it("keeps each beat's purpose and the states it enters and leaves, and joins them when beats merge", () => {
+    const c = normalizeConcept({
+      beats: [
+        { says: "a", shows: "a card", purpose: "the viewer learns the price fell", enters: "the old price alone", leaves: "the new price beside it" },
+        { says: "b", shows: "the close" },
+      ],
+    });
+    expect(c.beats[0]).toMatchObject({ purpose: "the viewer learns the price fell", enters: "the old price alone", leaves: "the new price beside it" });
+    expect(c.beats[1].purpose).toBeUndefined();
+  });
+});

@@ -44,7 +44,12 @@ export type Concept = {
  * are the shots and events inside it, so a single continuous beat can still
  * carry a whole sequence.
  */
-export type ConceptBeat = { id: string; says: string; shows: string; voice: string; seconds: number; moments?: { at: string; what: string }[] };
+/**
+ * A beat is also a contract (the shot list): why it exists, the state the frame is in when it
+ * begins and the state it leaves for the next beat, so the designer builds continuity between
+ * known states instead of a run of unrelated pictures.
+ */
+export type ConceptBeat = { id: string; says: string; shows: string; voice: string; seconds: number; moments?: { at: string; what: string }[]; purpose?: string; enters?: string; leaves?: string };
 
 export type ConceptLook = {
   direction: string;
@@ -59,6 +64,8 @@ export type ConceptLook = {
   render: string;
   signature: string;
   specialMoment: string;
+  /** How hard the film says hello, how much its beats differ, how much moves: "ENERGY 1 / RHYTHM 2 / MOTION 2". */
+  dials: string;
 };
 
 export class UnusableConceptError extends Error {
@@ -102,6 +109,9 @@ const join = (a: ConceptBeat, b: ConceptBeat): ConceptBeat => ({
   voice: [a.voice, b.voice].filter(Boolean).join(" "),
   seconds: a.seconds + b.seconds,
   moments: [...(a.moments ?? []), ...(b.moments ?? [])],
+  ...(a.purpose || b.purpose ? { purpose: [a.purpose, b.purpose].filter(Boolean).join(" Then: ") } : {}),
+  ...(a.enters ? { enters: a.enters } : {}),
+  ...(b.leaves ? { leaves: b.leaves } : {}),
 });
 
 const firstText = (o: Record<string, unknown>, keys: string[]) => {
@@ -162,6 +172,9 @@ export function normalizeConcept(input: unknown): Concept {
       voice: str(b.voice, 2000),
       seconds: Math.min(MAX_BEAT_SECONDS, Math.max(MIN_BEAT_SECONDS, typeof b.seconds === "number" && Number.isFinite(b.seconds) ? b.seconds : 2.5)),
       ...(moments.length ? { moments } : {}),
+      ...(str(b.purpose, 300) ? { purpose: str(b.purpose, 300) } : {}),
+      ...(str(b.enters, 300) ? { enters: str(b.enters, 300) } : {}),
+      ...(str(b.leaves, 300) ? { leaves: str(b.leaves, 300) } : {}),
     };
   });
   // A beat without "shows" leaves the designer guessing the whole film (a model that answered in its own shape): ask again.
@@ -225,6 +238,7 @@ export function normalizeConcept(input: unknown): Concept {
       render: str(look.render, 120),
       signature: str(look.signature, 200),
       specialMoment: str(look.special_moment, 200),
+      dials: str(look.dials, 80),
     },
     brand: { name: str(brand.name, 60), url: str(brand.url, 80).replace(/^https?:\/\//, "").replace(/\/$/, "") },
     beats,

@@ -66,6 +66,9 @@ export declare const Ink: (props: { strokes: Stroke[]; width?: number; height?: 
 --- @kit/annotate ---
 export type AnnotateKind = "circle" | "underline" | "box" | "strike";
 export declare const Annotate: (props: { kind?: AnnotateKind; at: number; dur?: number; color?: string; width?: number; pad?: number; seed?: number; style?: CSSProperties; children: ReactNode; }) => JSX.Element;
+--- @kit/wire ---
+export declare const Anchor: (props: { name: string; style?: CSSProperties; children: ReactNode; }) => JSX.Element;
+export declare const Wire: (props: { from: string; to: string; at: number; dur?: number; color?: string; width?: number; gap?: number; elbow?: boolean; dot?: string; dotAt?: number; }) => JSX.Element;
 --- @kit/fx ---
 export type Hit = { at: number; kind: "shake" | "punch" | "flash"; amp?: number; };
 export declare const useHits: (hits: Hit[], t: number) => { x: number; y: number; scale: number; flash: number; };

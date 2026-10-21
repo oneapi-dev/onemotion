@@ -31,7 +31,8 @@ import { Editor } from "./Editor";
 
 import { SettingsView } from "./Settings";
 import { CreateWizard } from "./CreateWizard";
-import { isWebsite, partnerInfo, siteOf, type Partner } from "./briefs";
+import { formatLine, ideaFromBrief, isWebsite, needsProductionBrief, partnerInfo, siteOf, withProductionBrief, type Partner, type TemplateId } from "./briefs";
+import { writeBrief } from "./suggest";
 import { hasNarration, recordNarration, storedNarration } from "@/voice/narrate";
 import { putLine } from "@/voice/cache";
 import { matchGain, rmsDb } from "@/music/mix";
@@ -456,7 +457,23 @@ export function Studio() {
         }
         setStage("film");
         runStarted.current = Date.now();
-        const base: Project = { id: opts.replace?.id ?? newId(), createdAt: new Date().toISOString(), brief: opts.brief, website: opts.website, format, tone, site, ...(partner ? { partner } : {}) };
+        // A brief of the person's own raw notes gets the production brief the wizard's briefs carry (the story, a timed
+        // storyboard, motifs, what to avoid, the close), written by their model below their words, which stay as they are.
+        let brief = opts.brief;
+        if (!opts.resume && needsProductionBrief(brief)) {
+          track("brief", "writing the production brief from your brief (your words stay as written)");
+          try {
+            const idea = { ...ideaFromBrief(brief, opts.website), template: (opts.partner ? "collab" : "custom") as TemplateId, partner: opts.partner ? { website: opts.partner.website, lead: opts.partner.lead } : null };
+            const r = await writeBrief({ key: ai.key, model: ai.model, idea, format: formatLine(format), signal: ctrl.signal });
+            brief = withProductionBrief(brief, r.brief);
+          } catch (err) {
+            if (ctrl.signal.aborted) throw err;
+            // Without it the film is still made, from the brief as it is.
+          } finally {
+            track("brief", null);
+          }
+        }
+        const base: Project = { id: opts.replace?.id ?? newId(), createdAt: new Date().toISOString(), brief, website: opts.website, format, tone, site, ...(partner ? { partner } : {}) };
         setCurrent(base);
         const keep = (film: FilmState) => {
           const p = { ...base, film };
@@ -467,7 +484,7 @@ export function Studio() {
         const film = await makeFilm({
           key: ai.key,
           model: ai.model,
-          brief: opts.brief,
+          brief,
           site,
           format,
           models,

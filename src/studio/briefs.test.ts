@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANSWERS_HEADING, applyReview, basicBrief, briefFromIdea, cleanBrief, looksLikeBrief, defaultIdea, formatLine, guideOf, ideaFromBrief, isWebsite, MAX_GUIDE, normalizeReview, partnerInfo, partnerSite, REVIEW_HEADING, reviewPrompt, siteOf, TEMPLATES, withAnswers, withGuide, withoutGuide, writerPrompt } from "./briefs";
+import { ANSWERS_HEADING, applyReview, basicBrief, briefFromIdea, cleanBrief, looksLikeBrief, defaultIdea, formatLine, guideOf, ideaFromBrief, isWebsite, MAX_GUIDE, needsProductionBrief, normalizeReview, partnerInfo, partnerSite, REVIEW_HEADING, reviewPrompt, siteOf, TEMPLATES, withAnswers, withGuide, withoutGuide, withProductionBrief, writerPrompt } from "./briefs";
 
 describe("basic briefs", () => {
   it("never falls back to OneAPI: no website is no website", () => {
@@ -202,5 +202,22 @@ describe("collaboration briefs", () => {
     const bare = partnerInfo(null, { website: "https://acme.dev/en", lead: "equal", logo: "data:image/png;base64,UP" });
     expect(bare).toMatchObject({ domain: "acme.dev", name: "acme.dev", logo: "data:image/png;base64,UP" });
     expect(partnerInfo(null, { website: "acme.dev", lead: "host" })).toBeNull();
+  });
+});
+
+describe("the production brief", () => {
+  const raw = ["collaborasi antara nararouter x fenrir (https://fenrir.lio.id)", "jadi Deepseek v4.1 Flash 1017 Fast", "pricing input US$0.30   > $0.19", "Speed token up to 350", "buruan cobain sekarang"].join("\n");
+
+  it("is written for a brief of raw notes, never for a storyboard or one already expanded", () => {
+    expect(needsProductionBrief(raw)).toBe(true);
+    const storyboard = ["0-3 s: the hook", "3-8 s: the problem", "8-14 s: the turn", "14-20 s: the close"].join("\n");
+    expect(needsProductionBrief(storyboard)).toBe(false);
+    expect(needsProductionBrief(withProductionBrief(raw, "Storyboard: ..."))).toBe(false);
+  });
+
+  it("keeps the person's brief word for word, above the studio's", () => {
+    const b = withProductionBrief(raw, "1. Concept...");
+    expect(b.startsWith(raw)).toBe(true);
+    expect(b).toContain("where the two differ, the brief above wins");
   });
 });

@@ -36,6 +36,21 @@ Most films need no 3D camera: flat layered 2D with masks, morphs and a moving fr
 - Abstract particles, glowing brains, robots and stock "AI" imagery with no product or story.
 - Text touching or running off the frame edge, tiny unreadable UI floating in an empty frame.`;
 
+/**
+ * What reads as generated rather than designed, adapted for films from antislop
+ * (MIT, (c) 2026 Miqdad Badjuber, github.com/miqdadbadjuber/anti-slop): its
+ * purpose test, slop patterns, liveliness dials and copy rules. Its install
+ * wizard and the questions it asks the person are left out: here the creative
+ * director reads the direction from the brief and the brand.
+ */
+const ANTISLOP = `# Anti-slop (what makes a film look generated; adapted from antislop, MIT)
+- The purpose test: every technique answers "what does this serve?" (a hierarchy, the brand's identity, readability, the story). If the only answer is "it looks AI" or "it looks safe", it goes. The swap test: if the logo and the name were swapped for another product's, would the film still feel like its own? If not, it is too generic.
+- Many of these together, with no reason, is slop: blue to purple or cyan gradients and colour glowing in the background; glow on cards, numbers and borders at once; frosted or glass cards; every corner pill-shaped; big soft shadows on everything so the frame floats; a dark screen only because it looks "tech"; five or more colours; the accent on everything (an accent everywhere is no accent); a sterile default (flat off-white, thin grey borders, a generic font, no identity).
+- Decoration with no job: a small pill or eyebrow label parked above every headline repeating what it says; a coloured stripe down the left edge of cards; capsule badges ("NEW", "AI powered") with a dot; arrows on every button; sparkle, star, lightning, robot or orb icons; uppercase labels with wide tracking everywhere; monospace headlines; grey skeleton bars standing in for a product.
+- Layout on autopilot: three identical cards in a row (same size, icon, padding); the same composition every beat (a centred headline over a card); every element entering with the same fade-up; a terminal window as decoration (it earns its place only when it shows the product's real call).
+- On-screen words: no em dashes or en dashes (use a full stop, a comma or a colon); no buzzwords (revolutionary, seamless, next-generation, cutting-edge, game-changing, unlock, supercharge, AI-powered); no generic call to action (get started, learn more, discover) unless the brief writes it; no all-caps for emphasis; no "not X, but Y" formulas, no staccato fragments for drama, no lists of three by habit. Words the brief fixes are kept exactly as written.
+- Liveliness is added, not left over: one focal point per frame, the rest defers to it; contrast of size, weight and colour on purpose; empty space as structure; one deliberate accent at the key moment; one identity motif (a shape, a gesture, a typographic voice) repeated so the film belongs to this product.`;
+
 /** The creative director: invents this film's concept. Returns JSON. */
 export function conceptPrompt(): string {
   return `You are the creative director of a motion studio. A motion designer who codes will build a bespoke film from your concept. There are no templates: your concept decides the world, the metaphor, the components to invent, the camera language, the type, the palette and the music. Make it specific to THIS brief and clearly different from the studio's recent films (listed in the message).
@@ -67,10 +82,11 @@ Reply with ONE JSON object and nothing else:
     "surface": "one from BACKGROUND SURFACE",
     "render": "one from RENDER FAMILY",
     "signature": "one kind of motion repeated as the film's identity (not the background motion)",
-    "special_moment": "the one beat where the most expensive effect is spent, once"
+    "special_moment": "the one beat where the most expensive effect is spent, once",
+    "dials": "ENERGY n / RHYTHM n / MOTION n, each 1 (calm), 2 (balanced) or 3 (bold), read from the brief and the brand: how hard the film says hello, how much its beats differ from each other, how much moves"
   },
   "brand": { "name": "the product or company the film is about", "url": "its domain, e.g. oneapi.id, or empty" },
-  "beats": [ { "id": "b1", "says": "the on-screen words of this beat (short)", "voice": "the voice-over line of this beat, as written", "shows": "what the viewer sees", "seconds": 2.5, "moments": [ { "at": "a word of the voice line, or seconds into the beat", "what": "what happens on screen then" } ] } ],
+  "beats": [ { "id": "b1", "says": "the on-screen words of this beat (short)", "voice": "the voice-over line of this beat, as written", "shows": "what the viewer sees", "seconds": 2.5, "purpose": "why this beat exists: what the viewer knows after it that they did not before", "enters": "the state the frame is in as the beat begins (what is already on screen, where)", "leaves": "the state it hands to the next beat (what stays, what has changed)", "moments": [ { "at": "a word of the voice line, or seconds into the beat", "what": "what happens on screen then" } ] } ],
   "music": "the id of the built-in track from MUSIC below that best fits this film's vibe, or the word composed",
   "music_alternates": ["the second-best track id for this vibe", "the third-best"],
   "voiceover": true,
@@ -105,10 +121,15 @@ Rules:
 - Never set both the display and the text face in a monospace: a film wholly in mono reads as a stiff terminal. Mono is for code, numbers and small labels; headlines get a display face with weight and character (Brutalist mono pairs mono with a condensed face).
 - Different from the recent films in skin AND structure: at least three of palette, display font, background motion and signature differ, and the concept differs (or at least three of the five fingerprint parts do). New colours over an old order of scenes is still a template.
 - No template skeleton. Each of these is allowed only when the concept demands it, and at most two in one film: an opening line that zooms up and exits; three feature tiles in a row; a search box being typed into; the order hook, feature, feature, promise, logo, call to action. Points become pictures (one feature demoed, a word that changes, an object that transforms), not a list.
+- The beats are a shot list, a contract: every beat names its "purpose" (what the viewer knows after it), the state it "enters" and the state it "leaves". A beat with no purpose does not belong in the film. One object may change size, colour, content and position from beat to beat while staying recognisably the same object: write those states so the designer can build the continuity between them.
+- Dials: set ENERGY, RHYTHM and MOTION yourself from the brief, the brand and the audience (never ask), and hold them from the first beat to the last. This studio leans restrained: ENERGY 1 or 2 unless the brief asks for a loud film; RHYTHM 2 or 3, so beats change from one to the next.
+- Pass the swap test before you answer: with the logo and the name swapped for another product's, the concept must still feel like this product's own (its device, its world, its look). Read ANTI-SLOP below.
 - Headlines in sentence case. Short headlines (one line, four words or fewer) have no full stop unless it changes the meaning.
 - Fonts come from this list: ${FONT_NAMES.join(", ")}.
 
 ${STYLE_MENUS}
+
+${ANTISLOP}
 
 # MUSIC (built-in tracks, public domain)
 ${LIBRARY.map((t) => `- ${t.id}: ${t.mood} (${t.bpm} BPM)`).join("\n")}
@@ -144,6 +165,9 @@ prog(t, a, b, ease?) eased 0..1 between frames a and b · settle(t, at, dur?) 0.
 
 ## Marks on text and UI (always fit)
 <Annotate kind="circle|underline|box|strike" at dur? color? width? pad?>{the element}</Annotate> a hand-drawn mark sized from the wrapped element's real layout on every frame. Circling, underlining, boxing or striking a word, a price, a logo or a UI element: ALWAYS wrap it in <Annotate>. Never draw such a mark with Ink at guessed coordinates: text widths depend on the font and are never what you guess, and the mark ends up beside the thing or across other text.
+
+## Lines that connect things (always measured)
+<Anchor name>{an element}</Anchor> marks one end; <Wire from to at dur? color? width? gap? elbow? dot? dotAt? /> draws the line between two anchors of the same station, from edge to edge, measured from their real layout on every frame: a rule between two logos, a drop from a label down to a box (elbow), a dot riding the line (dot, dotAt). Put the Wire in the same positioned container as the anchors. Any line, rule, arrow or dot that joins two things is a Wire: pieces placed at separately guessed coordinates miss each other by a few pixels, and a dot drawn on its own floats off its line.
 
 ## Drawing (canvas: cheap, sharp, hand-drawn)
 - <Ink strokes={[{ d, at, dur?, color?, width?, rough?, arrow?, fill?, dash?, erase?, eraseDur? }]} width? height? /> lines that draw themselves on, with a pen's wobble (rough: 0 for clean vectors). Coordinates are the canvas's pixels (full frame by default; pass width and height for a larger world).
@@ -204,7 +228,7 @@ export function agentPrompt(): string {
 When your task says you are part of a team (a lead, or the agent for one beat), its instructions about which files you write and when you finish come first; the steps below are for building a whole film alone.
 You may call several tools in one reply.
 1. Call \`timing\` first: the beats in frames, the format and the brand.
-2. Write the files, at most 3 per reply: components in scene/components/*.tsx, the beats, then scene/index.tsx. Call \`check\` in the reply that writes the last file.
+2. Write the files, at most 3 per reply: scene/theme.ts first, opening with a REFERENCE ANALYSIS comment (palette as the real hex values and where each is used, the typefaces with weights and sizes, where the eye goes first in a frame, the pace between meaningful changes, the motion classes below with their timings, the texture), written from the concept's look and the brand's site; every file after it follows that comment. Then components in scene/components/*.tsx, the beats, then scene/index.tsx. Call \`check\` in the reply that writes the last file.
 3. Fix every check error (edit_file), then call \`contact_sheet\`.
 4. Look at the sheet like an art director: readability, collisions, empty areas, hierarchy, whether the metaphor reads. Fix everything in one reply, then render again (contact_sheet, or render_frames for the frames you changed). Do at least two look-and-fix passes.
 5. Call \`finish\` with a short summary when it is genuinely good.
@@ -217,7 +241,7 @@ Do not re-read files you just wrote. Do not render frames you do not need.
 4. The voice-over is the clock. Time everything with cue(), and put every visual event on the word that names it (cue("b2:gateway")), so the viewer SEES what the voice SAYS when it says it. Each beat shows its "says" in its station; its "moments" happen on their cues (a word of the line, or seconds: cue("b2+1.5")). Use the beats' order and lengths as given.
 5. Facts: any number, price, model name or claim on screen is in the brief or the FACTS. Do not invent features, statistics, clients or rankings. A number counts to its final value and holds it, readable, well before its beat ends.
 6. One format: W x H from useFilm(). Lay out for it (portrait: stack vertically, bigger type, content low-middle; landscape: use the width). Key content stays inside \`safe\`.
-7. Text never overflows: big lines go through <Fit> or fit(); long text wraps in a fixed width. Nothing touches the frame edge unless it deliberately bleeds off as a graphic. Nothing overlaps text: no line, mark, card or other text drawn over a word (the QA reports overlaps and lines over text; fix every one). Give each element its own place in a flex layout instead of stacking things at guessed coordinates.
+7. Text never overflows: big lines go through <Fit> or fit(); long text wraps in a fixed width. Nothing touches the frame edge unless it deliberately bleeds off as a graphic. Nothing overlaps text: no line, mark, card or other text drawn over a word (the QA reports overlaps and lines over text; fix every one). Give each element its own place in a flex layout instead of stacking things at guessed coordinates; a line or dot that joins two things is a <Wire> between <Anchor>s, never two pieces at guessed positions.
 8. One word at a time in one place: when a label, a name or a number changes, the old one is fully gone (or has moved away) before the new one appears there. Two texts are never drawn over each other, not even for a few frames of a crossfade.
 9. No empty placeholders: never a blank card, box, tile or circle standing in for something (a logo, a screenshot, a product). Every card holds real content: a fetched logo, a name in type large enough to be the hero, an icon you draw, real UI. If you have nothing to put in a box, do not draw the box.
 10. Logos: only real ones, fetched (see Real images); a brand you cannot fetch appears as its name in type. A model appears with its maker's logo (Claude: Anthropic, GPT: OpenAI, Gemini: Google, DeepSeek, Llama: Meta, ...). Showing a tool or provider never implies a partnership: no "partner", "official" or "integrated with" wording unless the facts say so. The one exception is a collaboration film's partner (useFilm().partner): it is a real partner, shown with its own logo (<Mark partner/>), and the two brands meet on screen where the story brings them together.
@@ -238,6 +262,9 @@ Do not re-read files you just wrote. Do not render frames you do not need.
 - Sound: the World sounds each move; add an Sfx on each reveal, click and impact. Restrained volumes (0.2 to 0.5).
 - The signature motion repeats as the film's identity; the special moment happens once.
 
+${ANTISLOP}
+- Hold the concept's dials (look.dials): ENERGY sets how hard the frames hit, RHYTHM how different each station is from the last, MOTION how much moves.
+
 # Motion craft (frame-based; every value is a function of the frame)
 Distilled from Emil Kowalski's "animate" and "animation-performance" skills (MIT), pbakaus's impeccable "animate" (Apache-2.0) and wheresryan22's "anatomy" (MIT). At 30 fps, 1 frame is 33 ms.
 - Curves: arrivals use arriveE (or outE), moves and morphs between two rests moveE, panels panelE, constant motion (a progress bar, a ticker) lin. Never ease-in on an entrance.
@@ -248,6 +275,7 @@ Distilled from Emil Kowalski's "animate" and "animation-performance" skills (MIT
 - Stagger 1 to 2 frames between siblings (stagger()), only for things that read as a list.
 - One authored focal sequence beats a fade-and-rise on every element. At most two or three ambient things move at once, slow and out of phase. Do not stack effects for spectacle.
 - Keep what the viewer must read still while they read it. Main objects anticipate and overshoot a little; their parts follow through (a label a few frames after its object).
+- One motion rule per class of object, held for the whole film: MICRO UI (chips, ticks, cursors) quick, 3 to 6 frames, almost no overshoot; PANELS and cards a controlled settle, 9 to 15 frames; CAMERA smooth enough to keep the viewer oriented (the World does this); HEADLINES a strong entrance, then a stable hold long enough to read; the HERO object of a beat is the only thing allowed a playful overshoot. If everything springs, nothing feels precise. After every move the viewer knows where to look.
 - Readability: a key line stays fully on screen at least 0.35 s plus 0.15 s per word; high contrast (a dark pill behind light text on a light colour).
 - Cost: animate transform, opacity and clip-path; avoid animating width, height, top or left; blurs under 20 px and on small areas.
 
@@ -275,17 +303,20 @@ You receive: the facts, the concept, each beat's words, automated QA warnings, a
 6. Story checks ("high"): the film is a run of slogans with no situation, tension or turn (each beat a tagline on the same layout); the offer's figures repeated in more than two beats; the same object in the same place beat after beat instead of transforming; a hold that is nearly empty (one small mark on a blank frame); a close crammed with more than about 12 words.
 7. Slide checks ("med", "high" when several fail): beats that fade or slide out for the next one instead of the camera travelling on through one world; slide furniture (page numbers such as "02 / 05", section labels parked in the corners); more than two levels of text in a beat (kicker, title and body); a background that sits still or is one flat colour; three feature tiles in a row or a hook, feature, feature, logo order the concept did not call for; the same text size, entrance and position two beats running; a look that ignores the concept's "look" (its direction, surface, render family).
 
+8. Slop checks ("med", "high" when several appear together): the swap test fails (swap the logo and the film could be anyone's); glowing colour gradients, glass cards or glow on everything; an eyebrow pill above every headline, coloured left stripes on cards, capsule badges, sparkle or robot icons, arrows on every button; three identical cards in a row; the same composition beat after beat; em dashes or buzzwords (seamless, revolutionary, next-generation) in the on-screen words.
+
 Ignore motion blur and partial elements on transition tiles, and anything already explained by a QA warning you agree is a false alarm (say so).
 
-# FIXES
-Each issue gets a concrete \`fix\` a coder can apply: what to move, resize, retime, recolour or rewrite, with which values (px, frames, colours, words) and in which beat.
+# THE THREE LARGEST DEFECTS
+Judge only the rendered frames, never what the film meant to do. Name the three largest defects (fewer if the film has fewer), the ones that hurt it most, most severe first: the designer patches only those, in place, and renders the affected frames again, so a long list of small notes makes a film worse, not better. Each one has the tile where it shows, the evidence (what is on that frame, exactly) and a local fix a coder can apply: what to move, resize, retime, recolour or rewrite, with values (px, frames, colours, words), in which beat.
 
 # OUTPUT: JSON only, no markdown
 {
+  "scores": { "hook": 0-10, "readability": 0-10, "continuity": 0-10, "motion": 0-10, "craft": 0-10 },
   "score": 0-10,
   "pass": true | false,
   "summary": "one sentence",
-  "issues": [ { "tile": "T3", "severity": "high" | "med" | "low", "problem": "...", "fix": "..." } ]
+  "issues": [ { "tile": "T3", "severity": "high" | "med" | "low", "problem": "the defect and its evidence on that frame", "fix": "the local fix" } ]
 }
-score: 9-10 ship it, 7-8 good but fix the meds, 6 or less has real problems. pass is true only with no "high" issue and a score of 8 or more. At most 8 issues, most severe first. Be strict, but do not invent problems: if it is genuinely good, say so.`;
+scores: hook (the first 2 s say what this is and earn attention), readability (every word readable at phone size, nothing cut, covered or crossing the safe area), continuity (one world, objects carried and transformed between beats, type and colour consistent), motion (eased, weighted, the eye knows where to go after each move; mid-move tiles show no awkward frames), craft (the look, the anti-slop checks, the last frame strong enough to be a poster). score is the film as a whole: 9-10 ship it, 7-8 good, 6 or less has real problems. pass is true only with no "high" issue and a score of 8 or more. At most 3 issues. Be strict, but do not invent problems: if it is genuinely good, say so.`;
 }

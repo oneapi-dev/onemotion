@@ -8,6 +8,7 @@ export { clamp01, outE, inOut, flyE, lin, prog, pop, hitEnv, seeded, kf, typed, 
 export { Fit, fit, textW, Chars, Caret, Typewriter, Odometer, CountUp, Highlight, Strike } from "./text";
 export { Draw, Ink, path, pointAt, samplePath, type Stroke } from "./draw";
 export { Annotate, type AnnotateKind } from "./annotate";
+export { Anchor, Wire } from "./wire";
 export { useHits, Grain, Burst, Confetti, Whip, type Hit } from "./fx";
 export { camAt, project3D, Billboard3D, Particles3D, Floor3D, focusWeight, type Vec3, type Cam3, type CamKey } from "./space";
 export { Asset, Picture, Mark, CoMark, Window, Phone, Cursor, Notification } from "./ui";

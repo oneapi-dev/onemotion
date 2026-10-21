@@ -253,8 +253,8 @@ Write the brief in English, with every on-screen text quoted in ${i.language}. P
 2. Brand: use the real logo, colours and product interface from the website; no invented mascot or fake assets. Name the brand colours if the website shows them.${partner ? ` This is a collaboration with ${partner} (the PARTNER below, a real partnership): ${equal ? "both brands carry the same weight, the palette draws on both" : `${host} leads, ${partner} joins where the story brings them together`}; use ${partner}'s real logo and colours from its own page.` : ""}
 3. Focus: what the product is in one line, then 2 to 4 capabilities to show, each one line, from the website.
 4. The story: first the inventory it stands on (what the product does that is not obvious, the moment of friction it removes, the clichés of its category this film will not use), then one core line of three short beats (in ${i.language}), then the journey in 3 to 5 sentences: the problem, the turn, what changes for the viewer. Goal: ${t.goal}.
-5. Visual style: ${look.brief}; the canvas, the camera language, how rough sketches or abstract shapes and real polished UI mix. Limits: one display face and one text face, at most three colours, and one accent colour with one meaning.
-6. Storyboard: 4 to 6 timed sections covering 0 to ${i.seconds} seconds, on the beat of the music (state its tempo in BPM once). For each: the seconds, what happens on screen in 2 to 4 concrete sentences (camera moves, transitions, what transforms into what), and the on-screen text in quotes, at most 4 words per fragment and never more than 8 words on screen at once. Each section grows out of the one before it (something in frame becomes the next thing); no crossfades between sections. The first 2 seconds show ${t.hook} or the offer.
+5. Visual style: ${look.brief}; the canvas, the camera language, how real objects, real code and real polished UI mix. Limits: one display face and one text face, at most three colours, and one accent colour with one meaning. Take the style from the brand's own site, not from its category: light, paper or textured surfaces by default, a dark screen only when the brand itself is dark. Never glowing colour gradients, glass cards, neon, glow on everything, particles, or a glowing dot or token as the story device: they read as generic AI. The story device is a real thing the viewer can name from the product's world (its UI, a request, a receipt, a number that moves, a line of code).
+6. Storyboard: 4 to 6 timed sections covering 0 to ${i.seconds} seconds, on the beat of the music (state its tempo in BPM once). For each: the seconds, what happens on screen in 2 to 4 concrete sentences (camera moves, transitions, what transforms into what), and the on-screen text in quotes, at most 4 words per fragment and never more than 8 words on screen at once, with no em or en dashes and no buzzwords (seamless, revolutionary, next-generation, supercharge). Each section grows out of the one before it (something in frame becomes the next thing); no crossfades between sections. The first 2 seconds show ${t.hook} or the offer.
 7. Visual motifs: 8 to 14 concrete things to show that fit this product (UI, code, data, objects), as a list.
 8. Banned for this film: a concrete list of what it must not do (effects, moves and looks), specific to this product and this style, not general advice.
 9. Sound design: every cue tied to something visible (a stroke, a click, an impact, a number landing, a transition) and how the music builds. ${i.voice ? `A voice-over in ${i.language}.` : "No voice-over."}
@@ -274,6 +274,23 @@ Reply with the brief only.`,
       .join("\n\n"),
   };
 }
+
+const PRODUCTION = "PRODUCTION BRIEF (written by the studio from the brief above; where the two differ, the brief above wins):";
+
+/**
+ * Whether a brief is the person's own raw notes rather than a production brief: no timed storyboard
+ * and not already expanded. A raw brief (a few lines of facts and prices) leaves the art director to
+ * invent the story, the storyboard and the look on its own, and it falls back to slides; the wizard's
+ * briefs never do, because the brief writer has already made those decisions.
+ */
+export function needsProductionBrief(brief: string): boolean {
+  if (brief.includes(PRODUCTION)) return false;
+  const timed = (brief.match(/\b\d{1,2}(?:[.,]\d)?\s*(?:-|–|to|sampai)\s*\d{1,2}(?:[.,]\d)?\s*(?:s\b|sec|secs|seconds?|detik|dtk)/gi) ?? []).length;
+  return timed < 3;
+}
+
+/** The person's brief, word for word, with the studio's production brief below it. */
+export const withProductionBrief = (brief: string, production: string) => `${brief.trim()}\n\n${PRODUCTION}\n${production.trim()}`;
 
 /** The model's brief, without a fence or a preamble around it, at a length the agents can carry. */
 export function cleanBrief(text: string): string {

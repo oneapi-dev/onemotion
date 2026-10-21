@@ -59,7 +59,7 @@ function normalizeReview(raw: unknown): Review {
       fix: String(i.fix ?? "").slice(0, 600),
     }))
     .filter((i) => i.problem)
-    .slice(0, 8);
+    .slice(0, 3);
   const score = typeof r.score === "number" && Number.isFinite(r.score) ? Math.max(0, Math.min(10, r.score)) : 0;
   return { score, pass: r.pass === true && score >= 8 && !issues.some((i) => i.severity === "high"), summary: String(r.summary ?? "").slice(0, 300), issues };
 }
