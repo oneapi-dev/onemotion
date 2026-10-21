@@ -1,0 +1,138 @@
+--- @kit/film ---
+export type Brand = { name: string; url: string; logo: string | null; colors: string[]; };
+export type Partner = Brand & { lead: "host" | "equal"; };
+export type Beat = { id: string; says: string; shows: string; voice: string; spoken: boolean; start: number; end: number; words: BeatWord[]; };
+export type BeatWord = { text: string; at: number; end: number; };
+export type Film = { fps: number; W: number; H: number; P: boolean; format: "landscape" | "portrait" | "square"; total: number; beats: Beat[]; beat: (id: string | number) => Beat; cue: (c: string) => number; brand: Brand; partner: Partner | null; assets: Record<string, string>; safe: { top: number; bottom: number; left: number; right: number; }; };
+export declare const useFilm: () => Film;
+--- @kit/beat ---
+export type BeatScope = { beat: Beat; len: number; cue: (c: string) => number; };
+export declare const useBeat: () => BeatScope;
+export declare const Beats: (props: { of: Record<string, ComponentType>; overlap?: number; }) => JSX.Element;
+--- @kit/world ---
+export type WorldLayout = "row" | "column" | "diagonal" | "zigzag" | "grid" | "scatter";
+export type WorldMove = "glide" | "swoop" | "whip" | "cut";
+export type Station = { id: string; x: number; y: number; w: number; h: number; roll: number; };
+export type WorldCam = { x: number; y: number; k: number; r: number; blur: number; };
+export type WorldScope = { stations: Station[]; station: (id: string) => Station; cam: WorldCam; at: (id: string, x: number, y: number) => { x: number; y: number; }; toScreen: (p: { x: number; y: number; }) => { x: number; y: number; }; };
+export declare function worldLayout(ids: string[], W: number, H: number, layout?: WorldLayout, gap?: number): Station[];
+export declare const useWorld: () => WorldScope;
+type Route = { color: string; width?: number; dot?: string; };
+export declare const World: (props: { of: Record<string, ComponentType>; layout?: WorldLayout; gap?: number; move?: WorldMove; moves?: Partial<Record<string, WorldMove>>; push?: number; route?: Route | false; sound?: boolean; open?: number; finale?: "reveal"; under?: ReactNode; over?: ReactNode; front?: ReactNode; children?: ReactNode; }) => JSX.Element;
+export declare const WorldGrid: (props: { depth?: number; size?: number; color?: string; kind?: "dots" | "lines"; weight?: number; }) => JSX.Element;
+--- @kit/motion ---
+export declare const clamp01: (v: number) => number;
+export declare const outE: (t: number) => number;
+export declare const inOut: (t: number) => number;
+export declare const flyE: (t: number) => number;
+export declare const lin: (x: number) => number;
+export declare const prog: (t: number, a: number, b: number, e?: (x: number) => number) => number;
+export declare const pop: (t: number, t0: number, k?: number) => number;
+export declare const hitEnv: (t: number, at: number, decay?: number, rise?: number) => number;
+export declare const seeded: (n: number) => number;
+export type KP = [number, number, ((x: number) => number)?];
+export declare const kf: (t: number, pts: KP[]) => number;
+export declare const typed: (s: string, t: number, at: number, cps?: number) => string;
+export declare const remap: (v: number, a: number, b: number, c: number, d: number) => number;
+export declare const mix: (a: number, b: number, p: number) => number;
+export declare const arriveE: (t: number) => number;
+export declare const moveE: (t: number) => number;
+export declare const panelE: (t: number) => number;
+export declare const settle: (t: number, at: number, dur?: number) => number;
+export declare const burst: (t: number, at: number, rise?: number, fall?: number) => number;
+export declare const weighty: { readonly damping: 16; readonly stiffness: 100; readonly mass: 1; };
+export declare const stagger: (at: number, i: number, n: number, step?: number, cap?: number) => number;
+export declare const wipeIn: (t: number, at: number, dur?: number, from?: "top" | "bottom" | "left" | "right") => string;
+--- @kit/text ---
+export declare const textW: (text: string, font: string, weight: number, size: number, trackEm?: number) => number;
+export declare const fit: (text: string, font: string, weight: number, max: number, maxW: number, trackEm?: number) => number;
+export declare const Fit: (props: { text: string; font: string; weight: number; size: number; maxW: number; track?: number; style?: CSSProperties; children?: ReactNode; }) => JSX.Element;
+type CharsMode = "rise" | "drop" | "fade" | "scale" | "slam";
+export declare const Chars: (props: { text: string; t: number; at: number; step?: number; mode?: CharsMode; style?: CSSProperties; }) => JSX.Element;
+export declare const Caret: (props: { t: number; h: number; color: string; }) => JSX.Element;
+export declare const Typewriter: (props: { text: string; t: number; at: number; cps?: number; caret?: string; caretH?: number; style?: CSSProperties; }) => JSX.Element;
+export declare const Odometer: (props: { text: string; t: number; at: number; color?: string; style?: CSSProperties; }) => JSX.Element;
+export declare const CountUp: (props: { t: number; from?: number; to: number; start: number; end: number; locale?: string; decimals?: number; prefix?: string; suffix?: string; style?: CSSProperties; }) => JSX.Element;
+export declare const Highlight: (props: { t: number; at: number; color: string; children: ReactNode; height?: string; }) => JSX.Element;
+export declare const Strike: (props: { t: number; at: number; color: string; thickness?: number; children: ReactNode; }) => JSX.Element;
+--- @kit/draw ---
+export declare const Draw: (props: { draw: (ctx: CanvasRenderingContext2D, t: number) => void; width?: number; height?: number; style?: CSSProperties; }) => JSX.Element;
+type Sampled = { pts: [number, number][]; len: number; };
+export declare function samplePath(d: string): Sampled;
+export declare function pointAt(d: string, u: number): { x: number; y: number; angle: number; };
+export declare const path: { line: (x1: number, y1: number, x2: number, y2: number) => string; curve: (x1: number, y1: number, x2: number, y2: number, bend?: number) => string; polyline: (pts: [number, number][]) => string; rect: (x: number, y: number, w: number, h: number, r?: number) => string; ellipse: (cx: number, cy: number, rx: number, ry?: number) => string; };
+export type Stroke = { d: string; at: number; dur?: number; color?: string; width?: number; rough?: number; seed?: number; arrow?: boolean; fill?: string; opacity?: number; dash?: number[]; erase?: number; eraseDur?: number; };
+export declare const Ink: (props: { strokes: Stroke[]; width?: number; height?: number; style?: CSSProperties; }) => JSX.Element;
+--- @kit/annotate ---
+export type AnnotateKind = "circle" | "underline" | "box" | "strike";
+export declare const Annotate: (props: { kind?: AnnotateKind; at: number; dur?: number; color?: string; width?: number; pad?: number; seed?: number; style?: CSSProperties; children: ReactNode; }) => JSX.Element;
+--- @kit/fx ---
+export type Hit = { at: number; kind: "shake" | "punch" | "flash"; amp?: number; };
+export declare const useHits: (hits: Hit[], t: number) => { x: number; y: number; scale: number; flash: number; };
+export declare const Grain: (props: { opacity?: number; dark?: boolean; }) => JSX.Element | null;
+export declare const Burst: (props: { at: number; x: number; y: number; color: string; n?: number; size?: number; }) => JSX.Element;
+export declare const Confetti: (props: { at: number; colors: string[]; n?: number; seed?: number; }) => JSX.Element;
+export declare const Whip: (props: { at: number; a: [number, number]; b: [number, number]; color: string; width?: number; }) => JSX.Element;
+--- @kit/ui ---
+export declare const Picture: (props: { src: string; style?: CSSProperties; }) => JSX.Element;
+export declare const Mark: (props: { size: number; style?: CSSProperties; partner?: boolean; }) => JSX.Element;
+export declare const CoMark: (props: { size: number; color?: string; style?: CSSProperties; }) => JSX.Element;
+export declare const Window: (props: { kind?: "mac" | "browser" | "terminal"; w: number; h: number; title?: string; url?: string; dark?: boolean; children?: ReactNode; style?: CSSProperties; }) => JSX.Element;
+export declare const Phone: (props: { w?: number; dark?: boolean; time?: string; children?: ReactNode; screenBg?: string; style?: CSSProperties; }) => JSX.Element;
+export declare const Cursor: (props: { t: number; x: number; y: number; clicks?: number[]; dark?: boolean; ring?: string; size?: number; sound?: boolean; }) => JSX.Element;
+export declare const Notification: (props: { t: number; at: number; app: string; title: string; body: string; w?: number; icon?: ReactNode; dark?: boolean; }) => JSX.Element | null;
+export declare const Asset: (props: { name: string; width?: number; height?: number; tone?: "light" | "dark"; style?: CSSProperties; }) => JSX.Element | null;
+--- @kit/space ---
+export type Vec3 = { x: number; y: number; z: number; };
+export type Cam3 = Vec3 & { r: number; };
+export type CamKey = [number, Cam3, ((x: number) => number)?];
+export declare const camAt: (keys: CamKey[], t: number) => Cam3;
+export declare const project3D: (p: Vec3, cam: Cam3, W: number, cy: number, F?: number) => { x: number; y: number; s: number; d: number; };
+export declare const Billboard3D: (props: { cam: Cam3; p: Vec3; w: number; h: number; F?: number; focusZ?: number; unfocus?: number; children: ReactNode; }) => JSX.Element | null;
+export declare const Particles3D: (props: { cam: Cam3; prev: Cam3; F?: number; n?: number; color?: string; hot?: string; seed?: number; spread?: number; }) => JSX.Element;
+export declare const Floor3D: (props: { cam: Cam3; F?: number; y?: number; color?: string; alpha?: number; step?: number; }) => JSX.Element;
+export declare const focusWeight: (t: number, a: number, b: number, ramp?: number) => number;
+--- @kit/sound ---
+export { SFX, type SfxName };
+export declare const Sfx: (props: { name: SfxName; at: number; volume?: number; }) => JSX.Element | null;
+--- @kit/sfx ---
+export declare const SFX: readonly ["whoosh", "swoosh", "impact", "sub", "riser", "tick", "pop", "ding", "type", "key", "click", "connect", "blip", "marker", "pencil", "success", "error", "notify", "glitch"];
+export type SfxName = (typeof SFX)[number];
+export declare const SFX_USE: Record<SfxName, string>;
+--- @kit/blocks ---
+export declare const PriceCount: (props: { t: number; at: number; from?: number; to: number; dur?: number; prefix?: string; suffix?: string; decimals?: number; locale?: string; size: number; color: string; font: string; weight?: number; style?: CSSProperties; }) => JSX.Element;
+export declare const UiReveal: (props: { t: number; at: number; push?: number; tilt?: number; exit?: number; angle?: number; zoom?: number; children: ReactNode; style?: CSSProperties; }) => JSX.Element;
+export declare const PhoneFan: (props: { t: number; at: number; spread?: number; angle?: number; left: ReactNode; center: ReactNode; right: ReactNode; style?: CSSProperties; }) => JSX.Element;
+type Datum = { label: string; value: number; };
+export declare const BarChart: (props: { t: number; at: number; data: Datum[]; w: number; h: number; color: string; ink: string; font: string; step?: number; unit?: string; decimals?: number; max?: number; }) => JSX.Element;
+export declare const LineChart: (props: { t: number; at: number; data: Datum[]; w: number; h: number; color: string; ink: string; font: string; dur?: number; unit?: string; decimals?: number; min?: number; max?: number; }) => JSX.Element;
+export declare const LogoLockup: (props: { t: number; at: number; name: string; line?: string; url?: string; size?: number; ink: string; accent: string; font: string; logo?: ReactNode; style?: CSSProperties; }) => JSX.Element;
+export declare const KineticCenter: (props: { t: number; at: number; words: string[]; font: string; size: number; weight?: number; color: string; step?: number; gapEm?: number; style?: CSSProperties; }) => JSX.Element;
+export declare const TerminalRun: (props: { t: number; at: number; command: string; output: string[]; prompt?: string; cps?: number; lineStep?: number; font?: string; size?: number; ink?: string; dim?: string; accent?: string; }) => JSX.Element;
+export declare const FocusZoom: (props: { t: number; keys: [number, { x: number; y: number; scale: number; }][]; w: number; h: number; children: ReactNode; style?: CSSProperties; }) => JSX.Element;
+export declare const FlashThrough: (props: { t: number; at: number; dur?: number; a: ReactNode; b: ReactNode; color?: string; }) => JSX.Element;
+export declare const ChromaWipe: (props: { t: number; at: number; dur?: number; a: ReactNode; b: ReactNode; from?: "left" | "right" | "top" | "bottom"; }) => JSX.Element;
+--- @kit/cinetic ---
+type Ease = (t: number) => number;
+export declare const E: { out: (t: number) => number; outSoft: (t: number) => number; in: (t: number) => number; exit: (t: number) => number; inOut: (t: number) => number; smooth: (t: number) => number; ui: (t: number) => number; cam: (t: number) => number; glide: (t: number) => number; contact: (t: number) => number; whip: (t: number) => number; dolly: (t: number) => number; expo: Ease; linear: (t: number) => number; };
+export declare const SPR: { readonly snap: { readonly damping: 18; readonly stiffness: 260; readonly mass: 0.7; }; readonly pop: { readonly damping: 11; readonly stiffness: 180; readonly mass: 0.6; }; readonly soft: { readonly damping: 26; readonly stiffness: 120; readonly mass: 1; }; readonly heavy: { readonly damping: 30; readonly stiffness: 90; readonly mass: 1.4; }; readonly firm: { readonly damping: 24; readonly stiffness: 140; readonly mass: 1; }; readonly micro: { readonly damping: 30; readonly stiffness: 500; readonly mass: 0.6; }; readonly land: { readonly damping: 14.5; readonly stiffness: 200; readonly mass: 1; }; readonly calm: { readonly damping: 16; readonly stiffness: 64; readonly mass: 1; }; };
+export declare const lmix: (a: number, b: number, t: number) => number;
+export declare const blurIn: (p: number, px: number) => number;
+export declare const blurOut: (q: number, px: number) => number;
+export declare const hitPulse: (t: number, attack?: number, tau?: number) => number;
+export declare const arrive: (p: number, k?: number) => number;
+export declare const depart: (q: number, k?: number) => number;
+export declare const squash: (t: number) => { along: number; across: number; };
+export declare const inertia: (frame: number, start: number, v0: number, decay?: number) => { x: number; v: number; total: number; };
+export type Shot = { ax: number; ay: number; sx: number; sy: number; k: number; yaw?: number; pitch?: number; roll?: number; };
+export declare const lc: (A: Shot, B: Shot, t: number) => Shot;
+export declare const shotStyle: (s: Shot) => CSSProperties;
+export declare const toScreen: (s: Shot, p: { x: number; y: number; }) => { x: number; y: number; };
+export declare const breath: (t: number, amount?: number) => number;
+export declare const dip: (t: number, depth?: number) => number;
+export declare const PACE: { readonly calm: { readonly wordDur: 18; readonly stagger: 5.5; readonly holdBase: 21; readonly holdPerWord: 4; readonly holdMin: 30; readonly maxNewWords: 4; readonly maxVisible: 8; }; readonly crisp: { readonly wordDur: 13; readonly stagger: 3; readonly holdBase: 18; readonly holdPerWord: 3; readonly holdMin: 21; readonly maxNewWords: 5; readonly maxVisible: 10; }; };
+type Pace = (typeof PACE)[keyof typeof PACE];
+export declare const holdFor: (words: number, p?: Pace) => number;
+export declare const revealFor: (words: number, p?: Pace) => number;
+export declare const MaskRise: (props: { text: string; t: number; at: number; size: number; font: string; weight?: number; color: string; by?: "word" | "line"; stagger?: number; dur?: number; out?: number; outDur?: number; lead?: number; align?: "left" | "center" | "right"; style?: CSSProperties; }) => JSX.Element;
+export declare const Scramble: (props: { text: string; t: number; at: number; hold?: number; stagger?: number; seed?: string; cycle?: string; style?: CSSProperties; }) => JSX.Element | null;

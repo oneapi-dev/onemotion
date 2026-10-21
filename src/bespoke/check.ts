@@ -178,6 +178,5 @@ function typecheck(files: Record<string, string>): string[] {
   return out;
 }
 
-/** The kit's source, for the model's system prompt. */
-export const kitSource = () =>
-  ["index.ts", "film.tsx", "beat.tsx", "motion.ts", "text.tsx", "draw.tsx", "annotate.tsx", "fx.tsx", "ui.tsx", "space.tsx", "sound.tsx", "sfx.ts", "blocks.tsx", "cinetic.tsx"].map((f) => `--- @kit/${f} ---\n${readFileSync(path.join(ROOT, "src", "bespoke", "kit", f), "utf8")}`).join("\n\n");
+/** The kit's public API (declarations, written by scripts/kit-api.mjs), for the model's system prompt. */
+export const kitApi = () => readFileSync(path.join(ROOT, "src", "bespoke", "kit", "api.txt"), "utf8");

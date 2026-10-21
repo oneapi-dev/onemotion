@@ -19,7 +19,8 @@
     "desktop:start": "node scripts/desktop.mjs start",
     "desktop:dist": "npm run desktop:build && electron-builder --projectDir desktop --config electron-builder.yml --win nsis --x64",
     "desktop:smoke": "node scripts/desktop-smoke.mjs",
-    "bench": "node scripts/benchmark.mjs"
+    "bench": "node scripts/benchmark.mjs",
+    "kit:api": "node scripts/kit-api.mjs"
   },
   "dependencies": {
     "@mediabunny/aac-encoder": "1.56.1",

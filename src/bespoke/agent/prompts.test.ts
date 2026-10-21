@@ -22,6 +22,24 @@ describe("prompts", () => {
     expect(reviewPrompt()).toContain("7. Slide checks");
   });
 
+  it("builds every film as one world, and carries the kit's API instead of its source", () => {
+    const p = agentPrompt();
+    expect(p).toContain("<World of={BEATS} />");
+    expect(p).toContain("# @kit API");
+    expect(p).not.toContain("overlap={10}");
+    expect(p).not.toContain("--- @kit/blocks.tsx ---");
+    // The motion designer reads this on every step: it was 119k characters with the kit's source in it.
+    expect(p.length).toBeLessThan(60_000);
+    // Rules that fought restraint and each other are gone.
+    expect(p).not.toContain("no picture holds completely still");
+    expect(p).not.toContain("An impact gets a short screen shake");
+    expect(reviewPrompt()).toContain("fade or slide out for the next one");
+  });
+
+  it("asks the creative director for a story device the viewer can name, not an abstract shape", () => {
+    expect(conceptPrompt()).toContain("never an abstract stand-in for an idea (a box, a capsule, a glowing line, particles)");
+  });
+
   it("tells the creative director how recent films looked", () => {
     expect(describeRecent({ style: "s", metaphor: "m", world: "w", genre: "house", direction: "Poster color-block", concept: "Pure typography", display: "Anton" })).toBe(
       'direction "Poster color-block", concept "Pure typography", style "s", metaphor "m", world "w", display font Anton, music house',

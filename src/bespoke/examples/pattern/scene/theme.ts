@@ -9,6 +9,3 @@ export const TEXT = "Inter";
 
 /** Type scale at 1920 wide. */
 export const SIZE = { headline: 132, label: 30 };
-
-/** The band the beats' content sits in, as fractions of the frame. */
-export const STAGE = { top: 0.22, bottom: 0.78 };

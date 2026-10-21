@@ -38,10 +38,12 @@ export const PriceCount = ({ t, at, from = 0, to, dur = 52, prefix = "", suffix 
 };
 
 /**
- * A UI card (a Window, a panel, a screenshot) revealed in 3D: it rises in,
- * the camera pushes in at `push`, it turns to an angle at `tilt` and sways
- * there, and flies off at `exit`. Give each stage the frame it starts on;
- * leave one out to skip it.
+ * A UI card (a Window, a panel, a screenshot) revealed with a turn: it rises
+ * in, the camera pushes in at `push`, it turns to an angle at `tilt` and
+ * sways there, and flies off at `exit`. Give each stage the frame it starts
+ * on; leave one out to skip it. The turn is drawn in 2D (a foreshortened
+ * width): the export's renderer draws no CSS 3D, and a card turned with
+ * rotateY would vanish from the MP4.
  */
 export const UiReveal = ({ t, at, push, tilt, exit, angle = -34, zoom = 1.15, children, style }: { t: number; at: number; push?: number; tilt?: number; exit?: number; angle?: number; zoom?: number; children: ReactNode; style?: CSSProperties }) => {
   const enter = expoOut(clamp01((t - at) / 17));
@@ -49,10 +51,11 @@ export const UiReveal = ({ t, at, push, tilt, exit, angle = -34, zoom = 1.15, ch
   const turned = tilt === undefined ? 0 : expoOut(clamp01((t - tilt) / 40));
   const sway = tilt !== undefined && t > tilt + 40 ? Math.sin(((t - tilt - 40) / 27) * Math.PI) * 2 : 0;
   const gone = exit === undefined ? 0 : p4in(clamp01((t - exit) / 16));
-  const scale = (0.92 + 0.08 * enter) * mix(1, zoom, pushed);
+  const scale = (0.92 + 0.08 * enter) * mix(1, zoom, pushed) * (1 - 0.6 * gone);
+  const turn = angle * turned + sway - 31 * gone;
   return (
-    <div style={{ perspective: 2800, display: "flex", alignItems: "center", justifyContent: "center", ...style }}>
-      <div style={{ transformStyle: "preserve-3d", opacity: enter * (1 - gone), transform: `translate3d(${-2200 * gone}px, ${(1 - enter) * 24 - 16 * turned}px, ${-7500 * gone}px) rotateY(${angle * turned + sway + -31 * gone}deg) scale(${scale})` }}>{children}</div>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", ...style }}>
+      <div style={{ opacity: enter * (1 - gone), transform: `translate(${-2200 * gone}px, ${(1 - enter) * 24 - 16 * turned}px) scaleX(${Math.cos((turn * Math.PI) / 180).toFixed(4)}) scale(${scale})` }}>{children}</div>
     </div>
   );
 };

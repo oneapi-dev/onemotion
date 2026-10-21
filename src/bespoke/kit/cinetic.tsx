@@ -77,10 +77,17 @@ export const inertia = (frame: number, start: number, v0: number, decay = 0.79) 
 export type Shot = { ax: number; ay: number; sx: number; sy: number; k: number; yaw?: number; pitch?: number; roll?: number };
 /** Blend two shots (scale in log space): shots chain without drift, lc(lc(A, B, t1), C, t2). */
 export const lc = (A: Shot, B: Shot, t: number): Shot => ({ ax: mix(A.ax, B.ax, t), ay: mix(A.ay, B.ay, t), sx: mix(A.sx, B.sx, t), sy: mix(A.sy, B.sy, t), k: lmix(A.k, B.k, t), yaw: mix(A.yaw ?? 0, B.yaw ?? 0, t), pitch: mix(A.pitch ?? 0, B.pitch ?? 0, t), roll: mix(A.roll ?? 0, B.roll ?? 0, t) });
-/** The style of the world container (lay the world out at left 0, top 0 in world px) for a shot. */
-export const shotStyle = (s: Shot, perspective = 2400): CSSProperties => {
-  const rot = s.yaw || s.pitch || s.roll ? ` perspective(${perspective}px) rotateZ(${s.roll ?? 0}deg) rotateX(${s.pitch ?? 0}deg) rotateY(${s.yaw ?? 0}deg)` : "";
-  return { position: "absolute", left: 0, top: 0, transformOrigin: "0 0", transform: `translate(${s.sx}px, ${s.sy}px)${rot} scale(${Math.max(1e-4, s.k)}) translate(${-s.ax}px, ${-s.ay}px)` };
+/**
+ * The style of the world container (lay the world out at left 0, top 0 in world px) for a shot. Roll
+ * turns the frame; yaw and pitch are drawn in 2D (a foreshortened width or height), since the export's
+ * renderer draws no CSS 3D.
+ */
+export const shotStyle = (s: Shot): CSSProperties => {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const roll = s.roll ? ` rotate(${s.roll}deg)` : "";
+  const yaw = s.yaw ? ` scaleX(${Math.cos(rad(s.yaw)).toFixed(4)})` : "";
+  const pitch = s.pitch ? ` scaleY(${Math.cos(rad(s.pitch)).toFixed(4)})` : "";
+  return { position: "absolute", left: 0, top: 0, transformOrigin: "0 0", transform: `translate(${s.sx}px, ${s.sy}px)${roll}${yaw}${pitch} scale(${Math.max(1e-4, s.k)}) translate(${-s.ax}px, ${-s.ay}px)` };
 };
 /** Where a world point lands on screen under a flat shot: for overlays that track the product. */
 export const toScreen = (s: Shot, p: { x: number; y: number }) => ({ x: s.sx + (p.x - s.ax) * s.k, y: s.sy + (p.y - s.ay) * s.k });

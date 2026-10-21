@@ -79,6 +79,9 @@ export type LibraryTrack = {
   bpm: number;
   firstBeat: number;
   seconds: number;
+  /** The first beat of a bar, and the drops (energy jumps at a bar line, strongest first), in seconds: scripts/analyze-music.mjs. */
+  downbeat?: number;
+  drops?: number[];
 };
 
 /** ${doc.source.name}, ${doc.source.license}. */

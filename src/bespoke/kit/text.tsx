@@ -28,11 +28,15 @@ export const fit = (text: string, font: string, weight: number, max: number, max
   return Math.max(max * 0.3, Math.floor(max * (maxW / w) * 0.98));
 };
 
-/** One measured line, never wider than maxW. Children may replace the text (animated characters) at the same size. */
+/**
+ * One measured line, never wider than maxW. Children may replace the text (animated characters) at the same size.
+ * A little padding, taken back by the margin, holds glyph overhangs and the last character's mask inside the box
+ * when the line is sized to its content (a centred flex item), without moving it.
+ */
 export const Fit = ({ text, font, weight, size, maxW, track = 0, style, children }: { text: string; font: string; weight: number; size: number; maxW: number; track?: number; style?: CSSProperties; children?: ReactNode }) => {
   const s = fit(text, font, weight, size, maxW, track);
   return (
-    <div data-fit="1" style={{ fontFamily: font, fontWeight: weight, fontSize: s, letterSpacing: `${track}em`, whiteSpace: "nowrap", lineHeight: 1.08, ...style }}>
+    <div data-fit="1" style={{ fontFamily: font, fontWeight: weight, fontSize: s, letterSpacing: `${track}em`, whiteSpace: "nowrap", lineHeight: 1.08, padding: "0 0.06em", margin: "0 -0.06em", ...style }}>
       {children ?? text}
     </div>
   );

@@ -1,12 +1,13 @@
 import { useCurrentFrame } from "remotion";
-import { Asset, Sfx, pop, prog, useBeat, useFilm } from "@kit";
+import { Asset, Sfx, pop, useBeat, useFilm } from "@kit";
 import { Headline } from "../components/Headline";
-import { MUTED, SIZE, STAGE, TEXT } from "../theme";
+import { MUTED, SIZE, TEXT } from "../theme";
 
 /**
  * Brands appear as their REAL logos, fetched with fetch_image (saved as
  * these asset names), each with its name under it in type. Never an empty
- * card standing in for a logo.
+ * card standing in for a logo. Nothing leaves when the beat ends: the camera
+ * moves on and this station stays as it is.
  */
 const APPS = [
   { asset: "calendar-logo", name: "Calendar" },
@@ -17,12 +18,11 @@ const APPS = [
 export default function Beat() {
   const t = useCurrentFrame();
   const { W, H, safe } = useFilm();
-  const { cue, len } = useBeat();
+  const { cue } = useBeat();
   const apps = cue("apps"); // the logos arrive on the word "apps", one after another
-  const exit = prog(t, len - 2, len + 10);
   const logo = Math.round(W * 0.09);
   return (
-    <div style={{ position: "absolute", left: safe.left, top: H * STAGE.top, width: safe.right - safe.left, opacity: 1 - exit }}>
+    <>
       <Headline text="From the apps you already use." t={t} at={0} maxW={safe.right - safe.left} />
       <div style={{ display: "flex", gap: W * 0.06, marginTop: H * 0.08 }}>
         {APPS.map((a, i) => {
@@ -36,6 +36,6 @@ export default function Beat() {
           );
         })}
       </div>
-    </div>
+    </>
   );
 }

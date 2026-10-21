@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { briefLines, crowdedClose, isSlides, silentBeats } from "./story";
+import { briefLines, crowdedClose, isSlides, silentBeats, slideIssues } from "./story";
 
 const brief = `Create a premium promotional motion video for **OneAPI (https://oneapi.id)**, announcing a **LIMITED-TIME 50% TOP-UP BONUS**.
 
@@ -48,6 +48,28 @@ describe("story or slides", () => {
   it("counts the beats a scene leaves without a sound", () => {
     expect(silentBeats(5, { "scene/a.tsx": `<Sfx name="whoosh" at={0} /> <Sfx name="pop" at={9} />` })).toBe(3);
     expect(silentBeats(2, { "scene/a.tsx": `<Sfx name="whoosh" at={0} /><Sfx name="pop" at={9} /><Sfx name="tick" at={20} />` })).toBe(0);
+    // A World plays each of its moves: four beats, three moves, one more sound.
+    expect(silentBeats(4, { "scene/index.tsx": `<World of={BEATS} />`, "scene/beats/b1.tsx": `<Sfx name="pop" at={9} />` })).toBe(0);
+    expect(silentBeats(4, { "scene/index.tsx": `<World of={BEATS} sound={false} />`, "scene/beats/b1.tsx": `<Sfx name="pop" at={9} />` })).toBe(3);
+  });
+});
+
+describe("slides in the code", () => {
+  it("flags a stage that plays the beats one after another in one place, and beats that fade out as they end", () => {
+    // What the three films the desktop app kept were built from: <Beats overlap>, every beat fading out on `len`.
+    const issues = slideIssues({
+      "scene/index.tsx": "<Beats of={BEATS} overlap={10} />",
+      "scene/beats/b1.tsx": "const exit = prog(t, len - 4, len + 8);\nreturn <div style={{ position: \"absolute\", inset: 0, opacity: 1 - exit }} />",
+      "scene/beats/b2.tsx": "return <div style={{ opacity: 1 - prog(t, len - 2, len + 10) }} />",
+      "scene/beats/b3.tsx": "const inP = prog(t, 0, 18);\nreturn <div style={{ opacity: inP }} />",
+    });
+    expect(issues).toHaveLength(2);
+    expect(issues[0]).toMatch(/<World of=\{BEATS\} \/>/);
+    expect(issues[1]).toMatch(/^b1, b2 fade out as they end/);
+  });
+
+  it("lets one world through: stations that stay, an exit that is not on the beat's end", () => {
+    expect(slideIssues({ "scene/index.tsx": "<World of={BEATS} layout=\"zigzag\" />", "scene/beats/b1.tsx": "const out = prog(t, 40, 52);\nreturn <div style={{ opacity: 1 - out }} />" })).toEqual([]);
   });
 });
 

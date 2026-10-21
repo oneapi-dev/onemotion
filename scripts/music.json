@@ -284,6 +284,539 @@
       "drops": [
         18.15
       ]
+    },
+    {
+      "id": "goodnightmare",
+      "path": "electronic/Goodnightmare.mp3",
+      "sha256": "b3793f15317a70bbbd857fa4a77872a42bcdc27445f25bce397bb7a442f91b9c",
+      "title": "Goodnightmare",
+      "artist": "Kevin MacLeod",
+      "mood": "upbeat, driving and cool electronic: simple synths over a heavy bass; made for explainers",
+      "tags": [
+        "electronic",
+        "driving",
+        "cool",
+        "bass",
+        "explainer"
+      ],
+      "bpm": 130.5,
+      "firstBeat": 0.05,
+      "downbeat": 1.21,
+      "drops": []
+    },
+    {
+      "id": "abstract-anxiety",
+      "path": "misc/Abstract Anxiety.mp3",
+      "sha256": "0796da6d0061bd6e0b9cb95c09a997868e448a457bb975bf66c5fd6915969bec",
+      "title": "Abstract Anxiety",
+      "artist": "Kevin MacLeod",
+      "mood": "dark, modern and cool: heavy bass, tight drums and sound effects; tension, a problem before the fix",
+      "tags": [
+        "dark",
+        "modern",
+        "bass",
+        "tension"
+      ],
+      "bpm": 124.5,
+      "firstBeat": 0.06,
+      "downbeat": 1.766,
+      "drops": [
+        9.477,
+        34.537
+      ]
+    },
+    {
+      "id": "infinite-wonder",
+      "path": "chill/Infinite Wonder.mp3",
+      "sha256": "490f745de87525dd6da563da266c8823804a3f787573ff317b4788d6d5566e54",
+      "title": "Infinite Wonder",
+      "artist": "Kevin MacLeod",
+      "mood": "inspiring and uplifting vintage synths, Vangelis-like: wide, calm and futuristic",
+      "tags": [
+        "synth",
+        "retro",
+        "calm",
+        "inspiring",
+        "futuristic"
+      ],
+      "bpm": 133.5,
+      "firstBeat": 0.29,
+      "downbeat": 0.609,
+      "drops": [
+        29.373,
+        4.205,
+        68.924
+      ]
+    },
+    {
+      "id": "blippy-trance",
+      "path": "chill/Blippy Trance.mp3",
+      "sha256": "68ab5625f1b723d7fcfeaa47b44379fddc7bb5ffcc9d71017fabd07b5c2ca93a",
+      "title": "Blippy Trance",
+      "artist": "Kevin MacLeod",
+      "mood": "soft trance with gentle blips: smooth, hypnotic, light electronic",
+      "tags": [
+        "electronic",
+        "trance",
+        "hypnotic",
+        "light"
+      ],
+      "bpm": 133.5,
+      "firstBeat": 0.23,
+      "downbeat": 0.679,
+      "drops": [
+        43.826
+      ]
+    },
+    {
+      "id": "modern-island-jam",
+      "path": "world/Modern Island Jam.mp3",
+      "sha256": "d5a934aa910f2c0306c883c6b566cc6c3c7e66bb161879cc209fa1a6efdcd003",
+      "title": "Modern Island Jam",
+      "artist": "Kevin MacLeod",
+      "mood": "washed 80s groove with a crazy bass line: playful, sunny, retro",
+      "tags": [
+        "80s",
+        "groove",
+        "bass",
+        "playful",
+        "retro"
+      ],
+      "bpm": 143,
+      "firstBeat": 0.15,
+      "downbeat": 0.59,
+      "drops": [
+        8.981,
+        37.513
+      ]
+    },
+    {
+      "id": "groovin",
+      "path": "jazz/Groovin.mp3",
+      "sha256": "d96d17e3646175c6f2be0ffdbf57b928f8c020660f4e4e861ffdfcd919eb9a11",
+      "title": "Groovin",
+      "artist": "Brian Boyko",
+      "mood": "funky jazz piano meets a 70s cop-show theme: upbeat, driving and groovy",
+      "tags": [
+        "funk",
+        "jazz",
+        "groovy",
+        "driving",
+        "70s"
+      ],
+      "bpm": 120,
+      "firstBeat": 0.26,
+      "downbeat": 1.89,
+      "drops": []
+    },
+    {
+      "id": "funkeriffic",
+      "path": "jazz/Funkeriffic.mp3",
+      "sha256": "e30cdab0e7e3c0d9fd7169f51c187356bed5d48b69ddd68a0ce5847e3929b235",
+      "title": "Funkeriffic",
+      "artist": "Kevin MacLeod",
+      "mood": "upbeat, driving and cool groove: jazzy crime-drama funk",
+      "tags": [
+        "funk",
+        "groove",
+        "cool",
+        "driving"
+      ],
+      "bpm": 112,
+      "firstBeat": 0.39,
+      "downbeat": 1.997,
+      "drops": [
+        10.569
+      ]
+    },
+    {
+      "id": "hold-on-a-sec",
+      "path": "unsorted/Hold on a Sec.mp3",
+      "sha256": "c87d50579aa12c8c2f44f0129bf8ec9cb4b5cc856a8afdf2620ef57bf96fc53c",
+      "title": "Hold on a Sec",
+      "artist": "Bryan Teoh",
+      "mood": "old-school clean funk: tight guitar and bass, confident and light",
+      "tags": [
+        "funk",
+        "clean",
+        "confident"
+      ],
+      "bpm": 125.5,
+      "firstBeat": 0.02,
+      "downbeat": 1.116,
+      "drops": [
+        16.415
+      ]
+    },
+    {
+      "id": "patron-saint-of-heists",
+      "path": "scoring/Patron Saint of Heists.mp3",
+      "sha256": "b82e8b44ce3dbd44c05d70d87130cef0eb323ee3a0d29ea3f92ad45f2c72fd9d",
+      "title": "Patron Saint of Heists",
+      "artist": "Bryan Teoh",
+      "mood": "groovy and polished: a convertible passing neon lights at night; slick, heist-movie cool",
+      "tags": [
+        "groovy",
+        "slick",
+        "night",
+        "cool"
+      ],
+      "bpm": 113.5,
+      "firstBeat": 0.01,
+      "downbeat": 0.539,
+      "drops": []
+    },
+    {
+      "id": "gotta-keep-on-movin",
+      "path": "misc/Gotta Keep On Movin.mp3",
+      "sha256": "0844e8cb7f10adcff4258eca87dd1aa7a1069617ff8397f0b3980a9d40e71e25",
+      "title": "Gotta Keep On Movin",
+      "artist": "Bryan Teoh",
+      "mood": "quirky disco in a night club: bouncy, fun, keeps moving",
+      "tags": [
+        "disco",
+        "dance",
+        "quirky",
+        "fun"
+      ],
+      "bpm": 110.5,
+      "firstBeat": 0.31,
+      "downbeat": 0.32,
+      "drops": [
+        17.696
+      ]
+    },
+    {
+      "id": "swing-maching",
+      "path": "jazz/Swing Maching.mp3",
+      "sha256": "13041167b617856fda12322847df16e49d6d8da92b27775140880903337f65a8",
+      "title": "Swing Machine",
+      "artist": "Kevin MacLeod",
+      "mood": "electroswing: big-band swing over electronic beats, cheeky and stylish",
+      "tags": [
+        "electroswing",
+        "swing",
+        "stylish",
+        "playful"
+      ],
+      "bpm": 117,
+      "firstBeat": 0.06,
+      "downbeat": 0.09,
+      "drops": [
+        16.5,
+        82.141
+      ]
+    },
+    {
+      "id": "finally-see-the-light",
+      "path": "misc/Finally See The Light.mp3",
+      "sha256": "3e9faa496e470d449869fc934e3b4332c197f09bcee28577241aade42a0f15a4",
+      "title": "Finally See The Light",
+      "artist": "Bryan Teoh",
+      "mood": "smooth, confident and casual: a smooth operator groove",
+      "tags": [
+        "smooth",
+        "confident",
+        "groove"
+      ],
+      "bpm": 93.5,
+      "firstBeat": 0.14,
+      "downbeat": 0.05,
+      "drops": []
+    },
+    {
+      "id": "bass-meant-jazz",
+      "path": "misc/Bass Meant Jazz.mp3",
+      "sha256": "c876b42602e23df4e46b1c4a686e4e155d32852ea852b77a2e76fdc0c5e71745",
+      "title": "Bass Meant Jazz",
+      "artist": "Kevin MacLeod",
+      "mood": "relaxing, soft and inspiring: warm mallets, jazzy bass and light drums",
+      "tags": [
+        "chill",
+        "jazz",
+        "soft",
+        "warm"
+      ],
+      "bpm": 125,
+      "firstBeat": 0.16,
+      "downbeat": 1.4,
+      "drops": []
+    },
+    {
+      "id": "wisdom-in-the-sun",
+      "path": "chill/Wisdom in the Sun.mp3",
+      "sha256": "07ac4ab1f6d54893615d48aeee8bb3f2e5c1f2d16c6385973c97b28ef83c7ee0",
+      "title": "Wisdom in the Sun",
+      "artist": "Kevin MacLeod",
+      "mood": "relaxed, peaceful and serene: warm guitars, gentle bass and bells",
+      "tags": [
+        "calm",
+        "serene",
+        "acoustic",
+        "minimal"
+      ],
+      "bpm": 111,
+      "firstBeat": 0.03,
+      "downbeat": 1.271,
+      "drops": [
+        35.866,
+        79.109,
+        5.595,
+        57.487
+      ]
+    },
+    {
+      "id": "downtown-boogie",
+      "path": "chill/Downtown Boogie.mp3",
+      "sha256": "fac095f68050e9f9325269b06f261f85441209e2f5742e3fc2234115bb9fdc00",
+      "title": "Downtown Boogie",
+      "artist": "Bryan Teoh",
+      "mood": "smooth lounge boogie: relaxed, warm, a little cheeky",
+      "tags": [
+        "lounge",
+        "smooth",
+        "chill"
+      ],
+      "bpm": 105,
+      "firstBeat": 0.02,
+      "downbeat": 0.43,
+      "drops": []
+    },
+    {
+      "id": "open-road",
+      "path": "chill/I Guess What I'm Trying to Say.mp3",
+      "sha256": "f836a65f9d0c4a207faf9fb936e1fe5b85b2e58eecb9f55544bcdb473e7efec1",
+      "title": "I Guess What I'm Trying to Say",
+      "artist": "Bryan Teoh",
+      "mood": "bluesy chill rock: a 70s movie ender, cruising down the open road",
+      "tags": [
+        "rock",
+        "blues",
+        "chill",
+        "road"
+      ],
+      "bpm": 90,
+      "firstBeat": 0.41,
+      "downbeat": 2.4,
+      "drops": []
+    },
+    {
+      "id": "fresh-focus",
+      "path": "upbeat/Fresh Focus.mp3",
+      "sha256": "87d70572729712abfb6d444b7de4cc7b0104eafca1f0fcfec1798fd824325c3c",
+      "title": "Fresh Focus",
+      "artist": "Kevin MacLeod",
+      "mood": "bright and airy: clean, light and modern",
+      "tags": [
+        "bright",
+        "airy",
+        "light",
+        "minimal"
+      ],
+      "bpm": 103.5,
+      "firstBeat": 0.08,
+      "downbeat": 1.14,
+      "drops": [
+        56.792
+      ]
+    },
+    {
+      "id": "city-sunshine",
+      "path": "upbeat/City Sunshine.mp3",
+      "sha256": "e05c1bd683174cff77d492b7ac77262ff4617f99f69d82564b66831cf48352d6",
+      "title": "City Sunshine",
+      "artist": "Kevin MacLeod",
+      "mood": "not your average corporate piece: an off-beat bass line, bright and urban",
+      "tags": [
+        "urban",
+        "bright",
+        "bass",
+        "modern"
+      ],
+      "bpm": 85.5,
+      "firstBeat": 0.46,
+      "downbeat": 2.715,
+      "drops": [
+        22.364
+      ]
+    },
+    {
+      "id": "from-page-to-practice",
+      "path": "upbeat/From Page to Practice.mp3",
+      "sha256": "dd20cb51c948a14e45d71b9a03b9d6afc48a4b7fd7b5020da623fbd86390b519",
+      "title": "From Page to Practice",
+      "artist": "Bryan Teoh",
+      "mood": "a new day and a big good change ahead: hopeful, building, warm",
+      "tags": [
+        "hopeful",
+        "building",
+        "warm"
+      ],
+      "bpm": 161.5,
+      "firstBeat": 0.12,
+      "downbeat": 0.803,
+      "drops": [
+        60.246,
+        36.469,
+        12.692
+      ]
+    },
+    {
+      "id": "think-about-it",
+      "path": "epic/Think About It.mp3",
+      "sha256": "aa39a8b1e51221155332f42a5a915fde237a72fc10229e8aafda64df1855604f",
+      "title": "Think About It",
+      "artist": "Bryan Teoh",
+      "mood": "slow, intense and beautifully pensive cinematic",
+      "tags": [
+        "cinematic",
+        "slow",
+        "pensive",
+        "intense"
+      ],
+      "bpm": 115,
+      "firstBeat": 0.02,
+      "downbeat": 1.053,
+      "drops": [
+        9.401,
+        28.184
+      ]
+    },
+    {
+      "id": "go-on-without-me",
+      "path": "epic/Go On Without Me.mp3",
+      "sha256": "5101fa0a410cff668fc036f021b12c2175f3bc695c61dd04088a340b9f62373f",
+      "title": "Go On Without Me",
+      "artist": "Bryan Teoh",
+      "mood": "mysterious and powerful, rising above and overcoming: a cinematic build",
+      "tags": [
+        "cinematic",
+        "mysterious",
+        "rising",
+        "build"
+      ],
+      "bpm": 127.5,
+      "firstBeat": 0.03,
+      "downbeat": 1.091,
+      "drops": [
+        23.679,
+        83.915,
+        44.385
+      ]
+    },
+    {
+      "id": "ice-and-snow",
+      "path": "scoring/Ice and Snow.mp3",
+      "sha256": "61e8c88cff9d24eb03ffa8ab55adfefcaaf3f4e2dabf3dec6816d315f49aa99a",
+      "title": "Ice and Snow",
+      "artist": "Rafael Krux",
+      "mood": "soft, atmospheric and warm cinematic: inspiring, a little mysterious",
+      "tags": [
+        "cinematic",
+        "atmospheric",
+        "soft",
+        "warm"
+      ],
+      "bpm": 125,
+      "firstBeat": 0.36,
+      "downbeat": 0.58,
+      "drops": [
+        44.74,
+        6.34
+      ]
+    },
+    {
+      "id": "heroic-adventure",
+      "path": "epic/Heroic Adventure.mp3",
+      "sha256": "41355a9625e8ee15d678c1c8c512636b6610a750f61b79820b53286a0dc3836a",
+      "title": "Heroic Adventure",
+      "artist": "Rafael Krux",
+      "mood": "Hollywood triumph and a call to adventure: positive, uplifting and epic",
+      "tags": [
+        "epic",
+        "triumph",
+        "orchestral"
+      ],
+      "bpm": 120.5,
+      "firstBeat": 0.27,
+      "downbeat": 0.828,
+      "drops": [
+        72.529
+      ]
+    },
+    {
+      "id": "palm-and-soul",
+      "path": "world/Palm and Soul.mp3",
+      "sha256": "9c8c0b91553c052cd183a84274654a5d49619ea2fef8904ca71ce9017bbbfec5",
+      "title": "Palm and Soul",
+      "artist": "Kevin MacLeod",
+      "mood": "reggae with a cool organ: laid-back and sunny",
+      "tags": [
+        "reggae",
+        "laid-back",
+        "sunny"
+      ],
+      "bpm": 158,
+      "firstBeat": 0.29,
+      "downbeat": 0.19,
+      "drops": []
+    },
+    {
+      "id": "desert-conflict",
+      "path": "world/Desert Conflict.mp3",
+      "sha256": "c8f0e9755b70d22518380ff0aebf7990bf112fb0f237b65dd041716f06fffb5a",
+      "title": "Desert Conflict",
+      "artist": "Rafael Krux",
+      "mood": "exotic, upbeat and inspiring: middle-eastern instruments, adventure",
+      "tags": [
+        "world",
+        "exotic",
+        "upbeat",
+        "adventure"
+      ],
+      "bpm": 120,
+      "firstBeat": 0.03,
+      "downbeat": 0.66,
+      "drops": [
+        16.66
+      ]
+    },
+    {
+      "id": "midnight-green-house",
+      "path": "world/Midnight in the Green House.mp3",
+      "sha256": "2a13476ce634cb8ec8fa553f212980e8f25e612c717bbd5133d73700d979571c",
+      "title": "Midnight in the Green House",
+      "artist": "Kevin MacLeod",
+      "mood": "exotic and atmospheric with Japanese instruments: quiet, slightly suspenseful",
+      "tags": [
+        "world",
+        "japanese",
+        "atmospheric",
+        "quiet"
+      ],
+      "bpm": 109,
+      "firstBeat": 0.48,
+      "downbeat": 1.04,
+      "drops": [
+        14.251
+      ]
+    },
+    {
+      "id": "funshine",
+      "path": "upbeat/Funshine.mp3",
+      "sha256": "b98b226927367a977377fe4f75d1cf59e4366ca2f444c2c7d23d13e7f506f532",
+      "title": "Funshine",
+      "artist": "Kevin MacLeod",
+      "mood": "moog synth and ukulele: playful, sunny, a little silly",
+      "tags": [
+        "playful",
+        "quirky",
+        "sunny"
+      ],
+      "bpm": 96.5,
+      "firstBeat": 0.1,
+      "downbeat": 1.374,
+      "drops": []
     }
   ]
 }

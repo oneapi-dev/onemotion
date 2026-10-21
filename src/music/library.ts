@@ -280,5 +280,511 @@ export const LIBRARY: LibraryTrack[] = [
     "drops": [
       18.15
     ]
+  },
+  {
+    "id": "goodnightmare",
+    "title": "Goodnightmare",
+    "artist": "Kevin MacLeod",
+    "mood": "upbeat, driving and cool electronic: simple synths over a heavy bass; made for explainers",
+    "tags": [
+      "electronic",
+      "driving",
+      "cool",
+      "bass",
+      "explainer"
+    ],
+    "bpm": 130.5,
+    "firstBeat": 0.05,
+    "seconds": 90,
+    "downbeat": 1.21,
+    "drops": []
+  },
+  {
+    "id": "abstract-anxiety",
+    "title": "Abstract Anxiety",
+    "artist": "Kevin MacLeod",
+    "mood": "dark, modern and cool: heavy bass, tight drums and sound effects; tension, a problem before the fix",
+    "tags": [
+      "dark",
+      "modern",
+      "bass",
+      "tension"
+    ],
+    "bpm": 124.5,
+    "firstBeat": 0.06,
+    "seconds": 90,
+    "downbeat": 1.766,
+    "drops": [
+      9.477,
+      34.537
+    ]
+  },
+  {
+    "id": "infinite-wonder",
+    "title": "Infinite Wonder",
+    "artist": "Kevin MacLeod",
+    "mood": "inspiring and uplifting vintage synths, Vangelis-like: wide, calm and futuristic",
+    "tags": [
+      "synth",
+      "retro",
+      "calm",
+      "inspiring",
+      "futuristic"
+    ],
+    "bpm": 133.5,
+    "firstBeat": 0.29,
+    "seconds": 90,
+    "downbeat": 0.609,
+    "drops": [
+      29.373,
+      4.205,
+      68.924
+    ]
+  },
+  {
+    "id": "blippy-trance",
+    "title": "Blippy Trance",
+    "artist": "Kevin MacLeod",
+    "mood": "soft trance with gentle blips: smooth, hypnotic, light electronic",
+    "tags": [
+      "electronic",
+      "trance",
+      "hypnotic",
+      "light"
+    ],
+    "bpm": 133.5,
+    "firstBeat": 0.23,
+    "seconds": 90,
+    "downbeat": 0.679,
+    "drops": [
+      43.826
+    ]
+  },
+  {
+    "id": "modern-island-jam",
+    "title": "Modern Island Jam",
+    "artist": "Kevin MacLeod",
+    "mood": "washed 80s groove with a crazy bass line: playful, sunny, retro",
+    "tags": [
+      "80s",
+      "groove",
+      "bass",
+      "playful",
+      "retro"
+    ],
+    "bpm": 143,
+    "firstBeat": 0.15,
+    "seconds": 90,
+    "downbeat": 0.59,
+    "drops": [
+      8.981,
+      37.513
+    ]
+  },
+  {
+    "id": "groovin",
+    "title": "Groovin",
+    "artist": "Brian Boyko",
+    "mood": "funky jazz piano meets a 70s cop-show theme: upbeat, driving and groovy",
+    "tags": [
+      "funk",
+      "jazz",
+      "groovy",
+      "driving",
+      "70s"
+    ],
+    "bpm": 120,
+    "firstBeat": 0.26,
+    "seconds": 90,
+    "downbeat": 1.89,
+    "drops": []
+  },
+  {
+    "id": "funkeriffic",
+    "title": "Funkeriffic",
+    "artist": "Kevin MacLeod",
+    "mood": "upbeat, driving and cool groove: jazzy crime-drama funk",
+    "tags": [
+      "funk",
+      "groove",
+      "cool",
+      "driving"
+    ],
+    "bpm": 112,
+    "firstBeat": 0.39,
+    "seconds": 90,
+    "downbeat": 1.997,
+    "drops": [
+      10.569
+    ]
+  },
+  {
+    "id": "hold-on-a-sec",
+    "title": "Hold on a Sec",
+    "artist": "Bryan Teoh",
+    "mood": "old-school clean funk: tight guitar and bass, confident and light",
+    "tags": [
+      "funk",
+      "clean",
+      "confident"
+    ],
+    "bpm": 125.5,
+    "firstBeat": 0.02,
+    "seconds": 90,
+    "downbeat": 1.116,
+    "drops": [
+      16.415
+    ]
+  },
+  {
+    "id": "patron-saint-of-heists",
+    "title": "Patron Saint of Heists",
+    "artist": "Bryan Teoh",
+    "mood": "groovy and polished: a convertible passing neon lights at night; slick, heist-movie cool",
+    "tags": [
+      "groovy",
+      "slick",
+      "night",
+      "cool"
+    ],
+    "bpm": 113.5,
+    "firstBeat": 0.01,
+    "seconds": 90,
+    "downbeat": 0.539,
+    "drops": []
+  },
+  {
+    "id": "gotta-keep-on-movin",
+    "title": "Gotta Keep On Movin",
+    "artist": "Bryan Teoh",
+    "mood": "quirky disco in a night club: bouncy, fun, keeps moving",
+    "tags": [
+      "disco",
+      "dance",
+      "quirky",
+      "fun"
+    ],
+    "bpm": 110.5,
+    "firstBeat": 0.31,
+    "seconds": 90,
+    "downbeat": 0.32,
+    "drops": [
+      17.696
+    ]
+  },
+  {
+    "id": "swing-maching",
+    "title": "Swing Machine",
+    "artist": "Kevin MacLeod",
+    "mood": "electroswing: big-band swing over electronic beats, cheeky and stylish",
+    "tags": [
+      "electroswing",
+      "swing",
+      "stylish",
+      "playful"
+    ],
+    "bpm": 117,
+    "firstBeat": 0.06,
+    "seconds": 90,
+    "downbeat": 0.09,
+    "drops": [
+      16.5,
+      82.141
+    ]
+  },
+  {
+    "id": "finally-see-the-light",
+    "title": "Finally See The Light",
+    "artist": "Bryan Teoh",
+    "mood": "smooth, confident and casual: a smooth operator groove",
+    "tags": [
+      "smooth",
+      "confident",
+      "groove"
+    ],
+    "bpm": 93.5,
+    "firstBeat": 0.14,
+    "seconds": 90,
+    "downbeat": 0.05,
+    "drops": []
+  },
+  {
+    "id": "bass-meant-jazz",
+    "title": "Bass Meant Jazz",
+    "artist": "Kevin MacLeod",
+    "mood": "relaxing, soft and inspiring: warm mallets, jazzy bass and light drums",
+    "tags": [
+      "chill",
+      "jazz",
+      "soft",
+      "warm"
+    ],
+    "bpm": 125,
+    "firstBeat": 0.16,
+    "seconds": 90,
+    "downbeat": 1.4,
+    "drops": []
+  },
+  {
+    "id": "wisdom-in-the-sun",
+    "title": "Wisdom in the Sun",
+    "artist": "Kevin MacLeod",
+    "mood": "relaxed, peaceful and serene: warm guitars, gentle bass and bells",
+    "tags": [
+      "calm",
+      "serene",
+      "acoustic",
+      "minimal"
+    ],
+    "bpm": 111,
+    "firstBeat": 0.03,
+    "seconds": 90,
+    "downbeat": 1.271,
+    "drops": [
+      35.866,
+      79.109,
+      5.595,
+      57.487
+    ]
+  },
+  {
+    "id": "downtown-boogie",
+    "title": "Downtown Boogie",
+    "artist": "Bryan Teoh",
+    "mood": "smooth lounge boogie: relaxed, warm, a little cheeky",
+    "tags": [
+      "lounge",
+      "smooth",
+      "chill"
+    ],
+    "bpm": 105,
+    "firstBeat": 0.02,
+    "seconds": 90,
+    "downbeat": 0.43,
+    "drops": []
+  },
+  {
+    "id": "open-road",
+    "title": "I Guess What I'm Trying to Say",
+    "artist": "Bryan Teoh",
+    "mood": "bluesy chill rock: a 70s movie ender, cruising down the open road",
+    "tags": [
+      "rock",
+      "blues",
+      "chill",
+      "road"
+    ],
+    "bpm": 90,
+    "firstBeat": 0.41,
+    "seconds": 90,
+    "downbeat": 2.4,
+    "drops": []
+  },
+  {
+    "id": "fresh-focus",
+    "title": "Fresh Focus",
+    "artist": "Kevin MacLeod",
+    "mood": "bright and airy: clean, light and modern",
+    "tags": [
+      "bright",
+      "airy",
+      "light",
+      "minimal"
+    ],
+    "bpm": 103.5,
+    "firstBeat": 0.08,
+    "seconds": 90,
+    "downbeat": 1.14,
+    "drops": [
+      56.792
+    ]
+  },
+  {
+    "id": "city-sunshine",
+    "title": "City Sunshine",
+    "artist": "Kevin MacLeod",
+    "mood": "not your average corporate piece: an off-beat bass line, bright and urban",
+    "tags": [
+      "urban",
+      "bright",
+      "bass",
+      "modern"
+    ],
+    "bpm": 85.5,
+    "firstBeat": 0.46,
+    "seconds": 90,
+    "downbeat": 2.715,
+    "drops": [
+      22.364
+    ]
+  },
+  {
+    "id": "from-page-to-practice",
+    "title": "From Page to Practice",
+    "artist": "Bryan Teoh",
+    "mood": "a new day and a big good change ahead: hopeful, building, warm",
+    "tags": [
+      "hopeful",
+      "building",
+      "warm"
+    ],
+    "bpm": 161.5,
+    "firstBeat": 0.12,
+    "seconds": 90,
+    "downbeat": 0.803,
+    "drops": [
+      60.246,
+      36.469,
+      12.692
+    ]
+  },
+  {
+    "id": "think-about-it",
+    "title": "Think About It",
+    "artist": "Bryan Teoh",
+    "mood": "slow, intense and beautifully pensive cinematic",
+    "tags": [
+      "cinematic",
+      "slow",
+      "pensive",
+      "intense"
+    ],
+    "bpm": 115,
+    "firstBeat": 0.02,
+    "seconds": 90,
+    "downbeat": 1.053,
+    "drops": [
+      9.401,
+      28.184
+    ]
+  },
+  {
+    "id": "go-on-without-me",
+    "title": "Go On Without Me",
+    "artist": "Bryan Teoh",
+    "mood": "mysterious and powerful, rising above and overcoming: a cinematic build",
+    "tags": [
+      "cinematic",
+      "mysterious",
+      "rising",
+      "build"
+    ],
+    "bpm": 127.5,
+    "firstBeat": 0.03,
+    "seconds": 90,
+    "downbeat": 1.091,
+    "drops": [
+      23.679,
+      83.915,
+      44.385
+    ]
+  },
+  {
+    "id": "ice-and-snow",
+    "title": "Ice and Snow",
+    "artist": "Rafael Krux",
+    "mood": "soft, atmospheric and warm cinematic: inspiring, a little mysterious",
+    "tags": [
+      "cinematic",
+      "atmospheric",
+      "soft",
+      "warm"
+    ],
+    "bpm": 125,
+    "firstBeat": 0.36,
+    "seconds": 90,
+    "downbeat": 0.58,
+    "drops": [
+      44.74,
+      6.34
+    ]
+  },
+  {
+    "id": "heroic-adventure",
+    "title": "Heroic Adventure",
+    "artist": "Rafael Krux",
+    "mood": "Hollywood triumph and a call to adventure: positive, uplifting and epic",
+    "tags": [
+      "epic",
+      "triumph",
+      "orchestral"
+    ],
+    "bpm": 120.5,
+    "firstBeat": 0.27,
+    "seconds": 90,
+    "downbeat": 0.828,
+    "drops": [
+      72.529
+    ]
+  },
+  {
+    "id": "palm-and-soul",
+    "title": "Palm and Soul",
+    "artist": "Kevin MacLeod",
+    "mood": "reggae with a cool organ: laid-back and sunny",
+    "tags": [
+      "reggae",
+      "laid-back",
+      "sunny"
+    ],
+    "bpm": 158,
+    "firstBeat": 0.29,
+    "seconds": 90,
+    "downbeat": 0.19,
+    "drops": []
+  },
+  {
+    "id": "desert-conflict",
+    "title": "Desert Conflict",
+    "artist": "Rafael Krux",
+    "mood": "exotic, upbeat and inspiring: middle-eastern instruments, adventure",
+    "tags": [
+      "world",
+      "exotic",
+      "upbeat",
+      "adventure"
+    ],
+    "bpm": 120,
+    "firstBeat": 0.03,
+    "seconds": 90,
+    "downbeat": 0.66,
+    "drops": [
+      16.66
+    ]
+  },
+  {
+    "id": "midnight-green-house",
+    "title": "Midnight in the Green House",
+    "artist": "Kevin MacLeod",
+    "mood": "exotic and atmospheric with Japanese instruments: quiet, slightly suspenseful",
+    "tags": [
+      "world",
+      "japanese",
+      "atmospheric",
+      "quiet"
+    ],
+    "bpm": 109,
+    "firstBeat": 0.48,
+    "seconds": 90,
+    "downbeat": 1.04,
+    "drops": [
+      14.251
+    ]
+  },
+  {
+    "id": "funshine",
+    "title": "Funshine",
+    "artist": "Kevin MacLeod",
+    "mood": "moog synth and ukulele: playful, sunny, a little silly",
+    "tags": [
+      "playful",
+      "quirky",
+      "sunny"
+    ],
+    "bpm": 96.5,
+    "firstBeat": 0.1,
+    "seconds": 90,
+    "downbeat": 1.374,
+    "drops": []
   }
 ];

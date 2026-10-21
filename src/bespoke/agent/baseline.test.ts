@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { baselineFiles, closeLine, gutted, kindOf, lines } from "./baseline";
+import { baselineFiles, closeLine, gutted, kindOf, lines, priceChange, worldOf } from "./baseline";
 import { codeSize, thinness } from "./floor";
 import { normalizeConcept } from "./concept";
 import { beatFile } from "./parallel";
@@ -46,6 +46,23 @@ describe("the baseline film", () => {
     expect(checkScene(files, beats.map((b) => b.says).join("\n")).errors).toEqual([]);
   }, TYPECHECK_MS);
 
+  it("stages the film as one world the camera travels through, with no beat fading out like a slide", () => {
+    const files = baselineFiles(concept, beats, brand);
+    expect(files["scene/index.tsx"]).toContain("<World of={BEATS}");
+    expect(files["scene/index.tsx"]).not.toContain("<Beats");
+    for (const b of beats) expect(files[beatFile(b.id)]).not.toMatch(/len\s*-|1 - out/);
+    // The World runs the opening station ahead, so the beats keep their plain clocks.
+    expect(files[beatFile("b1")]).toContain("const t = useCurrentFrame();");
+  });
+
+  it("shapes the world from the concept's camera words, in English or Indonesian", () => {
+    expect(worldOf({ title: "x", camera: "Kamera bergerak horizontal mengikuti garis permintaan, sesekali menukik tajam ke detail angka" })).toEqual({ layout: "row", move: "swoop" });
+    expect(worldOf({ title: "x", camera: "the camera scrolls down the page, gliding" })).toEqual({ layout: "column", move: "glide" });
+    expect(worldOf({ title: "x", camera: "whip pans across a zigzag of panels" })).toEqual({ layout: "zigzag", move: "whip" });
+    // Nothing named: the title picks the shape, the same one every time.
+    expect(worldOf({ title: "Dua meter", camera: "" })).toEqual(worldOf({ title: "Dua meter", camera: "" }));
+  });
+
   it("closes a collaboration on both marks and both names, and still passes the check", () => {
     const files = baselineFiles(concept, beats, { ...brand, partner: "Acme" });
     const close = files[beatFile("b5")];
@@ -65,6 +82,13 @@ describe("the baseline film", () => {
     const files = baselineFiles(concept, two, brand);
     expect(files[beatFile("b1")]).toContain("TerminalRun");
     expect(files[beatFile("b2")]).not.toContain("TerminalRun");
+  });
+
+  it("counts a price beat's first change with the decimals of the new price", () => {
+    expect(priceChange("TOP UP $10 → GET $15")).toEqual({ from: 10, to: 15, decimals: 0 });
+    // Sub-dollar API prices: counted with zero decimals they landed on "$0".
+    expect(priceChange("Harga lama, US$0.30. Kini US$0.19.")).toEqual({ from: 0.3, to: 0.19, decimals: 2 });
+    expect(priceChange("Output US$1.20 → US$0.81. Cache US$0.006 → US$0.0042.")).toEqual({ from: 1.2, to: 0.81, decimals: 2 });
   });
 
   it("leaves the address to the lockup's pill and keeps the close's line to 12 words", () => {

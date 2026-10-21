@@ -10,7 +10,7 @@ import { FilmHost, type WireFilm } from "./host";
 import { FilmComposition, filmFrames } from "./runtime/FilmComposition";
 import { FILM_FPS, filmTiming, type FilmBeat } from "./timing";
 
-type Example = { name: string; film: { format: FilmSpec["format"]; brand: FilmSpec["brand"]; score: unknown; beats: FilmBeat[] }; files: Record<string, string> };
+type Example = { name: string; film: { format: FilmSpec["format"]; brand: FilmSpec["brand"]; partner?: FilmSpec["partner"]; assets?: FilmSpec["assets"]; track?: string; score: unknown; beats: FilmBeat[] }; files: Record<string, string> };
 
 /**
  * The bespoke lab: runs a hand-written example scene through the same path a
@@ -50,8 +50,10 @@ export default function BespokeLab() {
         ? ex.film.beats.map((b) => ({ ...b, words: (b.voice ?? "").split(" ").filter(Boolean).map((text, i) => ({ text, start: i * 0.38, end: i * 0.38 + 0.32 })) }))
         : ex.film.beats;
       // ?track=<id> plays a built-in track; the beats snap to its tempo.
-      const track = LIBRARY.find((t) => t.id === new URLSearchParams(window.location.search).get("track"));
-      const spec: FilmSpec = track ? { format: ex.film.format, brand: ex.film.brand, beats, score: { ...score, bpm: track.bpm }, track: track.id } : { format: ex.film.format, brand: ex.film.brand, beats, score };
+      const track = LIBRARY.find((t) => t.id === (new URLSearchParams(window.location.search).get("track") ?? ex.film.track));
+      // A film copied from the studio brings its partner and fetched logos.
+      const extra = { ...(ex.film.partner ? { partner: ex.film.partner } : {}), ...(ex.film.assets ? { assets: ex.film.assets } : {}) };
+      const spec: FilmSpec = track ? { format: ex.film.format, brand: ex.film.brand, beats, score: { ...score, bpm: track.bpm }, track: track.id, ...extra } : { format: ex.film.format, brand: ex.film.brand, beats, score, ...extra };
       // ?music=1 plays a finished bed (as an ElevenLabs Music track would) instead of the composed score.
       const bed = new URLSearchParams(window.location.search).get("music") === "1" ? await (await fetch("/audio/bright.mp3")).blob() : undefined;
       const wire = { spec, modules: checked.modules, music: bed };
@@ -68,7 +70,13 @@ export default function BespokeLab() {
   const renderStills = async () => {
     if (!film) return;
     const { beats } = filmTiming(film.spec.beats, film.spec.score);
-    const frames = beats.flatMap((b) => [Math.round(b.start + (b.end - b.start) * 0.3), Math.round(b.start + (b.end - b.start) * 0.8)]);
+    // ?frames=40,95,100 renders those frames (a camera move, a transition) instead of two holds per beat.
+    const asked = (new URLSearchParams(window.location.search).get("frames") ?? "")
+      .split(",")
+      .filter((f) => f.trim())
+      .map(Number)
+      .filter((f) => Number.isFinite(f) && f >= 0);
+    const frames = asked.length ? asked : beats.flatMap((b) => [Math.round(b.start + (b.end - b.start) * 0.3), Math.round(b.start + (b.end - b.start) * 0.8)]);
     setStatus("Rendering stills…");
     const t0 = performance.now();
     try {

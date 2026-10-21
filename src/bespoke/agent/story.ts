@@ -76,8 +76,29 @@ export const CLOSE_FIX = `The close is crammed: its words are more than a viewer
 /** What the art director is told when the concept came back as slides. */
 export const SLIDES_FIX = `This concept is slides: almost every beat is one of the brief's taglines on its own. Rewrite it as a story, keeping the schema: the viewer's "problem", the "promise", the "climax" (one picture and one sound), and beats that follow a situation the viewer recognises, its tension, the turn the product or the offer brings, and what changes after. The brief's quoted lines still appear exactly as written, but where the story needs them (several may share a beat, some ride under a picture); the offer's figures appear at most twice (the hook and the close). Reply with the complete concept JSON only.`;
 
-/** How many beats a scene leaves without any sound cue: every beat (and every transition) should have its sound. */
+/** How many beats a scene leaves without any sound cue: every beat (and every transition) should have its sound. A <World> plays each camera move itself. */
 export function silentBeats(beats: number, files: Record<string, string>): number {
-  const cues = Object.values(files).join("\n").match(/<Sfx\b/g)?.length ?? 0;
-  return Math.max(0, beats - cues);
+  const all = Object.values(files).join("\n");
+  const cues = all.match(/<Sfx\b/g)?.length ?? 0;
+  const moves = /<World\b/.test(all) && !/<World\b[^>]*\bsound=\{false\}/.test(all) ? Math.max(0, beats - 1) : 0;
+  return Math.max(0, beats - cues - moves);
+}
+
+/**
+ * Slides measured in the code: a stage that plays the beats one after another in one place
+ * (<Beats>), and beats that fade out as they end (an exit on `len`), the next one replacing them.
+ * In one world nothing leaves when its beat ends: the camera moves on.
+ */
+export function slideIssues(files: Record<string, string>): string[] {
+  const out: string[] = [];
+  if (/<Beats\b/.test(files["scene/index.tsx"] ?? "")) out.push("scene/index.tsx plays the beats with <Beats>, one replacing the other in the same place like slides: render them with <World of={BEATS} /> so the camera travels from station to station through one world");
+  const fading = Object.entries(files)
+    .filter(([p]) => /^scene\/beats\/b[^/]*\.tsx$/.test(p))
+    .filter(([, src]) => {
+      const exits = [...src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*prog\(\s*\w+\s*,\s*len\b/g)].map((m) => m[1]);
+      return /opacity:\s*\(?\s*1\s*-\s*prog\(\s*\w+\s*,\s*len\b/.test(src) || exits.some((x) => new RegExp(`opacity:\\s*\\(?\\s*1\\s*-\\s*${x}\\b`).test(src));
+    })
+    .map(([p]) => p.replace(/^scene\/beats\/|\.tsx$/g, ""));
+  if (fading.length) out.push(`${fading.join(", ")} fade${fading.length === 1 ? "s" : ""} out as ${fading.length === 1 ? "it ends" : "they end"}, like a slide: in one world nothing leaves when its beat ends (the camera moves on and may come back), so remove the exit and let the station stay`);
+  return out;
 }

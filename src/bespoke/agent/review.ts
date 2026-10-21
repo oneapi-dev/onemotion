@@ -25,6 +25,16 @@ export function reviewTiles(spec: FilmSpec): Tile[] {
   return tiles.map((t, i) => ({ ...t, id: `T${i + 1}` }));
 }
 
+/**
+ * The QA's warnings without those measured mid-move: on a transition tile the camera is travelling
+ * between two stations, so text crossing the frame edge, a frame between stations, type shrunk by the
+ * pull-back and words still rising into place are the move, not defects (the holds are measured too).
+ */
+export function settledWarnings(tiles: Tile[], warnings: string[]): string[] {
+  const moving = new Set(tiles.filter((t) => t.label.startsWith("transition")).map((t) => t.frame));
+  return warnings.filter((w) => !(moving.has(Number(/^frame (\d+):/.exec(w)?.[1])) && /cut by the|nearly empty|clipped by its own box|too small to read|overlap|runs over text/.test(w)));
+}
+
 /** Defects measured across the review tiles: beats in a row whose holds look the same. */
 export async function holdSameness(tiles: Tile[], images: Blob[]): Promise<string[]> {
   const holds = await Promise.all(
@@ -75,7 +85,7 @@ export async function reviewFilm(o: {
   const tiles = reviewTiles(o.spec);
   const stills = await o.host.stills({ spec: o.spec, modules: o.modules }, tiles.map((t) => t.frame), o.signal);
   const { images, seen } = stills;
-  const warnings = [...stills.warnings, ...(await holdSameness(tiles, images))];
+  const warnings = settledWarnings(tiles, [...stills.warnings, ...(await holdSameness(tiles, images))]);
   const portrait = o.spec.format === "portrait";
   const urls = await Promise.all(images.map((b) => scaled(b, portrait ? 720 : 1280)));
   const parts: Part[] = [

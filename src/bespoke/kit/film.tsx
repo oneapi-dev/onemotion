@@ -68,6 +68,7 @@ export type Film = {
 
 const FilmContext = createContext<Film | null>(null);
 
+/** @internal The runtime's: puts a film around the scene. */
 export const FilmProvider = ({ value, children }: { value: Film; children: ReactNode }) => <FilmContext.Provider value={value}>{children}</FilmContext.Provider>;
 
 export const useFilm = (): Film => {
@@ -79,17 +80,17 @@ export const useFilm = (): Film => {
 // The word part may be a phrase ("b2:satu integrasi"): models cue on the words they mean, and a phrase is matched as a whole.
 const CUE = /^([A-Za-z0-9_-]+)(?::([^#@+]+?)(?:#(\d+))?)?(\.end|@(\d*\.?\d+))?([+-]\d*\.?\d+)?$/;
 
-/** A word as it compares: lower case, letters and digits only, accents dropped. */
+/** @internal A word as it compares: lower case, letters and digits only, accents dropped. */
 export const normWord = (s: string) =>
   s
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[^\p{L}\p{N}]/gu, "");
 
-/** Cues that named a word their beat does not say, since the host last read them: each fell back to its beat's start. */
+/** @internal Cues that named a word their beat does not say, since the host last read them: each fell back to its beat's start. */
 export const cueMisses = new Set<string>();
 
-/** The cue() of a film: parses "b3", "b3+0.4", "b3.end", "b3@0.5", "end". Unknown beats throw, so a typo shows up in the check render; a word the beat does not say falls back to the beat's start (reported, never fatal: a voice line edited later must not stop the film). */
+/** @internal The cue() of a film: parses "b3", "b3+0.4", "b3.end", "b3@0.5", "end". Unknown beats throw, so a typo shows up in the check render; a word the beat does not say falls back to the beat's start (reported, never fatal: a voice line edited later must not stop the film). */
 export function makeCue(beats: Beat[], total: number, fps: number) {
   return (c: string): number => {
     const s = c.trim();

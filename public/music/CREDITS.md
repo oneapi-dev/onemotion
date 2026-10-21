@@ -24,3 +24,30 @@ Each file is the first 90 seconds of the original, loudness-normalized and faded
 | driving-concern.mp3 | Driving Concern | Kevin MacLeod | `35407f04ab4e9828…` |
 | funky-energy.mp3 | Funky Energy Loop | Kevin MacLeod | `b7990b4287cc345b…` |
 | final-step.mp3 | Final Step | Rafael Krux | `e523423901ec34d9…` |
+| goodnightmare.mp3 | Goodnightmare | Kevin MacLeod | `b3793f15317a70bb…` |
+| abstract-anxiety.mp3 | Abstract Anxiety | Kevin MacLeod | `0796da6d0061bd6e…` |
+| infinite-wonder.mp3 | Infinite Wonder | Kevin MacLeod | `490f745de87525dd…` |
+| blippy-trance.mp3 | Blippy Trance | Kevin MacLeod | `68ab5625f1b723d7…` |
+| modern-island-jam.mp3 | Modern Island Jam | Kevin MacLeod | `d5a934aa910f2c03…` |
+| groovin.mp3 | Groovin | Brian Boyko | `d96d17e3646175c6…` |
+| funkeriffic.mp3 | Funkeriffic | Kevin MacLeod | `e30cdab0e7e3c0d9…` |
+| hold-on-a-sec.mp3 | Hold on a Sec | Bryan Teoh | `c87d50579aa12c8c…` |
+| patron-saint-of-heists.mp3 | Patron Saint of Heists | Bryan Teoh | `b82e8b44ce3dbd44…` |
+| gotta-keep-on-movin.mp3 | Gotta Keep On Movin | Bryan Teoh | `0844e8cb7f10adcf…` |
+| swing-maching.mp3 | Swing Machine | Kevin MacLeod | `13041167b617856f…` |
+| finally-see-the-light.mp3 | Finally See The Light | Bryan Teoh | `3e9faa496e470d44…` |
+| bass-meant-jazz.mp3 | Bass Meant Jazz | Kevin MacLeod | `c876b42602e23df4…` |
+| wisdom-in-the-sun.mp3 | Wisdom in the Sun | Kevin MacLeod | `07ac4ab1f6d54893…` |
+| downtown-boogie.mp3 | Downtown Boogie | Bryan Teoh | `fac095f68050e9f9…` |
+| open-road.mp3 | I Guess What I'm Trying to Say | Bryan Teoh | `f836a65f9d0c4a20…` |
+| fresh-focus.mp3 | Fresh Focus | Kevin MacLeod | `87d70572729712ab…` |
+| city-sunshine.mp3 | City Sunshine | Kevin MacLeod | `e05c1bd683174cff…` |
+| from-page-to-practice.mp3 | From Page to Practice | Bryan Teoh | `dd20cb51c948a14e…` |
+| think-about-it.mp3 | Think About It | Bryan Teoh | `aa39a8b1e5122115…` |
+| go-on-without-me.mp3 | Go On Without Me | Bryan Teoh | `5101fa0a410cff66…` |
+| ice-and-snow.mp3 | Ice and Snow | Rafael Krux | `61e8c88cff9d24eb…` |
+| heroic-adventure.mp3 | Heroic Adventure | Rafael Krux | `41355a9625e8ee15…` |
+| palm-and-soul.mp3 | Palm and Soul | Kevin MacLeod | `9c8c0b91553c052c…` |
+| desert-conflict.mp3 | Desert Conflict | Rafael Krux | `c8f0e9755b70d225…` |
+| midnight-green-house.mp3 | Midnight in the Green House | Kevin MacLeod | `2a13476ce634cb8e…` |
+| funshine.mp3 | Funshine | Kevin MacLeod | `b98b226927367a97…` |

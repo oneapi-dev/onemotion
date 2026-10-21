@@ -10,8 +10,8 @@
 export const MIN_SCORE = 7;
 /** Rounds a film below the floor may get after the usual two. */
 export const EXTRA_REVIEWS = 2;
-/** Lines of scene code per beat below which a film is a sketch, not a film. */
-const LINES_PER_BEAT = 35;
+/** Lines of scene code per beat below which a film is a sketch, not a film (the kit's <World> carries the camera and the moves between beats). */
+const LINES_PER_BEAT = 30;
 /** A film (without a length in the brief) shorter than this is too short to tell a story. */
 export const MIN_SECONDS = 20;
 

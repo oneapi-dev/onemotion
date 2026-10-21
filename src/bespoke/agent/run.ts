@@ -11,7 +11,7 @@ import type { Pronunciation } from "@/voice/spoken";
 import { filmSpecOf, normalizeConcept, partnerOf, type Concept, type FilmPartner } from "./concept";
 import type { Partner } from "../kit/film";
 import { jsonStep, seesImages, sumUsage, type Msg, type Part } from "./llm";
-import { CLOSE_FIX, crowdedClose, isSlides, silentBeats, SLIDES_FIX } from "./story";
+import { CLOSE_FIX, crowdedClose, isSlides, silentBeats, slideIssues, SLIDES_FIX } from "./story";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
 import { reviewFilm, type Review } from "./review";
 import { BEATS_INDEX, beatFile, beatOf, beatView, ownsBeat, pool, snapshotBeat } from "./parallel";
@@ -20,7 +20,7 @@ import { LEAD_INTEGRATE, NO_FOUNDATION, REVISE_NOTE_STEPS, SOLO_STEPS, beatTask,
 import { applyRevision, brokenCues, normalizeRevision, reviseMessage, revisePrompt, type Locks, type RevisionPlan } from "./revise";
 import { assetNames, compile, sceneTools, webSearchTool, type AgentTool, type Workspace } from "./tools";
 import { missingFigures, unshownBeats } from "./coverage";
-import { holdSameness, reviewTiles } from "./review";
+import { holdSameness, reviewTiles, settledWarnings } from "./review";
 import { EXTRA_REVIEWS, MIN_SCORE, SHORT_FIX, thinness, tooShort } from "./floor";
 
 /** A film being made or made: what the Studio keeps of a bespoke run. */
@@ -531,6 +531,40 @@ export async function makeFilm(o: {
   let lastSeen: string | null = null;
   /** The measured defects the last round found. */
   let lastQa: string[] = [];
+  /**
+   * The best version the reviews saw (highest score, then fewest measured defects): a later round
+   * or the last pass can make a film worse, and the film that ships is never worse than this one.
+   */
+  let best: { files: Record<string, string>; score: number; qa: number; round: number } | null = null;
+  /** The score of the last reviewed version, which the last pass builds on. */
+  let lastScore = 0;
+  /** The measured defects of a version: the QA's warnings on its labelled stills, and what its code shows. */
+  const defects = (warnings: string[], seen: string): string[] => {
+    const unshown = unshownBeats(spec.beats, { rendered: seen });
+    // A beat that shows some of its numbers but not all: "Cache hit rate" without its 95%.
+    const missing = missingFigures(spec.beats, { rendered: seen })
+      .filter((m) => !unshown.includes(m.id))
+      .map((m) => `${m.id} never shows ${m.figures.join(", ")} on screen (its words: "${spec.beats.find((b) => b.id === m.id)?.says.slice(0, 80)}"): every number a beat promises is on screen at its hold, large enough to read`);
+    const silent = silentBeats(spec.beats.length, files);
+    const thin = thinness(files, spec.beats.length);
+    return [
+      ...qaIssues(warnings),
+      ...missing,
+      ...slideIssues(files),
+      ...(thin ? [thin] : []),
+      ...(silent ? [`${silent} beat${silent === 1 ? " has" : "s have"} no sound: every beat gets its <Sfx> on its key reveal (a hit on an impact, ticks on a count); the <World> already plays each camera move`] : []),
+      ...(unshown.length ? [`the film never shows the words of ${unshown.join(", ")} (${unshown.map((id) => `"${spec.beats.find((b) => b.id === id)?.says.slice(0, 60)}"`).join("; ")}): every beat puts its on-screen words on screen`] : []),
+    ];
+  };
+  /** Renders the labelled stills of the film as it is now and measures them, without a reviewer. */
+  const measure = async (modules: Record<string, string>) => {
+    const tiles = reviewTiles(spec);
+    const s = await host.stills({ spec, modules }, tiles.map((t) => t.frame), o.signal, 0.5);
+    return { seen: s.seen, warnings: settledWarnings(tiles, [...s.warnings, ...(await holdSameness(tiles, s.images))]) };
+  };
+  /** What the art director checks the film against: the brief and the concept's facts (whole web pages carry other offers and prices). */
+  const reviewFacts = `${o.brief}
+${agentFacts}`;
   // The art director's rounds.
   // Two rounds, and up to EXTRA_REVIEWS more while the film is under the floor (the break below decides).
   for (let round = 1; round <= MAX_REVIEWS + EXTRA_REVIEWS && !o.signal?.aborted; round++) {
@@ -543,11 +577,7 @@ export async function makeFilm(o: {
     if (blind && round === 1) say("review", { kind: "error", text: `${o.model} does not receive images on this connection, so it cannot review the frames: the automated QA checks them instead` });
     say("review", { kind: "tool", text: blind ? `round ${round}: the automated QA checks the rendered frames` : `round ${round}: the art director is looking at the frames` });
     o.onActivity?.("review", `round ${round}: rendering labelled frames${blind ? " for the automated QA" : ", then the art director looks at them"}`);
-    const { review, usage: used, warnings, seen } = blind ? await (async () => {
-      const tiles = reviewTiles(spec);
-      const s = await host.stills({ spec, modules: c.modules }, tiles.map((t) => t.frame), o.signal, 0.5);
-      return { review: null, usage: {}, seen: s.seen, warnings: [...s.warnings, ...(await holdSameness(tiles, s.images))] };
-    })() : await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: c.modules, concept, facts, host, refs: o.refs, signal: o.signal });
+    const { review, usage: used, warnings, seen } = blind ? { review: null, usage: {}, ...(await measure(c.modules)) } : await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: c.modules, concept, facts: reviewFacts, host, refs: o.refs, signal: o.signal });
     o.onActivity?.("review", null);
     Object.assign(ledger, addUsage(ledger, used, price));
     if (review) {
@@ -556,14 +586,9 @@ export async function makeFilm(o: {
     } else if (!blind) say("review", { kind: "error", text: "the art director's answer could not be read; fixing what the automated QA found" });
     // The automated QA is a gate, not advice: text cut, overlapping, too small or a frame with nothing on it is fixed whatever the review says.
     lastSeen = seen;
-    const unshown = unshownBeats(spec.beats, { rendered: seen });
-    // A beat that shows some of its numbers but not all: "Cache hit rate" without its 95%.
-    const missing = missingFigures(spec.beats, { rendered: seen })
-      .filter((m) => !unshown.includes(m.id))
-      .map((m) => `${m.id} never shows ${m.figures.join(", ")} on screen (its words: "${spec.beats.find((b) => b.id === m.id)?.says.slice(0, 80)}"): every number a beat promises is on screen at its hold, large enough to read`);
-    const silent = silentBeats(spec.beats.length, files);
-    const thin = thinness(files, spec.beats.length);
-    const qa = [...qaIssues(warnings), ...missing, ...(thin ? [thin] : []), ...(silent ? [`${silent} beat${silent === 1 ? " has" : "s have"} no sound: every beat and every transition gets its <Sfx> (a whoosh into each cut, a hit on each impact, ticks on a count)`] : []), ...(unshown.length ? [`the film never shows the words of ${unshown.join(", ")} (${unshown.map((id) => `"${spec.beats.find((b) => b.id === id)?.says.slice(0, 60)}"`).join("; ")}): every beat puts its on-screen words on screen`] : [])];
+    const qa = defects(warnings, seen);
+    lastScore = review?.score ?? 0;
+    if (!best || lastScore > best.score || (lastScore === best.score && qa.length < best.qa)) best = { files: { ...files }, score: lastScore, qa: qa.length, round };
     const todo = [...(review?.issues.filter((i) => i.severity !== "low") ?? []).map((i) => `- [${i.severity}] ${i.tile ?? ""} ${i.problem} -> ${i.fix}`), ...qa.map((w) => `- [qa] ${w}`)];
     lastQa = qa;
     const belowFloor = review !== null && review.score < MIN_SCORE;
@@ -583,6 +608,22 @@ export async function makeFilm(o: {
     leadMessages.push({ role: "user", content: `Last pass: the automated QA still measures these defects on the rendered frames. Fix every one of them (they are measured, not taste), change nothing else, render the frames to confirm, then call finish:\n${lastQa.map((w) => `- ${w}`).join("\n")}` });
     lead.dirty = true;
     r = await agent("lead", leadMessages, leadTools(true), REVISE_STEPS);
+    // The last pass is measured like a round: it ships only when it is no worse than the best version reviewed.
+    const c = await checkFilm().catch(() => null);
+    const m = c?.ok && !o.signal?.aborted ? await measure(c.modules) : null;
+    const after = m ? defects(m.warnings, m.seen) : null;
+    if (best && (!after || lastScore < best.score || after.length > best.qa)) {
+      for (const p of Object.keys(files)) delete files[p];
+      Object.assign(files, best.files);
+      lead.dirty = true;
+      say("review", { kind: "error", text: `the last pass left ${after ? `${after.length} measured defect${after.length === 1 ? "" : "s"}` : "a film that does not pass the check"}; the film is round ${best.round}'s version (score ${best.score}/10, ${best.qa} measured defect${best.qa === 1 ? "" : "s"})` });
+    }
+  } else if (best && lastScore < best.score && !o.signal?.aborted) {
+    // A later round scored lower than an earlier one: the earlier version ships.
+    for (const p of Object.keys(files)) delete files[p];
+    Object.assign(files, best.files);
+    lead.dirty = true;
+    say("review", { kind: "error", text: `round ${best.round} scored higher (${best.score}/10) than the last round (${lastScore}/10): the film is round ${best.round}'s version` });
   }
   return finish(r);
 
