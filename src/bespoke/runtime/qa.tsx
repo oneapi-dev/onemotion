@@ -97,8 +97,13 @@ function scan(root: HTMLElement, width: number, frame: number) {
     const r = el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) continue;
     const inside = r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.bottom;
-    if (!inside || opacityOf(el, root) < 0.5 || hidden(el, r)) continue;
+    if (!inside || opacityOf(el, root) < 0.5) continue;
     const label = `"${(text || el.textContent || "").trim().slice(0, 40)}"`;
+    // Text a later opaque card is drawn over is not read. Covered for the most part (not a strike line or a pill edge across it), it is a collision: two things stacked in one place.
+    if (hidden(el, r)) {
+      if (text && text.length > 1 && covering(el, r, covers) >= 0.6) warn(`text ${label} is covered by another element drawn over it`);
+      continue;
+    }
     const edge = r.left < box.left - 2 ? "left" : r.right > box.right + 2 ? "right" : r.top < box.top - 2 ? "top" : r.bottom > box.bottom + 2 ? "bottom" : null;
     if (edge) warn(`text ${label} is cut by the ${edge} edge of the frame`);
     if (fit && el.scrollWidth > el.clientWidth + 2) warn(`text ${label} is clipped by its own box`);
@@ -110,6 +115,50 @@ function scan(root: HTMLElement, width: number, frame: number) {
   }
   collisions(texts, root, warn);
   strokesOverText(texts, root, warn);
+  emptyCards(root, box, scale, covers, warn);
+}
+
+/**
+ * Cards that hold nothing: an opaque, card-shaped box (a panel, a sheet, a tile) at least a few
+ * percent of the frame with no words, picture or drawing in it. A blank sheet standing in for a
+ * receipt or a logo reads as unfinished.
+ */
+function emptyCards(root: HTMLElement, box: DOMRect, scale: number, covers: Element[], warn: (m: string) => void) {
+  const frame = box.width * box.height;
+  for (const el of covers) {
+    if (el === root) continue;
+    const r = el.getBoundingClientRect();
+    // A sheet mostly behind another card is that card's stack or shadow, not an empty card.
+    if (covering(el, r, covers) >= 0.5) continue;
+    const w = r.width / box.width;
+    const h = r.height / box.height;
+    const visible = r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.bottom;
+    // Card-sized: not a hairline, a bar or a dot, and not the background of a whole frame.
+    if (!visible || w < 0.06 || h < 0.08 || (r.width * r.height) / frame > 0.6 || r.width / r.height > 6 || r.height / r.width > 6) continue;
+    if ((el.textContent ?? "").trim()) continue;
+    if (el.querySelector("img, canvas, svg, video, picture")) continue;
+    // The background layer of a card whose words sit beside it, in the same parent.
+    const parent = el.parentElement;
+    if (parent && parent !== root && area(r) >= 0.8 * area(parent.getBoundingClientRect()) && ((parent.textContent ?? "").trim() || parent.querySelector("img, canvas, svg, video, picture"))) continue;
+    const cs = getComputedStyle(el);
+    if (cs.backgroundImage && cs.backgroundImage !== "none") continue;
+    // A card has a card's edge (rounded corners, a shadow or a border): a flat colour field is a layout block, not a card.
+    const edged = parseFloat(cs.borderTopLeftRadius) > 0 || (cs.boxShadow && cs.boxShadow !== "none") || parseFloat(cs.borderTopWidth) > 0;
+    if (!edged) continue;
+    warn(`an empty card (${Math.round(r.width / scale)} x ${Math.round(r.height / scale)} px) holds nothing: put real content in it (a logo, words, a drawing) or remove it`);
+  }
+}
+
+/** The largest share (0..1) of an element's box that one opaque element painted after it covers. */
+function covering(el: Element, r: DOMRect, covers: Element[]): number {
+  const own = area(r);
+  if (!own) return 0;
+  let most = 0;
+  for (const c of covers) {
+    if (c === el || c.contains(el) || el.contains(c) || !(el.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+    most = Math.max(most, overlap(r, c.getBoundingClientRect()) / own);
+  }
+  return most;
 }
 
 type TextBox = { el: Element; r: DOMRect; block: Element };

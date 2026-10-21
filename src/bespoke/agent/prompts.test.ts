@@ -9,7 +9,8 @@ describe("prompts", () => {
     const p = conceptPrompt();
     expect(p).toContain('"look": {');
     expect(p).toContain("# STYLE DIRECTIONS");
-    expect(p).toContain("- Grainy gradient:");
+    expect(p).toContain("- Editorial light:");
+    expect(p).not.toContain("- Grainy gradient:");
     expect(p).toContain("# CONCEPTS");
     expect(p).toContain("- Claim, how, result:");
     expect(p).toContain("No template skeleton");

@@ -32,7 +32,7 @@ export function reviewTiles(spec: FilmSpec): Tile[] {
  */
 export function settledWarnings(tiles: Tile[], warnings: string[]): string[] {
   const moving = new Set(tiles.filter((t) => t.label.startsWith("transition")).map((t) => t.frame));
-  return warnings.filter((w) => !(moving.has(Number(/^frame (\d+):/.exec(w)?.[1])) && /cut by the|nearly empty|clipped by its own box|too small to read|overlap|runs over text/.test(w)));
+  return warnings.filter((w) => !(moving.has(Number(/^frame (\d+):/.exec(w)?.[1])) && /cut by the|nearly empty|clipped by its own box|too small to read|overlap|runs over text|covered by another element|empty card/.test(w)));
 }
 
 /** Defects measured across the review tiles: beats in a row whose holds look the same. */

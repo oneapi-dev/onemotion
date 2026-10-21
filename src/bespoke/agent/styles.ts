@@ -7,7 +7,7 @@
 
 /** Style directions: the skin, derived from the brand. */
 export const DIRECTIONS = [
-  { name: "Cinematic dark", background: "near-black gradient, slow particles, glow only on objects", type: "bold clean grotesk", motion: "push-through, light in front of the lens", for: "creative tools, gaming, tech" },
+  { name: "Cinematic dark", background: "near-black, one soft light falling on the objects, slow dust; no colour gradients or glows", type: "bold clean grotesk", motion: "push-through, light in front of the lens", for: "creative tools, gaming, tech" },
   { name: "Poster color-block", background: "large solid colour fields that change per beat, fine grain", type: "ultra-heavy display, giant words cropped by the frame edge", motion: "block wipes, type slamming the frame edge", for: "consumer apps, music, events" },
   { name: "Editorial light", background: "white or cream, generous space, hairlines", type: "display serif with a small grotesk", motion: "calm slides, lines that draw themselves", for: "productivity, finance, SaaS" },
   { name: "Paper and print", background: "paper texture, collage, stamps, tape", type: "handwriting with a serif", motion: "objects flying in and landing at an angle", for: "education, community, food" },
@@ -16,7 +16,6 @@ export const DIRECTIONS = [
   { name: "Pastel playful", background: "stacked pastels, big round shapes", type: "heavy rounded sans", motion: "elastic bounce, shapes that bloom", for: "kids, health, lifestyle" },
   { name: "Luxury dark", background: "black with gold or bronze, soft shadows, sheen", type: "tall wide-tracked serif", motion: "slow motion, sweeping light, depth", for: "fashion, automotive, property" },
   { name: "Flat pop with photos", background: "light neutral alternating with solid brand colour fields", type: "rounded heavy sans and giant cropped words", motion: "cutouts popping in, stickers, colour fields snapping on the beat", for: "consumer apps, fintech, e-commerce" },
-  { name: "Grainy gradient", background: "deep base, saturated 2 to 3 colour gradients glowing inside shapes, fine grain over everything", type: "small clean grotesk or minimal heavy display", motion: "layers opening and turning slowly, the camera passing through a shape, a guiding orb of light", for: "tech, AI, music, premium launches" },
 ] as const;
 
 /** Explainer styles: for films that explain rather than sell. */
@@ -48,15 +47,12 @@ export const CONCEPTS = [
   { name: "Claim, how, result", for: "new features, generative AI, creative tools" },
   { name: "Living UI ecosystem", for: "B2B SaaS, AI assistants, workflows" },
   { name: "Flat pop with photos", for: "consumer apps, fintech, campaigns" },
-  { name: "Through the gradient shapes", for: "tech, AI, security, premium launches" },
   { name: "Product tour with claims", for: "SaaS, team tools, dashboards" },
 ] as const;
 
 /** How the background keeps moving: never still, and not by default things streaking sideways. */
 export const BACKGROUND_MOTIONS = [
   "a textured background with a breathing camera and one slow shift of tint, light or grain",
-  "a large gradient drifting or turning slowly (2 to 3 palette colours, 8 to 15 s)",
-  "floating colour blobs (2 to 4 soft circles drifting about 60 px over 4 to 6 s)",
   "living paper grain or texture (its offset stepping with the frame)",
   "one light sweep per segment, never continuous",
   "big geometric shapes from the logo or theme turning once every 20 to 40 s, two parallax layers",
@@ -69,10 +65,10 @@ export const BACKGROUND_MOTIONS = [
 ] as const;
 
 /** The background's surface: always at least two layers, never one flat colour (except poster color-block and flat pop). */
-export const SURFACES = ["a glow on the horizon over a dark base", "a duotone diagonal gradient", "a light mesh of soft palette blobs", "a spotlight with a tint", "a layered sky with thin colour bands", "paper or grain texture over a gradient", "a grainy gradient (saturated gradients in shapes, fine grain over all)"] as const;
+export const SURFACES = ["paper or grain texture over a flat base", "a fine grid or dot pattern over a flat base", "a spotlight with a tint", "a layered sky with thin colour bands", "a printed halftone or hatching texture", "a soft vignette over a flat base"] as const;
 
 /** One family of object rendering per film. */
-export const RENDER_FAMILIES = ["flat solid", "flat with palette dots", "soft 3D or clay (matte, rounded, soft shadow)", "glossy 3D (shine, rim light)", "glass and glowing orbs", "isometric", "neon lines on dark", "flat character illustration", "realistic photo or render layers"] as const;
+export const RENDER_FAMILIES = ["flat solid", "flat with palette dots", "soft 3D or clay (matte, rounded, soft shadow)", "glossy 3D (shine, rim light)", "isometric", "flat character illustration", "realistic photo or render layers"] as const;
 
 /** How a sentence gets its emphasis: one per film, "none" is a real choice. */
 export const EMPHASIS = ["none (word by word from dim to full, size, a pause, or an object beside the word)", "pill (a colour block growing from the left)", "underline drawing on", "marker swipe", "box drawing around", "colour only", "strike, then the replacement word"] as const;
