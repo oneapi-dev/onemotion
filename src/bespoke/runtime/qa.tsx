@@ -193,6 +193,8 @@ function scan(root: HTMLElement, width: number, frame: number) {
   };
   let n = 0;
   const texts: TextBox[] = [];
+  /** Panels already reported as spilling: one warning each, not one per line inside. */
+  const spilled = new Set<Element>();
   for (const el of root.querySelectorAll("*")) {
     if (++n > MAX_ELEMENTS) break;
     const text = ownText(el);
@@ -211,6 +213,15 @@ function scan(root: HTMLElement, width: number, frame: number) {
     const edge = r.left < box.left - 2 ? "left" : r.right > box.right + 2 ? "right" : r.top < box.top - 2 ? "top" : r.bottom > box.bottom + 2 ? "bottom" : null;
     if (edge) warn(`text ${label} is cut by the ${edge} edge of the frame`);
     if (fit && el.scrollWidth > el.clientWidth + 2) warn(`text ${label} is clipped by its own box`);
+    else if (text && !edge) {
+      const cut = clippedBy(el, r, root, box);
+      const panel = cut ? null : spills(el, r, root, box);
+      if (cut) warn(`text ${label} is cut off by its container (a box with overflow hidden, ${Math.round(cut / scale)} px too narrow): widen the box or let the words set its width`);
+      else if (panel && !spilled.has(panel)) {
+        spilled.add(panel);
+        warn(`text ${label} spills out of its panel: the panel is smaller than what it holds; size the panel to its content, or shrink the content`);
+      }
+    }
     if (text && r.height / scale < minTextPx(box.height > box.width)) warn(`text ${label} renders ${Math.round(r.height / scale)} px tall: too small to read`);
     if (text) {
       texts.push({ el, r, block: blockOf(el, root) });
@@ -252,6 +263,50 @@ function emptyCards(root: HTMLElement, box: DOMRect, scale: number, covers: Elem
     if (!edged) continue;
     warn(`an empty card (${Math.round(r.width / scale)} x ${Math.round(r.height / scale)} px) holds nothing: put real content in it (a logo, words, a drawing) or remove it`);
   }
+}
+
+/** A box most of the frame wide and tall: the stage, a backdrop or the world, not a panel. */
+const stageSized = (a: DOMRect, box: DOMRect) => a.width >= box.width * 0.9 && a.height >= box.height * 0.8;
+
+/**
+ * How far (px) an ancestor with overflow hidden cuts a line of text at its side: a mask or a card
+ * narrower than its words shows "NaraRoute" for "NaraRouter". Only the sides: masks hide a rise
+ * from below by design.
+ */
+function clippedBy(el: Element, r: DOMRect, root: Element, box: DOMRect): number {
+  for (let x = el.parentElement; x && x !== root; x = x.parentElement) {
+    if (getComputedStyle(x).overflowX === "visible") continue;
+    const a = x.getBoundingClientRect();
+    if (stageSized(a, box) || r.right <= a.left || r.left >= a.right) continue;
+    const over = Math.max(a.left - r.left, r.right - a.right);
+    if (over > 3) return over;
+  }
+  return 0;
+}
+
+const boxed = (cs: CSSStyleDeclaration) => {
+  const bg = /rgba?\(([^)]+)\)/.exec(cs.backgroundColor)?.[1].split(",").map(Number);
+  return Boolean(bg && (bg.length < 4 || bg[3] > 0.05)) || parseFloat(cs.borderTopWidth) > 0 || parseFloat(cs.borderBottomWidth) > 0;
+};
+
+/**
+ * Text that runs out of the panel it sits in: the nearest ancestor drawn as a box (a fill or a
+ * border) lets its content overflow below or beside it, like code lines under a code window.
+ * Text placed on purpose (absolutely positioned between it and the box) is left alone. Returns the panel.
+ */
+function spills(el: Element, r: DOMRect, root: Element, box: DOMRect): Element | null {
+  if (getComputedStyle(el).position === "absolute") return null;
+  for (let x = el.parentElement; x && x !== root; x = x.parentElement) {
+    const cs = getComputedStyle(x);
+    if (!boxed(cs)) {
+      if (cs.position === "absolute" || cs.position === "fixed") return null;
+      continue;
+    }
+    const a = x.getBoundingClientRect();
+    if (cs.overflowX !== "visible" || cs.overflowY !== "visible" || stageSized(a, box) || r.top >= a.bottom - 2) return null;
+    return r.bottom > a.bottom + 6 || r.right > a.right + 6 ? x : null;
+  }
+  return null;
 }
 
 /** The largest share (0..1) of an element's box that one opaque element painted after it covers. */

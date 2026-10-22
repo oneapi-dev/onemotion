@@ -4,6 +4,7 @@ import path from "node:path";
 import ts from "typescript";
 import { factNumbers, unknownNumbers } from "./facts";
 import { SCENE_ENTRY } from "./film";
+import { cueProblem } from "./kit/cue";
 
 /**
  * The gate a scene passes before any browser runs it: path and size limits,
@@ -87,6 +88,11 @@ function rules(name: string, src: string, files: Record<string, string>, known: 
     }
     if (ts.isCallExpression(n) && n.expression.kind === ts.SyntaxKind.ImportKeyword) out.push(`${at(n)}: dynamic import() is not allowed`);
     if (ts.isPropertyAccessExpression(n) && n.getText() === "Math.random") out.push(`${at(n)}: Math.random is not deterministic; use seeded(n) from @kit`);
+    // A film cue the kit cannot read throws on every frame of its beat: caught here, before any frame is drawn.
+    if (ts.isCallExpression(n) && /(^|\.)cue$/.test(n.expression.getText()) && n.arguments[0] && (ts.isStringLiteral(n.arguments[0]) || ts.isNoSubstitutionTemplateLiteral(n.arguments[0])) && /^\s*b\d+\b/.test(n.arguments[0].text)) {
+      const problem = cueProblem(n.arguments[0].text);
+      if (problem) out.push(`${at(n)}: ${problem}`);
+    }
     if (ts.isIdentifier(n) && FORBIDDEN.has(n.text)) {
       const p = n.parent;
       const isName = (ts.isPropertyAccessExpression(p) && p.name === n) || (ts.isPropertyAssignment(p) && p.name === n) || (ts.isMethodDeclaration(p) && p.name === n) || ts.isJsxAttribute(p) || (ts.isPropertySignature(p) && p.name === n);

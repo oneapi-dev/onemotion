@@ -127,7 +127,8 @@ export const MaskRise = ({ text, t, at, size, font, weight = 700, color, by, sta
         const words = line.split(" ");
         const units = unit === "word" ? words.map((w, wi) => (wi < words.length - 1 ? `${w} ` : w)) : [line];
         return (
-          <div key={li} style={{ overflow: "hidden", padding: `${pad.t}em ${pad.x}em ${pad.b}em`, margin: `-${pad.t}em -${pad.x}em -${pad.b}em` }}>
+          // The mask is as wide as its line, whatever box it sits in: it hides the rise, never the end of a word.
+          <div key={li} style={{ overflow: "hidden", width: "max-content", maxWidth: "none", alignSelf: align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start", padding: `${pad.t}em ${pad.x}em ${pad.b}em`, margin: `-${pad.t}em -${pad.x}em -${pad.b}em` }}>
             <span style={{ display: "inline-block", whiteSpace: "pre" }}>
               {units.map((u, ui) => {
                 k++;

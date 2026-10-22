@@ -1,4 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
+import { CUE, cueForm } from "./cue";
 
 /**
  * The film's clock and frame, for a bespoke scene: its beats in frames, a
@@ -77,8 +78,6 @@ export const useFilm = (): Film => {
   return f;
 };
 
-// The word part may be a phrase ("b2:satu integrasi"): models cue on the words they mean, and a phrase is matched as a whole.
-const CUE = /^([A-Za-z0-9_-]+)(?::([^#@+]+?)(?:#(\d+))?)?(\.end|@(\d*\.?\d+))?([+-]\d*\.?\d+)?$/;
 
 /** @internal A word as it compares: lower case, letters and digits only, accents dropped. */
 export const normWord = (s: string) =>
@@ -93,7 +92,7 @@ export const cueMisses = new Set<string>();
 /** @internal The cue() of a film: parses "b3", "b3+0.4", "b3.end", "b3@0.5", "end". Unknown beats throw, so a typo shows up in the check render; a word the beat does not say falls back to the beat's start (reported, never fatal: a voice line edited later must not stop the film). */
 export function makeCue(beats: Beat[], total: number, fps: number) {
   return (c: string): number => {
-    const s = c.trim();
+    const s = cueForm(c);
     if (s === "end") return total - 1;
     const m = CUE.exec(s);
     if (!m) throw new Error(`cue("${c}"): use "b3", "b3:word", "b3+0.4", "b3.end", "b3@0.5" or "end"`);

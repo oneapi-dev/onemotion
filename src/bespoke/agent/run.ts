@@ -50,7 +50,7 @@ export type FilmState = {
 
 /** The automated QA's warnings worth a fix round: defects measured on the frames, not taste. */
 export function qaIssues(warnings: string[]): string[] {
-  return warnings.filter((w) => /cut by the|clipped by its own box|too small to read|overlap|runs over text|nearly empty|does not say|look nearly the same|covered by another element|empty card|freezes like slides/.test(w)).slice(0, 16);
+  return warnings.filter((w) => /cut by the|clipped by its own box|too small to read|overlap|runs over text|nearly empty|does not say|look nearly the same|covered by another element|empty card|freezes like slides|cut off by its container|spills out of its panel/.test(w)).slice(0, 16);
 }
 
 /** What a recent film was, so the next one is different. */
@@ -583,7 +583,19 @@ ${agentFacts}`;
     if (blind && round === 1) say("review", { kind: "error", text: `${o.model} does not receive images on this connection, so it cannot review the frames: the automated QA checks them instead` });
     say("review", { kind: "tool", text: blind ? `round ${round}: the automated QA checks the rendered frames` : `round ${round}: the art director is looking at the frames` });
     o.onActivity?.("review", `round ${round}: rendering labelled frames${blind ? " for the automated QA" : ", then the art director looks at them"}`);
-    const { review, usage: used, warnings, seen } = blind ? { review: null, usage: {}, ...(await measure(c.modules)) } : await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: c.modules, concept, facts: reviewFacts, host, refs: o.refs, signal: o.signal });
+    let reviewed: Awaited<ReturnType<typeof reviewFilm>>;
+    try {
+      reviewed = blind ? { review: null, usage: {}, ...(await measure(c.modules)) } : await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: c.modules, concept, facts: reviewFacts, host, refs: o.refs, signal: o.signal });
+    } catch (err) {
+      // A scene that throws while a frame renders (a cue it cannot read, a hook outside its beat) is a defect to fix, not the end of the film.
+      if (o.signal?.aborted) throw err;
+      o.onActivity?.("review", null);
+      const msg = err instanceof Error ? err.message : String(err);
+      say("review", { kind: "error", text: `the film crashed while its frames rendered (${msg.slice(0, 160)}); the designer fixes it` });
+      await repair([`the scene throws while rendering, so no frame of the film can be drawn: ${msg}. Find the line that throws and fix it (useBeat() works only inside a beat's own component, never in a <World> child or a shared component used outside a beat), then render_frames to see it draw.`], true);
+      continue;
+    }
+    const { review, usage: used, warnings, seen } = reviewed;
     o.onActivity?.("review", null);
     Object.assign(ledger, addUsage(ledger, used, price));
     if (review) {
@@ -618,7 +630,8 @@ ${agentFacts}`;
     r = await agent("lead", leadMessages, leadTools(true), REVISE_STEPS);
     // The last pass is measured like a round: it ships only when it is no worse than the best version reviewed.
     const c = await checkFilm().catch(() => null);
-    const m = c?.ok && !o.signal?.aborted ? await measure(c.modules) : null;
+    // A last pass that throws while rendering counts as one that does not pass: the best version ships.
+    const m = c?.ok && !o.signal?.aborted ? await measure(c.modules).catch(() => null) : null;
     const after = m ? defects(m.warnings, m.seen) : null;
     if (best && (!after || lastScore < best.score || after.length > best.qa)) {
       for (const p of Object.keys(files)) delete files[p];

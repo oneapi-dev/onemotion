@@ -18,3 +18,4 @@ dist-desktop-new/
 
 # Bake-off films copied in for viewing in /lab/bespoke (the originals live in renders/)
 src/bespoke/examples/bakeoff-*/
+src/bespoke/examples/collab-*/

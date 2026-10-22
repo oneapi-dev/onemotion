@@ -34,9 +34,26 @@ export const BeatContext = createContext<BeatScope | null>(null);
 
 export const useBeat = (): BeatScope => {
   const b = useContext(BeatContext);
-  if (!b) throw new Error("useBeat() must be used inside a beat rendered by <World> (or <Beats>)");
-  return b;
+  const film = useFilm();
+  return b ?? filmScope(film);
 };
+
+/**
+ * @internal useBeat() outside a beat (a <World> child, a shared layer): the whole film as one span, on
+ * the film's own clock like that component's useCurrentFrame(), so cue("b4:word") lands where it says.
+ * A bare word names no beat there: it throws, saying so.
+ */
+export function filmScope(film: Film): BeatScope {
+  const scope = beatScope(film, { id: "film", start: 0, end: film.total } as Beat);
+  return {
+    ...scope,
+    cue: (c) => {
+      const s = c.trim();
+      if (s === "end" || /^@/.test(s) || /^b\d+/.test(s)) return s === "end" ? film.total - 1 : /^@/.test(s) ? scope.cue(s) : film.cue(s);
+      throw new Error(`cue("${c}") outside a beat names no beat: write cue("b4:${s}") (or move this into the beat's own component)`);
+    },
+  };
+}
 
 /** @internal A beat's scope: its length, and cue() in its own time. */
 export function beatScope(film: Film, b: Beat): BeatScope {
