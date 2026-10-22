@@ -499,7 +499,12 @@ export function Studio() {
           host: () => host.current,
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName, tuning: settings.voice.tuning } : undefined,
           lexicon: lexiconOf(settings, opts.replace),
-          musicKey: settings.music === "elevenlabs" && settings.voice?.key ? settings.voice.key : undefined,
+          music:
+            settings.music === "elevenlabs" && settings.voice?.key
+              ? { provider: "elevenlabs", key: settings.voice.key }
+              : settings.music === "stableaudio" && settings.stableAudio?.token
+                ? { provider: "stableaudio", key: settings.stableAudio.token }
+                : undefined,
           onVoice: (clips) => setFilmClips({ projectId: base.id, clips }),
           onMusic: (blob) => setFilmMusic({ projectId: base.id, blob }),
           onActivity: track,

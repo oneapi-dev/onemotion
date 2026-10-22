@@ -54,8 +54,10 @@ export type Settings = {
   webSearch?: boolean;
   /** Build bespoke films with a team of agents in parallel (faster, less coherent) instead of one designer. */
   team?: boolean;
-  /** Where a film's music comes from: a built-in library track (rotated so videos differ), or ElevenLabs Music made for each film. */
-  music?: "library" | "elevenlabs";
+  /** Where a film's music comes from: a built-in library track (rotated so videos differ), or music made for each film by ElevenLabs Music or Stable Audio. */
+  music?: "library" | "elevenlabs" | "stableaudio";
+  /** The person's stableaudio.com login token, for Stable Audio music (it expires after a few hours). */
+  stableAudio?: { token: string };
   /** The export profile (src/studio/renderTarget.ts): output size, bitrate, encoder preference. */
   renderProfile?: "eco" | "balanced" | "quality" | "max";
   /** How names, domains and acronyms are said in every video; unset means the defaults. */

@@ -4,9 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import type { CatalogModel } from "@/director/input";
 import { listVoices, speak, type Voice, type VoiceTuning } from "@/voice/eleven";
 import { spoken } from "@/voice/spoken";
+import { LIBRARY } from "@/music/library";
+import { tokenLeft } from "@/music/stable";
 import { PronunciationEditor } from "./Pronunciations";
 import { PROFILES } from "./renderTarget";
 import { backupOf, studioLexicon, type CustomEndpoint, type Settings } from "./store";
+
+
 
 /**
  * Settings, as a modal dialog with sections: the AI the studio runs on (OneAPI, or
@@ -373,14 +377,27 @@ function VoiceSection({ settings, set }: { settings: Settings; set: (p: Partial<
         <div className="choices" role="radiogroup" aria-label="Music source">
           <button type="button" role="radio" aria-checked={(settings.music ?? "library") === "library"} className="choice" onClick={() => set({ music: "library" })}>
             <strong>Library track</strong>
-            <span>16 free public-domain tracks. The art director picks one; a track played in your last four videos is swapped for the closest unused one.</span>
+            <span>{LIBRARY.length} free public-domain tracks. The art director picks one; a track played in your last four videos is swapped for the closest unused one.</span>
           </button>
           <button type="button" role="radio" aria-checked={settings.music === "elevenlabs"} className="choice" onClick={() => set({ music: "elevenlabs" })}>
-            <strong>Made for each video</strong>
-            <span>ElevenLabs Music composes a new bed for every video, to its mood and length. Needs a paid ElevenLabs plan and the key above.</span>
+            <strong>ElevenLabs Music</strong>
+            <span>A new bed for every video, to its mood and length, with the key above. Paid plans only (Starter and up): about 400 credits for a 30 s video. On the free plan ElevenLabs refuses music, and the video plays a library track.</span>
+          </button>
+          <button type="button" role="radio" aria-checked={settings.music === "stableaudio"} className="choice" onClick={() => set({ music: "stableaudio" })}>
+            <strong>Stable Audio</strong>
+            <span>Stable Audio 3 composes the bed with your stableaudio.com account and its credits. Unofficial: it uses the web app&apos;s login token, which expires after a few hours.</span>
           </button>
         </div>
-        {settings.music === "elevenlabs" && !v.key ? <p className="error">Add your ElevenLabs API key above to use music made for each video.</p> : null}
+        {settings.music === "elevenlabs" && !v.key ? <p className="error">Add your ElevenLabs API key above to use ElevenLabs Music.</p> : null}
+        {settings.music === "stableaudio" ? (
+          <label className="field">
+            <span>Stable Audio token</span>
+            <input type="password" autoComplete="off" spellCheck={false} value={settings.stableAudio?.token ?? ""} onChange={(e) => set({ stableAudio: { token: e.target.value.trim().replace(/^Bearer\s+/i, "") } })} placeholder="eyJhbGciOi..." />
+            <small className={tokenLeft(settings.stableAudio?.token) === "expired" ? "error" : "hint"}>
+              {settings.stableAudio?.token ? `${tokenLeft(settings.stableAudio.token) === "expired" ? "This token has expired" : tokenLeft(settings.stableAudio.token)}. ` : ""}Log in at stableaudio.com, open the browser&apos;s DevTools, Network tab, generate once, and copy the Bearer token of the request to api.stableaudio.com. It goes through this app&apos;s server to Stable Audio only. Without a working token the video plays a library track.
+            </small>
+          </label>
+        ) : null}
         <p className="hint">You can change any video&apos;s track afterwards in its Music tab; the picture and narration stay as they are.</p>
       </section>
 

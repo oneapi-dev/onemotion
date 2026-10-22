@@ -5,6 +5,7 @@ import { composeMusic, speakTimed, tuningKey, VOICE_MODEL, type SpokenWord, type
 import { displayWords, speech, type CharTimes, type Pronunciation, type Speech } from "@/voice/spoken";
 import type { FilmSpec } from "./film";
 import type { FilmBeat } from "./timing";
+import { stableMusic } from "@/music/stable";
 
 /**
  * A bespoke film's voice-over: every beat's line recorded with the person's
@@ -121,19 +122,27 @@ export async function storedFilmVoice(spec: FilmSpec, language: string, voice: F
   return clips;
 }
 
-const musicKey = (prompt: string, seconds: number) => `film-music|music_v1|${Math.round(seconds)}|${prompt}`;
+/** Where a made-for-the-film music bed comes from. */
+export type MusicSource = { provider: "elevenlabs" | "stableaudio"; key: string };
+
+// ElevenLabs beds keep their old key, so beds made before Stable Audio came in are still found.
+const musicKey = (provider: MusicSource["provider"], prompt: string, seconds: number) => `film-music|${provider === "elevenlabs" ? "music_v1" : "stable-audio-v3"}|${Math.round(seconds)}|${prompt}`;
 
 /** What the music bed is asked to be: the film's world and mood, restrained under the picture. */
 export function musicPrompt(o: { style: string; metaphor: string; genre: string; bpm: number }): string {
   return `${o.style}; ${o.metaphor}. A ${o.genre.replace("-", " ")} feel, about ${o.bpm} BPM. Instrumental only, no vocals. A restrained, premium modern launch-film score that sits under a voice-over: it starts on the beat, builds gently, never gets bombastic, and ends on one clean hit about two seconds before the end with a short tail.`;
 }
 
-/** A music bed from ElevenLabs Music for this film, made once per prompt and length and kept in this browser. Throws (402) without a paid plan. */
-export async function filmMusic(o: { apiKey: string; prompt: string; seconds: number; signal?: AbortSignal }): Promise<{ key: string; blob: Blob }> {
-  const key = musicKey(o.prompt, o.seconds);
+/**
+ * A music bed made for this film (ElevenLabs Music on a paid plan, or Stable Audio with a
+ * stableaudio.com token), made once per prompt and length and kept in this browser. Throws when the
+ * provider refuses (402 on ElevenLabs' free plan, an expired Stable Audio token).
+ */
+export async function filmMusic(o: { source: MusicSource; prompt: string; seconds: number; signal?: AbortSignal }): Promise<{ key: string; blob: Blob }> {
+  const key = musicKey(o.source.provider, o.prompt, o.seconds);
   const hit = await getLine(key);
   if (hit) return { key, blob: hit };
-  const blob = await composeMusic(o.apiKey, o.prompt, o.seconds, o.signal);
+  const blob = o.source.provider === "stableaudio" ? await stableMusic(o.source.key, o.prompt, o.seconds, o.signal) : await composeMusic(o.source.key, o.prompt, o.seconds, o.signal);
   await putLine(key, blob);
   return { key, blob };
 }

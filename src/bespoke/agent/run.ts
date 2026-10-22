@@ -4,7 +4,7 @@ import { describeModel, matchModels, mentions } from "@/director/facts";
 import type { CatalogModel, SiteInfo } from "@/director/input";
 import type { FilmFormat, FilmSpec } from "../film";
 import type { FilmHost } from "../host";
-import { filmMusic, musicPrompt, recordFilmVoice, type FilmVoice } from "../voice";
+import { filmMusic, musicPrompt, recordFilmVoice, type FilmVoice, type MusicSource } from "../voice";
 import { filmTiming } from "../timing";
 import { missingEdits, type ColorEdit, type TextEdit } from "../textEdit";
 import type { Pronunciation } from "@/voice/spoken";
@@ -263,8 +263,8 @@ export async function makeFilm(o: {
   host: () => FilmHost | null;
   /** The person's ElevenLabs key and voice, to record the voice-over before the scene is built. */
   voice?: FilmVoice & { apiKey: string };
-  /** An ElevenLabs key, when the person chose music made for each film (ElevenLabs Music, paid plan) over the library. */
-  musicKey?: string;
+  /** Where music made for each film comes from, when the person chose that over the library: ElevenLabs Music (paid plan) or Stable Audio. */
+  music?: MusicSource;
   /** How names, domains and acronyms are said (the project's over the studio's). */
   lexicon?: Pronunciation[];
   onVoice?: (clips: Record<number, Blob>) => void;
@@ -308,18 +308,19 @@ export async function makeFilm(o: {
     }
   }
 
-  // The music: ElevenLabs Music on a paid plan when the person chose it, made for this film's world and length; the library track otherwise.
-  if (o.musicKey) {
+  // The music: made for this film's world and length when the person chose it (ElevenLabs Music, Stable Audio); the library track otherwise.
+  if (o.music) {
     try {
       const seconds = filmTiming(spec.beats, spec.score).timing.total / 30 + 1;
-      act("asking ElevenLabs Music for a bed");
-      const m = await filmMusic({ apiKey: o.musicKey, prompt: musicPrompt({ style: concept.style, metaphor: concept.metaphor, genre: spec.score.genre, bpm: spec.score.bpm }), seconds, signal: o.signal });
-      film = { ...film, musicKey: m.key, log: [...film.log, { kind: "tool", text: "music: made with ElevenLabs Music for this film" }] };
+      const by = o.music.provider === "stableaudio" ? "Stable Audio" : "ElevenLabs Music";
+      act(`asking ${by} for a bed`);
+      const m = await filmMusic({ source: o.music, prompt: musicPrompt({ style: concept.style, metaphor: concept.metaphor, genre: spec.score.genre, bpm: spec.score.bpm }), seconds, signal: o.signal });
+      film = { ...film, musicKey: m.key, log: [...film.log, { kind: "tool", text: `music: made with ${by} for this film` }] };
       o.onMusic?.(m.blob);
       o.update(film);
     } catch (err) {
       if (o.signal?.aborted) throw err;
-      film = { ...film, log: [...film.log, { kind: "tool", text: `music: the composed score (${err instanceof Error ? err.message : String(err)})` }] };
+      film = { ...film, log: [...film.log, { kind: "tool", text: `music: the library track (${err instanceof Error ? err.message : String(err)})` }] };
       o.update(film);
     }
   }
