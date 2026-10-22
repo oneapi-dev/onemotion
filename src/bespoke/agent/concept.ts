@@ -34,6 +34,8 @@ export type Concept = {
   musicPlan?: { track: string; from: string }[];
   /** Whether the film has a voice-over (false when the brief asks for none). */
   voiceover: boolean;
+  /** The language the voice lines are written and spoken in, when the person narrates in another language than the film's own words. */
+  voiceLanguage?: string;
   /** The facts the film states, copied from the brief and the pages read: the agents' short list. */
   facts: string[];
   whyDifferent: string;
@@ -216,6 +218,7 @@ export function normalizeConcept(input: unknown): Concept {
   return {
     title: str(raw.title, 120),
     language: /^[a-z]{2}$/.test(str(raw.language, 5)) ? str(raw.language, 5) : "en",
+    ...(/^[a-z]{2}$/.test(str(raw.voiceLanguage, 5)) ? { voiceLanguage: str(raw.voiceLanguage, 5) } : {}),
     angle: str(raw.angle),
     problem: str(raw.problem, 300),
     promise: str(raw.promise, 300),
@@ -314,6 +317,8 @@ export function filmSpecOf(concept: Concept, format: FilmFormat, site: SiteInfo 
     beats: concept.beats,
     brand: { name: concept.brand.name || site?.name || "", url: concept.brand.url || site?.domain || "", logo: site?.logo ?? null, colors: [...new Set(colors)] },
     ...(partner ? { partner: partnerOf(partner) } : {}),
+    // Narration in another language than the words on screen: no captions, they would put that language on screen.
+    ...(concept.voiceLanguage && concept.voiceLanguage !== concept.language ? { captions: false } : {}),
     // A built-in track sets the tempo the beats snap to.
     score: track ? { ...normalizeScore(concept.score, concept.beats.length, "corporate-pop", seed), bpm: track.bpm } : normalizeScore(concept.score, concept.beats.length, "corporate-pop", seed),
     ...(track ? { track: track.id } : {}),
@@ -321,3 +326,9 @@ export function filmSpecOf(concept: Concept, format: FilmFormat, site: SiteInfo 
     ...(track && concept.musicPlan?.some((c) => c.track !== track.id) ? { cues: concept.musicPlan.filter((c, i, all) => c.track !== (i ? all[i - 1].track : track.id)) } : {}),
   };
 }
+
+/** The language a film's voice lines are spoken in: the person's narration language, else the film's. */
+export const voiceLanguageOf = (c: Pick<Concept, "language" | "voiceLanguage">) => c.voiceLanguage ?? c.language;
+
+/** A language code as words, for the prompts. */
+export const languageName = (code: string) => ({ id: "Indonesian", en: "English", ms: "Malay", ja: "Japanese", zh: "Chinese", ko: "Korean", es: "Spanish", fr: "French", de: "German", pt: "Portuguese", ar: "Arabic", hi: "Hindi", th: "Thai", vi: "Vietnamese" } as Record<string, string>)[code] ?? code;

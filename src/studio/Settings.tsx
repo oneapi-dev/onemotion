@@ -395,6 +395,15 @@ function VoiceSection({ settings, set }: { settings: Settings; set: (p: Partial<
         ) : v.voiceName ? (
           <p className="hint">Voice: {v.voiceName}. Load your voices to change it.</p>
         ) : null}
+        <label className="field">
+          <span>Narration language</span>
+          <select value={v.language ?? ""} onChange={(e) => setVoice({ language: e.target.value || undefined })}>
+            <option value="">Same as the video&apos;s words</option>
+            <option value="id">Indonesian</option>
+            <option value="en">English</option>
+          </select>
+          <small className="hint">An English brief can still be narrated in Indonesian: the on-screen words follow the brief, the voice lines are written and spoken in this language. Pick a voice native to it.</small>
+        </label>
         <div className="row" style={{ alignItems: "flex-end" }}>
           <label className="field" style={{ flex: 1 }}>
             <span>Native voices from the Voice Library</span>

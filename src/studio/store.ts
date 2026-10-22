@@ -37,7 +37,7 @@ export type Project = {
 };
 
 /** Optional voiceover with the person's own ElevenLabs key. */
-export type VoiceSettings = { on: boolean; key: string; voiceId: string; voiceName: string; tuning?: VoiceTuning };
+export type VoiceSettings = { on: boolean; key: string; voiceId: string; voiceName: string; tuning?: VoiceTuning; /** The language the narration is written and spoken in; unset follows the video's own language. */ language?: string };
 
 /** The person's own OpenAI-compatible or Anthropic-compatible endpoint, as found by Settings. */
 export type CustomEndpoint = ClientEndpoint & { key: string; model: string; models: string[] };

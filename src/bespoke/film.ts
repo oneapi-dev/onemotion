@@ -28,6 +28,8 @@ export type FilmSpec = {
   musicMap?: MusicMap;
   /** The mix: the music's level (0 to 1; src/music/mix.ts when unset), no music at all, and the gain that matched a person's own track to the library's loudness. */
   mix?: { music?: number; off?: boolean; trim?: number };
+  /** False hides the voice-over captions (narration in another language than the words on screen). */
+  captions?: boolean;
 };
 
 /** What the film host renders: the spec, the scene compiled to CommonJS modules by path, and recorded voice lines by beat index. */

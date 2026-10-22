@@ -63,7 +63,7 @@ try {
   const omc = om.files ? await (await fetch(`${base}/api/scene/check`, { method: "POST", headers: { ...H, "Content-Type": "application/json" }, body: JSON.stringify({ files: om.files }) })).json() : { ok: false, errors: ["missing"] };
   check("OneMotion intro film compiles", omc.ok === true, omc.ok ? "" : omc.errors?.slice(0, 2).join(" | "));
   const pr = await (await fetch(`${base}/api/scene/prompt`, { headers: H })).json();
-  check("prompts (kit source inside)", typeof pr.agent === "string" && pr.agent.includes("@kit/motion.ts") && pr.agent.includes("Motion craft"));
+  check("prompts (kit API inside)", typeof pr.agent === "string" && pr.agent.includes("--- @kit/motion ---") && pr.agent.includes("--- @kit/world ---") && pr.agent.includes("Motion craft"));
   const music = await fetch(`${base}/music/advertime.mp3`, { headers: H });
   check("bundled music", music.status === 200 && Number(music.headers.get("content-length")) > 100_000);
   const maps = readdirSync(path.join(dir, ".next", "static"), { recursive: true }).filter((f) => String(f).endsWith(".map"));

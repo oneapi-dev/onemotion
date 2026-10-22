@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filmSpecOf, musicPlanOf, normalizeConcept, UnusableConceptError } from "./concept";
+import { filmSpecOf, languageName, musicPlanOf, normalizeConcept, UnusableConceptError, voiceLanguageOf } from "./concept";
 
 const raw = {
   title: "Switchboard",
@@ -173,5 +173,13 @@ describe("the music plan", () => {
       { track: "goodnightmare", from: "b3" },
     ]);
     expect(musicPlanOf("nope", beats, "advertime")).toEqual([]);
+  });
+});
+
+describe("the narration language", () => {
+  it("follows the film unless the person narrates in another language, and survives a reload", () => {
+    expect(voiceLanguageOf({ language: "en" })).toBe("en");
+    expect(voiceLanguageOf({ language: "en", voiceLanguage: "id" })).toBe("id");
+    expect(languageName("id")).toBe("Indonesian");
   });
 });

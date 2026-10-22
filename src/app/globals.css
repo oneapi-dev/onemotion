@@ -2897,3 +2897,16 @@ small.warn {
     transition: none;
   }
 }
+
+/* Stop: the one control that stays live while a video is made; the panels around it are inert. */
+.btn.stop-run {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn.stop-run:hover {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+[inert] {
+  opacity: 0.55;
+  cursor: progress;
+}

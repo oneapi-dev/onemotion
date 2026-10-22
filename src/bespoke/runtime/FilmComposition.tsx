@@ -43,7 +43,8 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover,
   const { timing, beats } = useMemo(() => filmTiming(spec.beats, spec.score), [spec.beats, spec.score]);
   const film = useMemo<Film>(() => {
     const P = H > W;
-    const voiced = beats.some((b) => b.spoken);
+    // Captions take the bottom band only when they show: a voice in another language than the words on screen has none.
+    const voiced = beats.some((b) => b.spoken) && spec.captions !== false;
     return {
       fps: FILM_FPS,
       W,
@@ -62,7 +63,7 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover,
         ? { top: Math.round(H * 0.07), bottom: Math.round(H * (voiced ? 0.78 : 0.86)), left: 60, right: W - 60 }
         : { top: 70, bottom: H - (voiced ? 180 : 90), left: 100, right: W - 100 },
     };
-  }, [W, H, spec.format, spec.brand, spec.partner, spec.assets, timing.total, beats]);
+  }, [W, H, spec.format, spec.brand, spec.partner, spec.assets, spec.captions, timing.total, beats]);
 
   const ready = useFonts(scene.fonts ?? {});
   const Scene = scene.default;
@@ -73,7 +74,7 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover,
           <Scene />
         </FilmProvider>
       ) : null}
-      {ready && scene.captions !== false ? <Captions beats={beats} W={W} H={H} style={scene.captionStyle} /> : null}
+      {ready && scene.captions !== false && spec.captions !== false ? <Captions beats={beats} W={W} H={H} style={scene.captionStyle} /> : null}
       {ready ? <QaProbe root={root} width={W} on={Boolean(qa)} /> : null}
       <FilmSound input={{ spec, modules, voiceover, music }} timing={timing} />
     </AbsoluteFill>

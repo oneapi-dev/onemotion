@@ -5,7 +5,7 @@ import { DIMENSIONS } from "@/engine/plan";
 import type { FilmInput, FilmSpec } from "./film";
 import { FilmComposition, filmFrames } from "./runtime/FilmComposition";
 import { cueMisses } from "./kit/film";
-import { coverage, FLAT_SPREAD, flatness, frozenBeats, qaLayouts, qaPrints, qaSeen, qaWarnings, sameLayouts, SPARSE_SHARE } from "./runtime/qa";
+import { coverage, flashes, FLAT_SPREAD, flatness, frozenBeats, qaLayouts, qaPrints, qaSeen, qaWarnings, sameLayouts, SPARSE_SHARE } from "./runtime/qa";
 import { FILM_FPS, filmTiming } from "./timing";
 import { profileOf, REMOTION_LICENSE_KEY, type RenderProfile, type Target } from "@/studio/renderTarget";
 
@@ -159,6 +159,38 @@ export class FilmHost {
         });
         qaWarnings.push(...sameLayouts(holds));
         return { images, warnings: [...new Set([...cueMisses, ...qaWarnings])].slice(0, 30), seen: [...new Set(qaSeen)].join(" ").slice(0, 4000) };
+      }),
+    );
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  /**
+   * The film scanned for flashing: every `every`th frame rendered small, its brightness in a 4 x 4 grid, checked for
+   * three or more light/dark flashes in a second (runtime/qa.ts flashes). About a quarter of the film's frames.
+   */
+  async flashScan(film: WireFilm, signal?: AbortSignal, every = 4): Promise<string[]> {
+    const run = this.queue.then(() =>
+      withBackgroundFrames(async () => {
+        this.rendering();
+        const input = toInput(film);
+        const comp = composition(input);
+        const samples: { frame: number; grid: number[] }[] = [];
+        const c = new OffscreenCanvas(4, 4);
+        const ctx = c.getContext("2d");
+        if (!ctx) return [];
+        for (let f = 0; f < comp.durationInFrames; f += every) {
+          signal?.throwIfAborted();
+          const still = await renderStillOnWeb({ composition: comp, inputProps: input, frame: f, signal: signal ?? null, delayRenderTimeoutInMilliseconds: 120_000, licenseKey: REMOTION_LICENSE_KEY });
+          const bmp = await createImageBitmap(await still.blob({ format: "jpeg", quality: 0.4 }));
+          ctx.drawImage(bmp, 0, 0, 4, 4);
+          bmp.close();
+          const px = ctx.getImageData(0, 0, 4, 4).data;
+          const grid: number[] = [];
+          for (let i = 0; i < 64; i += 4) grid.push(0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]);
+          samples.push({ frame: f, grid });
+        }
+        return flashes(samples, FILM_FPS, every);
       }),
     );
     this.queue = run.catch(() => undefined);

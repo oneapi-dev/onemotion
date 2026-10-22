@@ -104,6 +104,8 @@ export async function reviewFilm(o: {
   host: FilmHost;
   /** The person's product screenshots: the film's UI should match them. */
   refs?: string[];
+  /** QA warnings the reviewer should not see (a figure the brief itself repeats). */
+  skip?: (warning: string) => boolean;
   signal?: AbortSignal;
 }): Promise<{ review: Review | null; usage: Usage; warnings: string[]; seen: string }> {
   const tiles = reviewTiles(o.spec);
@@ -111,7 +113,7 @@ export async function reviewFilm(o: {
   const stills = await o.host.stills({ spec: o.spec, modules: o.modules }, [...tiles.map((t) => t.frame), ...probes], o.signal);
   const images = stills.images.slice(0, tiles.length);
   const { seen } = stills;
-  const warnings = settledWarnings(tiles, [...stills.warnings, ...(await holdSameness(tiles, images))], probes);
+  const warnings = settledWarnings(tiles, [...stills.warnings, ...(await holdSameness(tiles, images))], probes).filter((w) => !o.skip?.(w));
   const portrait = o.spec.format === "portrait";
   const urls = await Promise.all(images.map((b) => scaled(b, portrait ? 720 : 1280)));
   const parts: Part[] = [

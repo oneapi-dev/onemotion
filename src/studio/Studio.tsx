@@ -14,7 +14,7 @@ import type { FilmHost } from "@/bespoke/host";
 import { makeFilm, reviseFilm, type FilmState, type RecentFilm } from "@/bespoke/agent/run";
 import { aiHeaders, setBackupModel, setEndpoint } from "@/bespoke/agent/llm";
 import { brokenCues, type Locks } from "@/bespoke/agent/revise";
-import { normalizeConcept } from "@/bespoke/agent/concept";
+import { normalizeConcept, voiceLanguageOf } from "@/bespoke/agent/concept";
 import type { FilmSpec } from "@/bespoke/film";
 import { normalizeScore } from "@/music/score";
 import { recordFilmVoice, storedFilmMusic, storedFilmVoice, unrecorded } from "@/bespoke/voice";
@@ -121,6 +121,8 @@ export function Studio() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState<Exporting>({ state: "idle" });
+  /** A video is being made or revised: set the moment Make is pressed, so the studio locks before the first stage shows. */
+  const [generating, setGenerating] = useState(false);
   const abort = useRef<AbortController | null>(null);
   // The current video's recorded voiceover lines, as URLs the preview and exporter play.
   const [voice, setVoice] = useState<{ projectId: string; clips: Record<number, string>; missing: boolean } | null>(null);
@@ -220,7 +222,7 @@ export function Studio() {
     const f = current?.film;
     if (!current || !f?.voice || filmClips?.projectId === current.id) return;
     let live = true;
-    void storedFilmVoice(f.spec, f.concept.language, f.voice).then((clips) => {
+    void storedFilmVoice(f.spec, voiceLanguageOf(f.concept), f.voice).then((clips) => {
       if (live && clips) setFilmClips({ projectId: current.id, clips });
     });
     return () => {
@@ -436,9 +438,11 @@ export function Studio() {
       setCreating(false);
       const ctrl = new AbortController();
       running.current = ctrl;
+      setGenerating(true);
       try {
         const site = await findSite(opts);
         const partner = opts.partner ? await findPartner(opts.partner) : null;
+        if (ctrl.signal.aborted) return;
         // The other pages the brief names (pricing, models, docs): their words become facts, their images assets. The partner's site is read as the partner.
         const partnerDomain = partner?.site?.domain;
         const others = findUrls(opts.brief, 5).filter((u) => (!site || !u.replace(/^https?:\/\//, "").startsWith(site.domain) || u.replace(/\/$/, "").split("/").length > 3) && (!partnerDomain || !u.replace(/^https?:\/\/(www\.)?/, "").startsWith(partnerDomain.replace(/^www\./, ""))));
@@ -499,6 +503,7 @@ export function Studio() {
           host: () => host.current,
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName, tuning: settings.voice.tuning } : undefined,
           lexicon: lexiconOf(settings, opts.replace),
+          voiceLanguage: voiceReady(settings) ? settings.voice.language : undefined,
           music:
             settings.music === "elevenlabs" && settings.voice?.key
               ? { provider: "elevenlabs", key: settings.voice.key }
@@ -519,6 +524,7 @@ export function Studio() {
         if (!ctrl.signal.aborted) setError(err instanceof Error ? err.message : String(err));
       } finally {
         running.current = null;
+        setGenerating(false);
         setActivity([]);
         setStage(null);
       }
@@ -537,7 +543,7 @@ export function Studio() {
   /** Finds a film's recorded lines again (after an edit re-timed or re-recorded some). */
   const reloadClips = useCallback(async (projectId: string, film: FilmState) => {
     if (!film.voice) return;
-    const clips = await storedFilmVoice(film.spec, film.concept.language, film.voice);
+    const clips = await storedFilmVoice(film.spec, voiceLanguageOf(film.concept), film.voice);
     if (clips) setFilmClips({ projectId, clips });
   }, []);
 
@@ -559,6 +565,7 @@ export function Studio() {
       setSeconds(0);
       const ctrl = new AbortController();
       running.current = ctrl;
+      setGenerating(true);
       setStage("film");
       runStarted.current = Date.now();
       try {
@@ -591,6 +598,7 @@ export function Studio() {
         return null;
       } finally {
         running.current = null;
+        setGenerating(false);
         setActivity([]);
         setStage(null);
       }
@@ -710,7 +718,7 @@ export function Studio() {
     try {
       const choice = before.voice ?? (voiceReady(settings) ? { voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName, tuning: settings.voice.tuning } : undefined);
       if (voiceReady(settings) && choice) {
-        const rec = await recordFilmVoice({ spec, language: before.concept.language, apiKey: settings.voice.key, voice: choice, lexicon: lexiconOf(settings, project), only: [index] });
+        const rec = await recordFilmVoice({ spec, language: voiceLanguageOf(before.concept), apiKey: settings.voice.key, voice: choice, lexicon: lexiconOf(settings, project), only: [index] });
         spec = rec.spec;
       }
       const film: FilmState = { ...before, spec, voice: choice, concept: { ...before.concept, beats: before.concept.beats.map((b, k) => (k === index ? { ...b, voice: text } : b)) } };
@@ -924,7 +932,9 @@ export function Studio() {
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
   }, [pickingNow]);
-  const filmBusy = Boolean(stage) || exporting.state === "running";
+  const filmBusy = Boolean(stage) || generating || exporting.state === "running";
+  /** While a video is made, the rest of the studio waits: the library, the inspector and Settings lock; Stop stays. */
+  const locked = generating || Boolean(stage);
   const status = film ? (stage === "film" ? "Building" : film.interrupted ? "Interrupted" : film.status === "done" ? "Ready" : film.status === "stopped" ? "Stopped early" : film.status === "failed" ? "Failed" : "Building") : plan ? "Ready" : null;
 
   return (
@@ -972,13 +982,18 @@ export function Studio() {
               </button>
             </div>
           ) : null}
-          <button type="button" className="icon-btn" aria-label="Settings" title="Settings" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>
+          {generating ? (
+            <button type="button" className="btn stop-run" onClick={() => running.current?.abort()} title="Stop making this video">
+              Stop
+            </button>
+          ) : null}
+          <button type="button" className="icon-btn" aria-label="Settings" title="Settings" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)} disabled={locked}>
             <svg viewBox="0 0 20 20" aria-hidden="true">
               <circle cx="10" cy="10" r="2.6" />
               <path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" />
             </svg>
           </button>
-          <button type="button" className="model-chip" data-ready={ready || undefined} onClick={() => setSettingsOpen(true)} title="Settings" aria-label={ready ? `Settings (${ai.name}, model ${ai.model})` : "Settings: add your API key"}>
+          <button type="button" className="model-chip" data-ready={ready || undefined} disabled={locked} onClick={() => setSettingsOpen(true)} title="Settings" aria-label={ready ? `Settings (${ai.name}, model ${ai.model})` : "Settings: add your API key"}>
             <span className={ready ? "dot ok" : "dot"} aria-hidden="true" />
             <span className="model-name">{ready ? `${ai.custom ? `${ai.name} · ` : ""}${ai.model}` : ai.custom ? "Finish your endpoint" : "Add your OneAPI key"}</span>
           </button>
@@ -986,7 +1001,7 @@ export function Studio() {
         </div>
       </header>
 
-      <aside className="library" aria-label="Your videos">
+      <aside className="library" aria-label="Your videos" inert={locked}>
         <div className="library-head">
           <h2>Videos</h2>
           <button
@@ -1067,7 +1082,7 @@ export function Studio() {
           setSettings(next);
         }}
         onSettings={() => setSettingsOpen(true)}
-        busy={Boolean(stage)}
+        busy={locked}
         ready={ready}
         ai={ready ? { key: ai.key, model: ai.model } : null}
         website={website}
@@ -1104,9 +1119,11 @@ export function Studio() {
             <>
               {film ? "Building" : "Writing the concept"} <span className="mono">{seconds}s</span>
             </>
+          ) : generating ? (
+            <>Starting…</>
           ) : null
         }
-        onStop={stage === "film" ? () => running.current?.abort() : undefined}
+        onStop={generating ? () => running.current?.abort() : undefined}
       />
         </main>
       ) : (
@@ -1207,7 +1224,7 @@ export function Studio() {
         ) : null}
       </main>
 
-      <aside className="inspector" aria-label="Inspector">
+      <aside className="inspector" aria-label="Inspector" inert={locked}>
         {tabs.length ? (
           <div className="tabs" role="tablist" aria-label="Inspector">
             {tabs.map((t) => (
@@ -1241,7 +1258,7 @@ export function Studio() {
               film={film}
               busy={filmBusy}
               canVoice={voiceReady(settings)}
-              language={film.concept.language}
+              language={voiceLanguageOf(film.concept)}
               lexicon={lexiconOf(settings, current)}
               projectLexicon={current.pronunciations ?? []}
               clips={voiceover}

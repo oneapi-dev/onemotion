@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { frozenBeats, repeatedFigures, sameLayouts, samePrint, smallHero, type Print } from "./qa";
+import { flashes, frozenBeats, repeatedFigures, sameLayouts, samePrint, smallHero, type Print } from "./qa";
 
 /** A station's print: one headline and one bar, the bar `w` wide (a share of the station). */
 const print = (w: number, words = "Harga turun."): Print => ({
@@ -68,5 +68,16 @@ describe("composition", () => {
     const holds = ["b1", "b2", "b3", "b4"].map((beat, i) => ({ beat, frame: 50 + i * 100, layout: i === 3 ? big : slide }));
     expect(sameLayouts(holds)[0]).toMatch(/^frame 50: b1, b2, b3 are the same slide: a centred title across the top/);
     expect(sameLayouts(holds.map((h, i) => ({ ...h, layout: i % 2 ? big : slide })))).toEqual([]);
+  });
+});
+
+describe("flashing", () => {
+  const steady = (n: number, v = 120) => Array.from({ length: n }, (_, i) => ({ frame: i * 4, grid: Array(16).fill(v) }));
+
+  it("flags a region flipping light and dark three times in a second, and passes a slow change", () => {
+    const strobe = steady(16).map((s, i) => ({ ...s, grid: s.grid.map((v, r) => (r === 5 && i >= 4 && i < 12 ? (i % 2 ? 230 : 20) : v)) }));
+    expect(flashes(strobe, 30, 4)[0]).toMatch(/^frames \d+ to \d+ flip between light and dark/);
+    const fade = steady(16).map((s, i) => ({ ...s, grid: s.grid.map(() => 20 + i * 12) }));
+    expect(flashes(fade, 30, 4)).toEqual([]);
   });
 });

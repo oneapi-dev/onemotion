@@ -1,4 +1,4 @@
-import { createContext, Fragment, useContext, type ComponentType, type ReactNode } from "react";
+import { createContext, Fragment, useContext, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import { Sequence, useCurrentFrame } from "remotion";
 import { BeatContext, beatScope } from "./beat";
 import { E, lmix } from "./cinetic";
@@ -16,7 +16,7 @@ import { Sfx } from "./sound";
  */
 
 export type WorldLayout = "row" | "column" | "diagonal" | "zigzag" | "grid" | "scatter";
-export type WorldMove = "glide" | "swoop" | "whip" | "cut";
+export type WorldMove = "glide" | "swoop" | "whip" | "cut" | "dive";
 /** A station in world px: (x, y) its top-left corner, its size, and its turn in degrees. */
 export type Station = { id: string; x: number; y: number; w: number; h: number; roll: number };
 /** The camera: world point (x, y) at the centre of the frame, scale k, turn r in degrees, blur in px (a whip). */
@@ -37,10 +37,14 @@ export type WorldScope = {
 };
 
 /** Frames a move takes, how far it pulls back mid-way, how much it banks (degrees), its curve. */
-const DUR: Record<WorldMove, number> = { glide: 22, swoop: 26, whip: 12, cut: 0 };
-const DIP: Record<WorldMove, number> = { glide: 0.04, swoop: 0.26, whip: 0.1, cut: 0 };
-const BANK: Record<WorldMove, number> = { glide: 0, swoop: 1.2, whip: 2.5, cut: 0 };
-const EASE: Record<WorldMove, (x: number) => number> = { glide: E.glide, swoop: E.smooth, whip: E.whip, cut: (x) => (x < 1 ? 0 : 1) };
+const DUR: Record<WorldMove, number> = { glide: 22, swoop: 26, whip: 12, cut: 0, dive: 30 };
+const DIP: Record<WorldMove, number> = { glide: 0.04, swoop: 0.26, whip: 0.1, cut: 0, dive: 0 };
+const BANK: Record<WorldMove, number> = { glide: 0, swoop: 1.2, whip: 2.5, cut: 0, dive: 0 };
+const EASE: Record<WorldMove, (x: number) => number> = { glide: E.glide, swoop: E.smooth, whip: E.whip, cut: (x) => (x < 1 ? 0 : 1), dive: E.smooth };
+/** A dive: how far the camera zooms into the station it leaves, where it switches, and how small the next one starts. */
+const DIVE_IN = 14;
+const DIVE_SWITCH = 0.55;
+const DIVE_FROM = 0.55;
 /** Frames a station stays mounted after its beat even out of view: the tail of its last sounds. */
 const TAIL = 90;
 
@@ -141,6 +145,16 @@ export function worldCam(t: number, stations: Station[], legs: WorldLeg[], total
       const A = stations[l.from];
       const B = stations[l.to];
       const raw = clamp01((t - l.a) / (l.b - l.a || 1));
+      // A dive zooms through: exponentially into the station it leaves until its middle fills the frame,
+      // then the next station rushes up from far away. Zoom in log space reads as constant speed.
+      if (l.move === "dive") {
+        if (raw < DIVE_SWITCH) {
+          const q = (raw / DIVE_SWITCH) ** 2;
+          return { x: A.x + A.w / 2, y: A.y + A.h / 2, k: lmix(1 + push, DIVE_IN, q), r: -A.roll, blur: 6 * q * q };
+        }
+        const q = 1 - (1 - (raw - DIVE_SWITCH) / (1 - DIVE_SWITCH)) ** 3;
+        return { x: B.x + B.w / 2, y: B.y + B.h / 2, k: lmix(DIVE_FROM, 1, q), r: -B.roll, blur: 6 * (1 - q) ** 2 };
+      }
       const p = EASE[l.move](raw);
       const bump = Math.sin(Math.PI * raw);
       return {
@@ -333,6 +347,42 @@ export const World = ({
       {sound ? legs.map((l) => (l.move === "cut" ? null : <Sfx key={l.to} name={l.move === "whip" ? "swoosh" : "whoosh"} at={l.a - 1} volume={0.22} />)) : null}
     </WorldContext.Provider>
   );
+};
+
+/**
+ * Parallax inside a station: its children move z times as far as the station when the camera travels (z below 1 sits
+ * behind, above 1 passes in front of the lens), so a move reads as a dolly through layers, not a pan over a flat card.
+ * Typical z: 0.3 and 0.6 for backdrops, 1.25 to 2 for foreground pieces. Layers extend past the frame so their edges
+ * never show. Outside a beat it does nothing.
+ */
+export const Depth = ({ z, children, style }: { z: number; children?: ReactNode; style?: CSSProperties }) => {
+  const { cam, stations } = useWorld();
+  const scope = useContext(BeatContext);
+  const s = scope ? stations.find((x) => x.id === scope.beat.id) : undefined;
+  const dx = s ? -(cam.x - (s.x + s.w / 2)) * (z - 1) : 0;
+  const dy = s ? -(cam.y - (s.y + s.h / 2)) * (z - 1) : 0;
+  return <div style={{ position: "absolute", inset: 0, transform: `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`, ...style }}>{children}</div>;
+};
+
+/**
+ * A motivated transition in screen space: a disc of `color` grows from a point of the frame (the object the story is
+ * about: the stamp, the dot, the logo) until it covers everything at frame `at`, then a hole opens from `to` (the
+ * centre by default) onto what is there now. Put it in <World over={...} /> with that beat's move set to "cut", so
+ * the camera jumps while the frame is covered. Points are frame pixels.
+ */
+export const Iris = ({ t, at, from, to, color, dur = 14 }: { t: number; at: number; from: { x: number; y: number }; to?: { x: number; y: number }; color: string; dur?: number }) => {
+  const { W, H } = useFilm();
+  if (t < at - dur || t > at + dur) return null;
+  const far = (p: { x: number; y: number }) => Math.max(Math.hypot(p.x, p.y), Math.hypot(W - p.x, p.y), Math.hypot(p.x, H - p.y), Math.hypot(W - p.x, H - p.y)) + 4;
+  // Drawn with rounded boxes, not a positioned radial-gradient (the export's renderer does not draw those).
+  if (t <= at) {
+    const r = far(from) * E.in(prog(t, at - dur, at));
+    return <div style={{ position: "absolute", left: from.x - r, top: from.y - r, width: 2 * r, height: 2 * r, borderRadius: "50%", background: color }} />;
+  }
+  const end = to ?? { x: W / 2, y: H / 2 };
+  const ring = far(end);
+  const r = ring * E.out(prog(t, at, at + dur));
+  return <div style={{ position: "absolute", left: end.x - r - ring, top: end.y - r - ring, width: 2 * (r + ring), height: 2 * (r + ring), boxSizing: "border-box", border: `${ring}px solid ${color}`, borderRadius: "50%" }} />;
 };
 
 /** A dot or line grid behind the world that moves with the camera at `depth` (0.3 to 0.6 reads as far away): parallax for the backdrop. Put it in <World under={...} />. */

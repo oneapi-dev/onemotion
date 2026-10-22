@@ -98,3 +98,18 @@ describe("the world's camera", () => {
     expect(stations.map((s) => inView(s, travel, W, H))).toEqual([true, true, false]);
   });
 });
+
+describe("a dive", () => {
+  const st = worldLayout(["b1", "b2"], W, H, "row");
+  const legs = worldLegs([0, 150], [150, 300], ["swoop", "dive"]);
+  const l = legs[0];
+
+  it("zooms into the station it leaves, then the next one rushes up from far away and lands at scale 1", () => {
+    const at = (p: number) => worldCam(Math.round(l.a + (l.b - l.a) * p), st, legs, 300, 0);
+    expect(at(0.5).k).toBeGreaterThan(8);
+    expect(at(0.5).x).toBeCloseTo(st[0].x + st[0].w / 2, 0);
+    expect(at(0.6).k).toBeLessThan(0.8);
+    expect(at(0.6).x).toBeCloseTo(st[1].x + st[1].w / 2, 0);
+    expect(worldCam(l.b + 1, st, legs, 300, 0).k).toBeCloseTo(1, 2);
+  });
+});

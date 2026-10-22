@@ -8,7 +8,7 @@ import { filmMusic, musicPrompt, recordFilmVoice, type FilmVoice, type MusicSour
 import { filmTiming } from "../timing";
 import { missingEdits, type ColorEdit, type TextEdit } from "../textEdit";
 import type { Pronunciation } from "@/voice/spoken";
-import { filmSpecOf, normalizeConcept, partnerOf, type Concept, type FilmPartner } from "./concept";
+import { filmSpecOf, languageName, normalizeConcept, partnerOf, voiceLanguageOf, type Concept, type FilmPartner } from "./concept";
 import type { Partner } from "../kit/film";
 import { jsonStep, seesImages, sumUsage, type Msg, type Part } from "./llm";
 import { CLOSE_FIX, crowdedClose, isSlides, silentBeats, slideIssues, SLIDES_FIX } from "./story";
@@ -51,6 +51,14 @@ export type FilmState = {
 /** The automated QA's warnings worth a fix round: defects measured on the frames, not taste. */
 export function qaIssues(warnings: string[]): string[] {
   return warnings.filter((w) => /cut by the|clipped by its own box|too small to read|overlap|runs over text|nearly empty|does not say|look nearly the same|covered by another element|empty card|freezes like slides|cut off by its container|spills out of its panel|places in one frame|nothing on this frame is big|share one layout|are the same slide/.test(w)).slice(0, 16);
+}
+
+/** A figure the QA saw in three places that the brief itself writes three times or more ("/ 1M TOKENS" on every price row): the person's own layout, not a defect. */
+export function briefRepeats(warning: string, brief: string): boolean {
+  const f = /^frame \d+: "([^"]+)" appears in \d+ places in one frame/.exec(warning)?.[1];
+  if (!f) return false;
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "").replace(/us\$/g, "$");
+  return norm(brief).split(norm(f)).length - 1 >= 3;
 }
 
 /** What a recent film was, so the next one is different. */
@@ -183,11 +191,12 @@ const refParts = (refs: string[]): Part[] =>
     { type: "image_url", image_url: { url } },
   ]);
 
-async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; pages?: SiteInfo[]; partner?: Partner | null; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; web?: boolean; signal?: AbortSignal; onActivity?: (text: string) => void }) {
+async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; pages?: SiteInfo[]; partner?: Partner | null; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; web?: boolean; voiceLanguage?: string; signal?: AbortSignal; onActivity?: (text: string) => void }) {
   const { concept: system } = await loadPrompts();
   const user = [
     `BRIEF:\n${o.brief || "(none: make a launch film for the website)"}`,
     `FACTS:\n${factsOf(o.brief, o.site, o.models)}`,
+    o.voiceLanguage ? `NARRATION LANGUAGE: ${languageName(o.voiceLanguage)}. The person narrates this film in ${languageName(o.voiceLanguage)}: write every beat's "voice" line in ${languageName(o.voiceLanguage)}, even when the brief asks for on-screen words in another language (those stay as the brief says).` : "",
     o.site?.accent ? `BRAND COLOUR: ${o.site.accent}` : "",
     o.partner ? partnerNote(o.partner) : "",
     pagesOf(o.site, o.pages).length ? `PAGES (read from the web just now):\n${pageText(o.site, o.pages)}` : "",
@@ -265,6 +274,8 @@ export async function makeFilm(o: {
   voice?: FilmVoice & { apiKey: string };
   /** Where music made for each film comes from, when the person chose that over the library: ElevenLabs Music (paid plan) or Stable Audio. */
   music?: MusicSource;
+  /** The language the person narrates in (Settings), when it is not the film's own: the voice lines are written and spoken in it. */
+  voiceLanguage?: string;
   /** How names, domains and acronyms are said (the project's over the studio's). */
   lexicon?: Pronunciation[];
   onVoice?: (clips: Record<number, Blob>) => void;
@@ -284,7 +295,10 @@ export async function makeFilm(o: {
   // A partner's website is read like the product's own pages: its words are facts, its images assets.
   const pages = [...(o.partner ? [o.partner.site] : []), ...(o.pages ?? [])];
   const partner = o.partner ? partnerOf(o.partner) : null;
-  const { concept, usage } = o.resume ? { concept: o.resume.concept, usage: {} } : await makeConcept({ ...o, pages, partner, onActivity: act });
+  const made = o.resume ? { concept: o.resume.concept, usage: {} } : await makeConcept({ ...o, pages, partner, onActivity: act });
+  const usage = made.usage;
+  // The narration's own language, kept with the concept: every later recording of a line speaks it.
+  const concept: Concept = o.voiceLanguage && o.voiceLanguage !== made.concept.language ? { ...made.concept, voiceLanguage: o.voiceLanguage } : made.concept;
   let spec = o.resume?.spec ?? filmSpecOf(concept, o.format, o.site, Math.floor(Math.random() * 1e6), o.recent.flatMap((r) => (r.track ? [r.track] : [])), o.partner);
   const notes: AgentEvent[] = (concept.notes ?? []).map((text) => ({ kind: "tool", text: `concept: ${text}` }));
   if (concept.music && concept.music !== "composed" && spec.track && spec.track !== concept.music && !o.resume)
@@ -297,7 +311,7 @@ export async function makeFilm(o: {
   if (o.voice && spec.beats.some((b) => b.voice)) {
     try {
       act(`recording the voice-over with ${o.voice.voiceName}`);
-      const rec = await recordFilmVoice({ spec, language: concept.language, apiKey: o.voice.apiKey, voice: o.voice, lexicon: o.lexicon, signal: o.signal, onLine: (done, total) => act(`recording the voice-over: line ${done} of ${total}`) });
+      const rec = await recordFilmVoice({ spec, language: voiceLanguageOf(concept), apiKey: o.voice.apiKey, voice: o.voice, lexicon: o.lexicon, signal: o.signal, onLine: (done, total) => act(`recording the voice-over: line ${done} of ${total}`) });
       spec = rec.spec;
       film = { ...film, spec, voice: { voiceId: o.voice.voiceId, voiceName: o.voice.voiceName, ...(o.voice.tuning ? { tuning: o.voice.tuning } : {}) }, log: [...film.log, { kind: "tool", text: `voice-over: ${Object.keys(rec.clips).length} lines recorded with ${o.voice.voiceName}` }] };
       o.onVoice?.(rec.clips);
@@ -558,7 +572,7 @@ export async function makeFilm(o: {
     // Dashes the brief does not write itself: the tell of generated copy.
     const dashed = /[—–]/.test(o.brief) ? [] : [...new Set(seen.match(/[^\n—–]{0,24}[—–][^\n—–]{0,24}/g) ?? [])].slice(0, 3);
     return [
-      ...qaIssues(warnings),
+      ...qaIssues(warnings).filter((w) => !briefRepeats(w, o.brief)),
       ...missing,
       ...(dashed.length ? [`the on-screen words use dashes (${dashed.map((d) => `"${d.trim()}"`).join(", ")}): rewrite them with a full stop, a comma or a colon`] : []),
       ...slideIssues(files),
@@ -576,7 +590,7 @@ export async function makeFilm(o: {
   };
   /** What the art director checks the film against: the brief and the concept's facts (whole web pages carry other offers and prices). */
   const reviewFacts = `${o.brief}
-${agentFacts}`;
+${agentFacts}${concept.voiceLanguage ? `\nNARRATION: the person narrates this film in ${languageName(concept.voiceLanguage)} by their own choice; the voice lines are heard, not shown, and do not break a brief that asks for on-screen words in another language.` : ""}`;
   // The art director's rounds.
   // Two rounds, and up to EXTRA_REVIEWS more while the film is under the floor (the break below decides).
   for (let round = 1; round <= MAX_REVIEWS + EXTRA_REVIEWS && !o.signal?.aborted; round++) {
@@ -599,7 +613,7 @@ ${agentFacts}`;
     o.onActivity?.("review", `round ${round}: rendering labelled frames${blind ? " for the automated QA" : ", then the art director looks at them"}`);
     let reviewed: Awaited<ReturnType<typeof reviewFilm>>;
     try {
-      reviewed = blind ? { review: null, usage: {}, ...(await measure(c.modules)) } : await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: c.modules, concept, facts: reviewFacts, host, refs: o.refs, signal: o.signal });
+      reviewed = blind ? { review: null, usage: {}, ...(await measure(c.modules)) } : await reviewFilm({ key: o.key, model: o.model, system: reviewSystem, spec, modules: c.modules, concept, facts: reviewFacts, host, refs: o.refs, skip: (w) => briefRepeats(w, o.brief), signal: o.signal });
     } catch (err) {
       // A scene that throws while a frame renders (a cue it cannot read, a hook outside its beat) is a defect to fix, not the end of the film.
       if (o.signal?.aborted) throw err;
@@ -659,6 +673,23 @@ ${agentFacts}`;
     Object.assign(files, best.files);
     lead.dirty = true;
     say("review", { kind: "error", text: `round ${best.round} scored higher (${best.score}/10) than the last round (${lastScore}/10): the film is round ${best.round}'s version` });
+  }
+  // Flashing: the version that ships is scanned for light and dark flips faster than three a second (a seizure risk); one fix when found.
+  if (!o.signal?.aborted) {
+    const c = await checkFilm().catch(() => null);
+    const flashing = c?.ok ? await host.flashScan({ spec, modules: c.modules }, o.signal).catch(() => []) : [];
+    if (flashing.length && !o.signal?.aborted) {
+      say("review", { kind: "error", text: `the film flashes: ${flashing[0]}` });
+      const kept = { ...files };
+      leadMessages.push({ role: "user", content: `The film flashes, a seizure risk: ${flashing.join("; ")}. Fix only that: make the change with position, scale or colour of the same brightness, or slow it to fewer than three flips a second. Change nothing else, check, then call finish.` });
+      lead.dirty = true;
+      r = await agent("lead", leadMessages, leadTools(true), REPAIR_STEPS);
+      if (!(await checkFilm().catch(() => null))?.ok) {
+        for (const p of Object.keys(files)) delete files[p];
+        Object.assign(files, kept);
+        lead.dirty = true;
+      }
+    }
   }
   return finish(r);
 
@@ -769,7 +800,7 @@ export async function reviseFilm(o: {
   let voiced = 0;
   if (applied.revoice.length && o.voice && before.voice) {
     act(`recording ${applied.revoice.length} changed line${applied.revoice.length === 1 ? "" : "s"}`);
-    const rec = await recordFilmVoice({ spec: film.spec, language: film.concept.language, apiKey: o.voice.apiKey, voice: before.voice, lexicon: o.lexicon, only: applied.revoice, signal: o.signal });
+    const rec = await recordFilmVoice({ spec: film.spec, language: voiceLanguageOf(film.concept), apiKey: o.voice.apiKey, voice: before.voice, lexicon: o.lexicon, only: applied.revoice, signal: o.signal });
     voiced = Object.keys(rec.clips).length;
     film = { ...film, spec: rec.spec, log: [...film.log, log(`voice-over: ${voiced} line${voiced === 1 ? "" : "s"} recorded again`)] };
     o.update(film);

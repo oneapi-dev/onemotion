@@ -95,6 +95,41 @@ export function sameLayouts(holds: { beat: string; frame: number; layout: Layout
   return [`frame ${best[0].frame}: ${best.map((h) => h.beat).join(", ")} share one layout (the headline in the same place, the same panel at the same size and position): stations in a row must differ in composition; move the hero (left, right, full-bleed, cropped close), change its scale, and let the words sit beside the thing they are about`];
 }
 
+/** A brightness change (0 to 255) at least this large between two samples is a flip; this many flips in a second is three flashes. */
+const FLASH_STEP = 25;
+const FLASH_FLIPS = 6;
+
+/**
+ * Where a film flashes: in any region of a 4 x 4 grid, six or more light/dark flips (three flashes, WCAG's
+ * limit) within one second of samples. `samples` are each sampled frame's 16 region brightnesses, in order.
+ */
+export function flashes(samples: { frame: number; grid: number[] }[], fps: number, every: number): string[] {
+  const per = Math.max(2, Math.round(fps / every));
+  const out: string[] = [];
+  let last = -Infinity;
+  for (let r = 0; r < 16; r++) {
+    const flips: number[] = [];
+    let dir = 0;
+    for (let i = 1; i < samples.length; i++) {
+      const d = samples[i].grid[r] - samples[i - 1].grid[r];
+      if (Math.abs(d) < FLASH_STEP) continue;
+      const s = Math.sign(d);
+      if (s !== dir) flips.push(i);
+      dir = s;
+    }
+    for (let k = FLASH_FLIPS - 1; k < flips.length; k++) {
+      if (flips[k] - flips[k - FLASH_FLIPS + 1] > per) continue;
+      const a = samples[flips[k - FLASH_FLIPS + 1] - 1].frame;
+      const b = samples[flips[k]].frame;
+      if (a - last < fps) break;
+      last = a;
+      out.push(`frames ${a} to ${b} flip between light and dark at least three times in a second`);
+      break;
+    }
+  }
+  return out.slice(0, 3);
+}
+
 /** Two holds of one beat at least this many frames apart that print the same: the beat stood still. */
 export const FROZEN_FRAMES = 30;
 
