@@ -57,6 +57,44 @@ export type Print = { keys: string[]; nums: number[] };
 /** The prints of the stills being rendered now, by frame and station ("*" for a film without a World); the film host empties it before a job. */
 export const qaPrints = new Map<number, Map<string, Print>>();
 
+/** A frame's composition, as shares of the frame: its largest panel or object, and its largest line of type (with its rendered height in px). */
+export type Layout = { hero: { x: number; y: number; w: number; h: number } | null; type: { x: number; y: number; w: number; px: number } | null };
+
+/** The layouts of the stills being rendered now, by frame; the film host empties it before a job. */
+export const qaLayouts = new Map<number, Layout>();
+
+/** Below these, nothing on a frame is big: the largest panel's share of the width, and the largest type's share of the height. */
+const HERO_W = 0.42;
+const HERO_TYPE = 0.12;
+
+/** A frame where nothing is big (a headline over a small card in a sea of background, the slide look), or null. */
+export function smallHero(l: Layout, frameH: number): string | null {
+  const w = l.hero?.w ?? 0;
+  const px = l.type?.px ?? 0;
+  if (w >= HERO_W || px >= frameH * HERO_TYPE || (!l.hero && !l.type)) return null;
+  return `nothing on this frame is big: its largest panel spans ${Math.round(w * 100)} % of the width and its largest type is ${Math.round(px)} px tall, a headline over a small card is a slide; give the hold one hero: the subject (the receipt, the screen, the meter, the object) at 55 to 75 % of the width, or type at least ${Math.round(frameH * 0.14)} px tall, and crop into it rather than floating it in empty space`;
+}
+
+/**
+ * Beats that share one composition: three or more of them (and most of the film) put their largest type
+ * and their largest panel in the same place at the same size. `holds` is one layout per beat.
+ */
+export function sameLayouts(holds: { beat: string; frame: number; layout: Layout }[]): string[] {
+  const sig = (l: Layout) => [l.type ? l.type.x + l.type.w / 2 : -1, l.type?.y ?? -1, l.type?.w ?? -1, l.hero ? l.hero.x + l.hero.w / 2 : -1, l.hero ? l.hero.y + l.hero.h / 2 : -1, l.hero?.w ?? -1];
+  const close = (a: number[], b: number[]) => a.every((v, i) => Math.abs(v - b[i]) < 0.08);
+  let best: typeof holds = [];
+  for (const h of holds) {
+    const group = holds.filter((x) => close(sig(x.layout), sig(h.layout)));
+    if (group.length > best.length) best = group;
+  }
+  // The slide template: the frame's biggest line centred in its top third, the content stacked under it, beat after beat.
+  const slides = holds.filter(({ layout: l }) => l.type && l.hero && Math.abs(l.type.x + l.type.w / 2 - 0.5) < 0.12 && l.type.y < 0.3 && l.type.y + 0.02 < l.hero.y);
+  if (slides.length >= 3 && slides.length >= holds.length * 0.6)
+    return [`frame ${slides[0].frame}: ${slides.map((h) => h.beat).join(", ")} are the same slide: a centred title across the top with the content stacked under it. Break the template: put the subject full-bleed or cropped close and lay the words on or beside it, move the hero to a side, and never stack a title over a box twice in a row`];
+  if (best.length < 3 || best.length < holds.length * 0.6) return [];
+  return [`frame ${best[0].frame}: ${best.map((h) => h.beat).join(", ")} share one layout (the headline in the same place, the same panel at the same size and position): stations in a row must differ in composition; move the hero (left, right, full-bleed, cropped close), change its scale, and let the words sit beside the thing they are about`];
+}
+
 /** Two holds of one beat at least this many frames apart that print the same: the beat stood still. */
 export const FROZEN_FRAMES = 30;
 
@@ -233,6 +271,10 @@ function scan(root: HTMLElement, width: number, frame: number) {
   strokesOverText(texts, root, warn);
   emptyCards(root, box, scale, covers, warn);
   qaPrints.set(frame, prints(root));
+  const layout = layoutOf(root, box, texts, scale);
+  qaLayouts.set(frame, layout);
+  const small = smallHero(layout, box.height / scale);
+  if (small) warn(small);
 }
 
 /**
@@ -264,6 +306,27 @@ function emptyCards(root: HTMLElement, box: DOMRect, scale: number, covers: Elem
     if (!edged) continue;
     warn(`an empty card (${Math.round(r.width / scale)} x ${Math.round(r.height / scale)} px) holds nothing: put real content in it (a logo, words, a drawing) or remove it`);
   }
+}
+
+/** The frame's largest panel or object (a fill, a border, a picture) and its largest line of type. */
+function layoutOf(root: HTMLElement, box: DOMRect, texts: TextBox[], scale: number): Layout {
+  const share = (r: DOMRect) => ({ x: (r.left - box.left) / box.width, y: (r.top - box.top) / box.height, w: r.width / box.width, h: r.height / box.height });
+  let hero: DOMRect | null = null;
+  let n = 0;
+  for (const el of root.querySelectorAll("*")) {
+    if (++n > MAX_ELEMENTS) break;
+    const media = /^(IMG|SVG|CANVAS|VIDEO)$/i.test(el.tagName);
+    if (!media && !boxed(getComputedStyle(el))) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < box.width * 0.04 || r.height < box.height * 0.04 || stageSized(r, box)) continue;
+    if (r.right <= box.left || r.left >= box.right || r.bottom <= box.top || r.top >= box.bottom || opacityOf(el, root) < 0.5) continue;
+    // A drawing canvas spanning the frame (lines, wires) is not a panel.
+    if (media && el.tagName === "CANVAS" && r.width * r.height > box.width * box.height * 0.5) continue;
+    if (!hero || r.width * r.height > hero.width * hero.height) hero = r;
+  }
+  let type: TextBox | null = null;
+  for (const t of texts) if (!type || t.r.height > type.r.height) type = t;
+  return { hero: hero ? share(hero) : null, type: type ? { ...share(type.block.getBoundingClientRect()), px: type.r.height / scale } : null };
 }
 
 /** A box most of the frame wide and tall: the stage, a backdrop or the world, not a panel. */

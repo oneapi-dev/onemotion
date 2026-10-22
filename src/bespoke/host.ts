@@ -5,7 +5,7 @@ import { DIMENSIONS } from "@/engine/plan";
 import type { FilmInput, FilmSpec } from "./film";
 import { FilmComposition, filmFrames } from "./runtime/FilmComposition";
 import { cueMisses } from "./kit/film";
-import { coverage, FLAT_SPREAD, flatness, frozenBeats, qaPrints, qaSeen, qaWarnings, SPARSE_SHARE } from "./runtime/qa";
+import { coverage, FLAT_SPREAD, flatness, frozenBeats, qaLayouts, qaPrints, qaSeen, qaWarnings, sameLayouts, SPARSE_SHARE } from "./runtime/qa";
 import { FILM_FPS, filmTiming } from "./timing";
 import { profileOf, REMOTION_LICENSE_KEY, type RenderProfile, type Target } from "@/studio/renderTarget";
 
@@ -136,6 +136,7 @@ export class FilmHost {
         qaWarnings.length = 0;
         qaSeen.length = 0;
         qaPrints.clear();
+        qaLayouts.clear();
         cueMisses.clear();
         const images: Blob[] = [];
         for (const frame of frames) {
@@ -147,7 +148,16 @@ export class FilmHost {
           if (empty === "flat") qaWarnings.push(`frame ${f}: the frame is nearly empty (one flat colour): something meaningful should be on screen`);
           else if (empty === "sparse") qaWarnings.push(`frame ${f}: the frame is nearly empty (almost nothing on the background): the beat's hero should fill 50 to 75 % of the frame width, with its supporting layers around it`);
         }
-        qaWarnings.push(...frozenBeats(filmTiming(film.spec.beats, film.spec.score).beats, qaPrints));
+        const { beats } = filmTiming(film.spec.beats, film.spec.score);
+        qaWarnings.push(...frozenBeats(beats, qaPrints));
+        // One hold per beat, the one nearest two thirds in, for the layout comparison.
+        const holds = beats.flatMap((b) => {
+          const at = b.start + (b.end - b.start) * 0.65;
+          const f = [...qaLayouts.keys()].filter((x) => x >= b.start + 15 && x < b.end).sort((x, y) => Math.abs(x - at) - Math.abs(y - at))[0];
+          const layout = f === undefined ? undefined : qaLayouts.get(f);
+          return layout ? [{ beat: b.id, frame: f, layout }] : [];
+        });
+        qaWarnings.push(...sameLayouts(holds));
         return { images, warnings: [...new Set([...cueMisses, ...qaWarnings])].slice(0, 30), seen: [...new Set(qaSeen)].join(" ").slice(0, 4000) };
       }),
     );

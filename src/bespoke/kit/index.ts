@@ -14,5 +14,5 @@ export { camAt, project3D, Billboard3D, Particles3D, Floor3D, focusWeight, type 
 export { Asset, Picture, Mark, CoMark, Window, Phone, Cursor, Notification } from "./ui";
 export { Sfx, SFX, type SfxName } from "./sound";
 export { FONT_NAMES } from "./fonts";
-export { E, SPR, lmix, blurIn, blurOut, hitPulse, arrive, depart, squash, inertia, lc, shotStyle, toScreen, breath, dip, PACE, holdFor, revealFor, MaskRise, Scramble, type Shot } from "./cinetic";
+export { E, SPR, lmix, blurIn, blurOut, hitPulse, arrive, depart, squash, inertia, lc, shotStyle, toScreen, breath, dip, PACE, holdFor, revealFor, MaskRise, Scramble, enter, float, wiggle, type Shot, type Move } from "./cinetic";
 export { PriceCount, UiReveal, PhoneFan, BarChart, LineChart, LogoLockup, KineticCenter, TerminalRun, FocusZoom, FlashThrough, ChromaWipe } from "./blocks";

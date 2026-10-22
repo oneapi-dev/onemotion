@@ -137,5 +137,9 @@ export declare const PACE: { readonly calm: { readonly wordDur: 18; readonly sta
 type Pace = (typeof PACE)[keyof typeof PACE];
 export declare const holdFor: (words: number, p?: Pace) => number;
 export declare const revealFor: (words: number, p?: Pace) => number;
+export type Move = "slam" | "pop" | "stamp" | "drop" | "rise" | "zoom";
+export declare function enter(move: Move, t: number, at: number): CSSProperties;
+export declare const float: (t: number, amp?: number, period?: number) => number;
+export declare const wiggle: (t: number, seed?: number, amp?: number) => { x: number; y: number; r: number; };
 export declare const MaskRise: (props: { text: string; t: number; at: number; size: number; font: string; weight?: number; color: string; by?: "word" | "line"; stagger?: number; dur?: number; out?: number; outDur?: number; lead?: number; align?: "left" | "center" | "right"; style?: CSSProperties; }) => JSX.Element;
 export declare const Scramble: (props: { text: string; t: number; at: number; hold?: number; stagger?: number; seed?: string; cycle?: string; style?: CSSProperties; }) => JSX.Element | null;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { frozenBeats, repeatedFigures, samePrint, type Print } from "./qa";
+import { frozenBeats, repeatedFigures, sameLayouts, samePrint, smallHero, type Print } from "./qa";
 
 /** A station's print: one headline and one bar, the bar `w` wide (a share of the station). */
 const print = (w: number, words = "Harga turun."): Print => ({
@@ -51,5 +51,22 @@ describe("figures said more than once in a frame", () => {
       ["deepseek-v4.1-flash-1017-fast", 3],
     ]);
     expect(repeatedFigures(["Input US$0.19", "now $0.19"])).toEqual([]);
+  });
+});
+
+describe("composition", () => {
+  const slide = { hero: { x: 0.3, y: 0.4, w: 0.4, h: 0.3 }, type: { x: 0.3, y: 0.15, w: 0.4, px: 90 } };
+  const big = { hero: { x: 0.05, y: 0.1, w: 0.7, h: 0.8 }, type: { x: 0.6, y: 0.2, w: 0.35, px: 160 } };
+
+  it("calls a frame with nothing big a slide, and passes a big hero or big type", () => {
+    expect(smallHero(slide, 1080)).toMatch(/nothing on this frame is big: its largest panel spans 40 %/);
+    expect(smallHero(big, 1080)).toBeNull();
+    expect(smallHero({ hero: slide.hero, type: { ...slide.type, px: 170 } }, 1080)).toBeNull();
+  });
+
+  it("names the slide template when most beats stack a centred headline over a centred card", () => {
+    const holds = ["b1", "b2", "b3", "b4"].map((beat, i) => ({ beat, frame: 50 + i * 100, layout: i === 3 ? big : slide }));
+    expect(sameLayouts(holds)[0]).toMatch(/^frame 50: b1, b2, b3 are the same slide: a centred title across the top/);
+    expect(sameLayouts(holds.map((h, i) => ({ ...h, layout: i % 2 ? big : slide })))).toEqual([]);
   });
 });

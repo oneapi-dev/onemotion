@@ -116,6 +116,61 @@ export const revealFor = (words: number, p: Pace = PACE.calm) => Math.max(0, wor
  * nothing shows until it crosses the edge; lines are "\n"-separated. Exits
  * up through the top from `out`. Lands sharp: nothing scales.
  */
+/**
+ * Named entrances with their physics fixed, after motion-prompt's catalog (github.com/showheyohtaki/motion-prompt, MIT):
+ * - slam: from 3.4x to 1 in 0.18 s, then an impact shake (15 px, decaying over 1.1 s): a headline, a number, a stamp hitting.
+ * - pop: a spring that peaks at about 1.26 and turns in from -20 degrees: an icon, a badge, a chip.
+ * - stamp: from 1.6x, tilted, landing with a squash: a seal, a "PAID", a price tag.
+ * - drop: falls 120 px and bounces twice: a card, a coin, a token landing on something.
+ * - rise: slides up 120 px on a quintic ease-out over 0.65 s, fully opaque (clip its parent to hide the start): a line of type.
+ * - zoom: grows from 0.6 with a short fade: a panel, a screenshot.
+ * Spread it on the element: <div style={enter("slam", t, cue("gratis"))}>. Before `at` the element is hidden.
+ */
+export type Move = "slam" | "pop" | "stamp" | "drop" | "rise" | "zoom";
+
+export function enter(move: Move, t: number, at: number): CSSProperties {
+  const s = (t - at) / 30;
+  if (s < 0) return { opacity: 0, transform: "none" };
+  switch (move) {
+    case "slam": {
+      const p = clamp01(s / 0.18);
+      const k = mix(3.4, 1, p * p);
+      const shake = s > 0.18 && s < 1.28 ? 15 * Math.exp(-5 * (s - 0.18)) * Math.sin(2 * Math.PI * 5 * (s - 0.18)) : 0;
+      return { opacity: clamp01(s / 0.05), transform: `translateX(${shake.toFixed(2)}px) scale(${k.toFixed(4)})` };
+    }
+    case "pop": {
+      const d = Math.exp(-6.5 * s) * Math.cos(15 * s);
+      return { opacity: clamp01(s / 0.08), transform: `scale(${(1 - d).toFixed(4)}) rotate(${(-20 * d).toFixed(2)}deg)` };
+    }
+    case "stamp": {
+      const p = clamp01(s / 0.15);
+      const land = s > 0.15 ? Math.exp(-9 * (s - 0.15)) * Math.sin(18 * (s - 0.15)) : 0;
+      return { opacity: clamp01(s / 0.06), transform: `scale(${(mix(1.6, 1, p * p) + 0.06 * land).toFixed(4)}, ${(mix(1.6, 1, p * p) - 0.08 * land).toFixed(4)}) rotate(${mix(-12, -4, p).toFixed(2)}deg)` };
+    }
+    case "drop": {
+      const y = -120 * Math.exp(-5.5 * s) * Math.abs(Math.cos(11 * s));
+      return { opacity: clamp01(s / 0.06), transform: `translateY(${y.toFixed(2)}px)` };
+    }
+    case "rise": {
+      const p = clamp01(s / 0.65);
+      return { transform: `translateY(${(120 * (1 - p) ** 5).toFixed(2)}px)` };
+    }
+    case "zoom": {
+      const p = clamp01(s / 0.45);
+      return { opacity: clamp01(s / 0.15), transform: `scale(${mix(0.6, 1, 1 - (1 - p) ** 4).toFixed(4)})` };
+    }
+  }
+}
+
+/** A hold that stays alive: a slow float of `amp` px over `period` seconds (translateY it). Keep it on the hero, not on the line being read. */
+export const float = (t: number, amp = 8, period = 2.4) => -amp * Math.sin((2 * Math.PI * (t / 30)) / period);
+
+/** An irregular idle wiggle (sines at coprime rates, so it never looks like a loop): { x, y, r } in px and degrees, `seed` offsets each element. */
+export const wiggle = (t: number, seed = 0, amp = 3) => {
+  const s = t / 30 + seed * 7.3;
+  return { x: amp * (Math.sin(s * 1.3) + 0.5 * Math.sin(s * 3.1)) / 1.5, y: amp * (Math.sin(s * 1.7 + 1) + 0.5 * Math.sin(s * 2.3)) / 1.5, r: (amp / 3) * Math.sin(s * 0.9 + 2) };
+};
+
 export const MaskRise = ({ text, t, at, size, font, weight = 700, color, by, stagger = 5, dur = 19, out, outDur = 11, lead = 1.05, align = "left", style }: { text: string; t: number; at: number; size: number; font: string; weight?: number; color: string; by?: "word" | "line"; stagger?: number; dur?: number; out?: number; outDur?: number; lead?: number; align?: "left" | "center" | "right"; style?: CSSProperties }) => {
   const unit = by ?? (text.split(/\s+/).filter(Boolean).length <= 3 ? "line" : "word");
   const pad = { t: 0.12, b: 0.26, x: 0.1 };

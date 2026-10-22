@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { arrive, E, holdFor, inertia, lc, lmix, MaskRise, PACE, Scramble, toScreen } from "./cinetic";
+import { arrive, E, enter, float, holdFor, inertia, lc, lmix, MaskRise, PACE, Scramble, toScreen, wiggle } from "./cinetic";
 
 describe("cinetic port", () => {
   it("lands its eases on 1 and zooms in log space", () => {
@@ -34,5 +34,35 @@ describe("cinetic port", () => {
     const a = renderToStaticMarkup(<Scramble text="v4.1" t={14} at={10} />);
     expect(a).toBe(renderToStaticMarkup(<Scramble text="v4.1" t={14} at={10} />));
     expect(renderToStaticMarkup(<Scramble text="v4.1" t={60} at={10} />)).toContain(">v<");
+  });
+});
+
+describe("named entrances", () => {
+  const scaleOf = (s: { transform?: unknown }) => Number(/scale\(([\d.]+)/.exec(String(s.transform))?.[1] ?? 1);
+
+  it("hide the element before its cue and rest at size 1 afterwards", () => {
+    for (const m of ["slam", "pop", "stamp", "drop", "rise", "zoom"] as const) {
+      expect(enter(m, 10, 20).opacity).toBe(0);
+      const rest = enter(m, 20 + 90, 20);
+      expect(rest.opacity ?? 1).toBe(1);
+      expect(scaleOf(rest)).toBeCloseTo(1, 2);
+    }
+  });
+
+  it("slam starts big and lands in 0.18 s; pop overshoots to about 1.26", () => {
+    expect(scaleOf(enter("slam", 21, 20))).toBeGreaterThan(3);
+    expect(scaleOf(enter("slam", 26, 20))).toBeCloseTo(1, 1);
+    const peak = Math.max(...Array.from({ length: 12 }, (_, i) => scaleOf(enter("pop", 20 + i, 20))));
+    expect(peak).toBeGreaterThan(1.15);
+    expect(peak).toBeLessThan(1.35);
+  });
+
+  it("float and wiggle stay small", () => {
+    for (let t = 0; t < 200; t += 7) {
+      expect(Math.abs(float(t))).toBeLessThanOrEqual(8);
+      const w = wiggle(t, 2);
+      expect(Math.abs(w.x)).toBeLessThanOrEqual(3);
+      expect(Math.abs(w.y)).toBeLessThanOrEqual(3);
+    }
   });
 });

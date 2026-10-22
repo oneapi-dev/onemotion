@@ -50,7 +50,7 @@ export type FilmState = {
 
 /** The automated QA's warnings worth a fix round: defects measured on the frames, not taste. */
 export function qaIssues(warnings: string[]): string[] {
-  return warnings.filter((w) => /cut by the|clipped by its own box|too small to read|overlap|runs over text|nearly empty|does not say|look nearly the same|covered by another element|empty card|freezes like slides|cut off by its container|spills out of its panel|places in one frame/.test(w)).slice(0, 16);
+  return warnings.filter((w) => /cut by the|clipped by its own box|too small to read|overlap|runs over text|nearly empty|does not say|look nearly the same|covered by another element|empty card|freezes like slides|cut off by its container|spills out of its panel|places in one frame|nothing on this frame is big|share one layout|are the same slide/.test(w)).slice(0, 16);
 }
 
 /** What a recent film was, so the next one is different. */
@@ -293,7 +293,8 @@ export async function makeFilm(o: {
   o.onConcept(film);
 
   // The voice is the clock: record it first, so the beats and every word cue follow the real lines.
-  if (o.voice && concept.voiceover && spec.beats.some((b) => b.voice)) {
+  // Narration turned on in Settings is the person's own choice: it wins over a concept that left the voice-over out.
+  if (o.voice && spec.beats.some((b) => b.voice)) {
     try {
       act(`recording the voice-over with ${o.voice.voiceName}`);
       const rec = await recordFilmVoice({ spec, language: concept.language, apiKey: o.voice.apiKey, voice: o.voice, lexicon: o.lexicon, signal: o.signal, onLine: (done, total) => act(`recording the voice-over: line ${done} of ${total}`) });
@@ -408,6 +409,10 @@ export async function makeFilm(o: {
         blind,
         canWrite: (p) => p !== BEATS_INDEX && (all || beatOf(p) === null),
         writes: all ? `any file except ${BEATS_INDEX}` : "the theme, the shared components and scene/index.tsx (not the beats)",
+        // Every version the designer's own check passes is one to fall back to.
+        onPassed: () => {
+          lastGood = { ...files };
+        },
       },
     );
   /** The last version of the whole film that passed the check, files and all. */
@@ -578,6 +583,14 @@ ${agentFacts}`;
     let c = await checkFilm();
     if (!c.ok) {
       await repair(c.errors, true);
+      c = await checkFilm();
+    }
+    // A repair that fixed one file and broke another must not end the reviews: the last version that passed is reviewed instead.
+    if (!c.ok && lastGood && !o.signal?.aborted) {
+      for (const p of Object.keys(files)) delete files[p];
+      Object.assign(files, lastGood);
+      lead.dirty = true;
+      say("review", { kind: "error", text: `the film still failed the check after a repair (${c.errors[0]?.slice(0, 120) ?? ""}); reviewing the last version that passed` });
       c = await checkFilm();
     }
     if (!c.ok) break;

@@ -715,6 +715,8 @@ export function Studio() {
       }
       const film: FilmState = { ...before, spec, voice: choice, concept: { ...before.concept, beats: before.concept.beats.map((b, k) => (k === index ? { ...b, voice: text } : b)) } };
       next = keepFilm(project, film);
+      // An export made before this line was recorded is not this video any more.
+      setExporting({ state: "idle" });
       if (!broken.length) await remember(project.id, film, `narration of ${id}`, before);
       await reloadClips(project.id, film);
     } catch (err) {
