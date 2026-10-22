@@ -60,10 +60,11 @@ export function filmTiming(beats: FilmBeat[], score: Pick<Score, "bpm">): { timi
   const n = Math.max(1, beats.length);
   const beat = (FILM_FPS * 60) / score.bpm;
   const lengths = beats.map((b, i) => {
-    const want = Math.max(MIN_BEAT_SECONDS, b.seconds);
-    // A recorded line is spoken in full, with a breath, before the next beat starts: rounded up to the grid, never down.
+    // A recorded line is the beat's length: spoken in full, with a breath, before the next beat starts (rounded up to the grid, never down).
     const voiced = b.voiceSeconds ? Math.ceil(((b.voiceSeconds + VOICE_LEAD + VOICE_TAIL) * FILM_FPS) / beat) : 0;
-    const k = Math.max(i === n - 1 ? 8 : 2, Math.round((want * FILM_FPS) / beat), voiced);
+    // Without one, the concept's length (a storyboard's times are the person's own).
+    const want = Math.max(MIN_BEAT_SECONDS, b.seconds);
+    const k = Math.max(i === n - 1 ? 8 : 2, voiced || Math.round((want * FILM_FPS) / beat));
     return i === n - 1 ? k : k + (k % 2);
   });
   if (n > 1) {

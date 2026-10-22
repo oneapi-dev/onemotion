@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CatalogModel } from "@/director/input";
-import { listVoices, speak, type Voice, type VoiceTuning } from "@/voice/eleven";
+import { addLibraryVoice, libraryVoices, listVoices, speak, type LibraryVoice, type Voice, type VoiceTuning } from "@/voice/eleven";
 import { spoken } from "@/voice/spoken";
 import { LIBRARY } from "@/music/library";
 import { tokenLeft } from "@/music/stable";
@@ -305,6 +305,31 @@ function VoiceSection({ settings, set }: { settings: Settings; set: (p: Partial<
     void audio.current.play().catch(() => {});
   };
 
+  const [library, setLibrary] = useState<{ gender: "female" | "male"; list: LibraryVoice[]; busy: string | null; error: string | null }>({ gender: "female", list: [], busy: null, error: null });
+
+  async function findNative() {
+    setLibrary((l) => ({ ...l, busy: "search", error: null }));
+    try {
+      const list = await libraryVoices(v.key.trim(), lang, library.gender);
+      setLibrary((l) => ({ ...l, list, busy: null }));
+    } catch (err) {
+      setLibrary((l) => ({ ...l, busy: null, error: err instanceof Error ? err.message : String(err) }));
+    }
+  }
+
+  /** A Voice Library voice becomes one of the person's voices, and the voice their videos speak with. */
+  async function pickNative(x: LibraryVoice) {
+    setLibrary((l) => ({ ...l, busy: x.id, error: null }));
+    try {
+      const id = await addLibraryVoice(v.key.trim(), x);
+      setVoice({ voiceId: id, voiceName: x.name });
+      setVoices(await listVoices(v.key.trim()));
+      setLibrary((l) => ({ ...l, busy: null }));
+    } catch (err) {
+      setLibrary((l) => ({ ...l, busy: null, error: err instanceof Error ? err.message : String(err) }));
+    }
+  }
+
   async function load() {
     setState({ loading: true, error: null });
     try {
@@ -370,6 +395,42 @@ function VoiceSection({ settings, set }: { settings: Settings; set: (p: Partial<
         ) : v.voiceName ? (
           <p className="hint">Voice: {v.voiceName}. Load your voices to change it.</p>
         ) : null}
+        <div className="row" style={{ alignItems: "flex-end" }}>
+          <label className="field" style={{ flex: 1 }}>
+            <span>Native voices from the Voice Library</span>
+            <small className="hint">A voice born in the language reads it without an accent; ElevenLabs&apos; own voices are American or British.</small>
+          </label>
+          <select value={lang} onChange={(e) => setLang(e.target.value as "id" | "en")} aria-label="Language">
+            <option value="id">Indonesian</option>
+            <option value="en">English</option>
+          </select>
+          <select value={library.gender} onChange={(e) => setLibrary((l) => ({ ...l, gender: e.target.value as "female" | "male" }))} aria-label="Gender">
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+          </select>
+          <button type="button" className="btn" onClick={() => void findNative()} disabled={!v.key || library.busy !== null}>
+            {library.busy === "search" ? "Searching…" : "Find voices"}
+          </button>
+        </div>
+        {library.error ? <small className="error">{library.error}</small> : null}
+        {library.list.length ? (
+          <ul className="lines">
+            {library.list.map((x) => (
+              <li key={x.id} className="row" style={{ alignItems: "center" }}>
+                <span style={{ flex: 1 }}>
+                  <strong>{x.name}</strong> <span className="hint">· {x.about}</span>
+                </span>
+                <button type="button" className="btn small" onClick={() => x.previewUrl && play(x.previewUrl)} disabled={!x.previewUrl} title="ElevenLabs' own sample: free">
+                  Sample
+                </button>
+                <button type="button" className="btn small" onClick={() => void pickNative(x)} disabled={library.busy !== null || v.voiceName === x.name}>
+                  {library.busy === x.id ? "Adding…" : v.voiceName === x.name ? "In use" : "Use"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {library.list.length ? <small className="hint">Use adds the voice to your ElevenLabs voices (a paid plan, one voice slot) and picks it here.</small> : null}
       </section>
 
       <section className="settings-card">

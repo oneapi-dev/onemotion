@@ -57,6 +57,34 @@ export async function listVoices(key: string, signal?: AbortSignal): Promise<Voi
   return voices.sort((a, b) => Number(a.category === "premade") - Number(b.category === "premade") || a.name.localeCompare(b.name));
 }
 
+/** A voice in ElevenLabs' Voice Library, spoken natively in a language: added to the person's voices before it can speak. */
+export type LibraryVoice = Voice & { ownerId: string; uses: number };
+
+/** The Voice Library's most used voices native to `language` (ISO 639-1), optionally of one gender. */
+export async function libraryVoices(key: string, language: string, gender?: "female" | "male", signal?: AbortSignal): Promise<LibraryVoice[]> {
+  const q = new URLSearchParams({ page_size: "12", language, sort: "usage_character_count_1y", ...(gender ? { gender } : {}) });
+  const res = await fetch(`${API}/v1/shared-voices?${q}`, { headers: { "xi-api-key": key }, signal });
+  if (!res.ok) throw await failure(res);
+  const body = (await res.json()) as { voices?: { voice_id: string; public_owner_id: string; name?: string; gender?: string; age?: string; accent?: string; use_case?: string; preview_url?: string | null; usage_character_count_1y?: number }[] };
+  return (body.voices ?? []).map((v) => ({
+    id: v.voice_id,
+    ownerId: v.public_owner_id,
+    name: (v.name ?? "Voice").split(" - ")[0].trim(),
+    about: [v.gender, v.age?.replace("_", " "), v.accent, v.use_case?.replaceAll("_", " ")].filter(Boolean).join(", "),
+    previewUrl: v.preview_url ?? null,
+    category: "library",
+    uses: v.usage_character_count_1y ?? 0,
+  }));
+}
+
+/** Adds a Voice Library voice to the person's voices (paid plans; it takes a voice slot) and returns the id it speaks with. */
+export async function addLibraryVoice(key: string, v: LibraryVoice, signal?: AbortSignal): Promise<string> {
+  const res = await fetch(`${API}/v1/voices/add/${encodeURIComponent(v.ownerId)}/${encodeURIComponent(v.id)}`, { method: "POST", headers: { "xi-api-key": key, "Content-Type": "application/json" }, body: JSON.stringify({ new_name: v.name }), signal });
+  if (!res.ok) throw await failure(res);
+  const body = (await res.json()) as { voice_id?: string };
+  return body.voice_id ?? v.id;
+}
+
 /** One line read aloud, as MP3. `language` is an ISO 639-1 code; the voice speaks it natively when it can. */
 export async function speak(key: string, voiceId: string, text: string, language: string, signal?: AbortSignal, tuning?: VoiceTuning): Promise<Blob> {
   const settings = voiceSettings(tuning);

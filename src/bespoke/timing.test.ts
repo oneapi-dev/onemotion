@@ -93,3 +93,15 @@ describe("the music's ending", () => {
     }
   });
 });
+
+describe("a recorded line sets its beat's length", () => {
+  it("cuts a beat the concept wanted longer down to its line and a breath", () => {
+    const slow: FilmBeat[] = [
+      { id: "b1", says: "Satu kunci.", shows: "", seconds: 7, voice: "Satu kunci.", voiceSeconds: 1.4 },
+      { id: "b2", says: "router.bynara.id", shows: "", seconds: 4 },
+    ];
+    const { beats: t } = filmTiming(slow, { bpm: 120 });
+    // 1.4 s spoken + 0.2 s lead + 0.3 s breath = 1.9 s, on the 0.5 s grid of 120 BPM: 2 s, not the 7 s the concept asked for.
+    expect((t[0].end - t[0].start) / FILM_FPS).toBe(2);
+  });
+});
