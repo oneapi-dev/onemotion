@@ -37,7 +37,7 @@ import { hasNarration, recordNarration, storedNarration } from "@/voice/narrate"
 import { putLine } from "@/voice/cache";
 import { matchGain, rmsDb } from "@/music/mix";
 import { analyzeMusic, type MusicMap } from "@/music/analyze";
-import { aiOf, backupOf, deleteProject, lexiconOf, loadProjects, recoverInterrupted, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
+import { aiOf, backupOf, deleteProject, hydrate, lexiconOf, loadProjects, recoverInterrupted, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
 
 const Preview = dynamic(() => import("./Preview"), { ssr: false, loading: () => <div className="preview-wait" aria-hidden="true" /> });
 const FilmStage = dynamic(() => import("./FilmStage"), { ssr: false, loading: () => <div className="preview-wait" aria-hidden="true" /> });
@@ -162,25 +162,30 @@ export function Studio() {
   const [revision, setRevision] = useState<ImproveResult>(null);
   const [versions, setVersions] = useState<{ projectId: string; canUndo: boolean; canRedo: boolean; label: string | null }>({ projectId: "", canUndo: false, canRedo: false, label: null });
 
-  // Storage is only readable in the browser, after the first render.
+  // Storage is only readable in the browser, after the first render; the data folder, after its server has answered.
   useEffect(() => {
-    const s = loadSettings();
-    const list = loadProjects();
-    /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from localStorage */
-    // No run survives a closed app: a film still "building" was interrupted, and keeps what was built until then.
-    const fixed = recoverInterrupted(list);
-    if (fixed.some((p, i) => p !== list[i])) for (const p of [...fixed].reverse()) if (p.film?.interrupted) saveProject(p);
-    setSettings(s);
-    setProjects(fixed);
-    setCurrent(fixed[0] ?? null);
-    setCreating(!fixed.length);
-    if (fixed[0]) setFormat(fixed[0].format);
-    if (fixed[0]) setTab(fixed[0].film?.modules ? "improve" : fixed[0].plan ? "edit" : "details");
-    /* eslint-enable react-hooks/set-state-in-effect */
+    let live = true;
+    void hydrate().then(() => {
+      if (!live) return;
+      const s = loadSettings();
+      const list = loadProjects();
+      // No run survives a closed app: a film still "building" was interrupted, and keeps what was built until then.
+      const fixed = recoverInterrupted(list);
+      if (fixed.some((p, i) => p !== list[i])) for (const p of [...fixed].reverse()) if (p.film?.interrupted) saveProject(p);
+      setSettings(s);
+      setProjects(fixed);
+      setCurrent(fixed[0] ?? null);
+      setCreating(!fixed.length);
+      if (fixed[0]) setFormat(fixed[0].format);
+      if (fixed[0]) setTab(fixed[0].film?.modules ? "improve" : fixed[0].plan ? "edit" : "details");
+    });
     fetch("/api/catalog")
       .then((r) => (r.ok ? r.json() : { models: [] }))
       .then((b: { models: CatalogModel[] }) => setModels(b.models ?? []))
       .catch(() => setModels([]));
+    return () => {
+      live = false;
+    };
   }, []);
 
   useEffect(() => {

@@ -60,6 +60,12 @@ function serverEnv(p) {
   const keep = ["SystemRoot", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PATH", "ONEAPI_BASE_URL", "ONEAPI_CATALOG_URL"];
   const env = {};
   for (const k of keep) if (process.env[k]) env[k] = process.env[k];
+  // The studio keeps projects in Documents/OneMotion; Windows may have moved Documents (OneDrive), which only Electron can ask.
+  try {
+    env.ONEMOTION_DOCUMENTS = app.getPath("documents");
+  } catch {
+    // The server falls back to the home folder's Documents.
+  }
   return { ...env, NODE_ENV: "production", PORT: String(p), HOSTNAME: "127.0.0.1", NEXT_TELEMETRY_DISABLED: "1", ONEMOTION_DESKTOP_SECRET: secret };
 }
 

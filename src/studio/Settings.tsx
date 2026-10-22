@@ -8,7 +8,7 @@ import { LIBRARY } from "@/music/library";
 import { tokenLeft } from "@/music/stable";
 import { PronunciationEditor } from "./Pronunciations";
 import { PROFILES } from "./renderTarget";
-import { backupOf, studioLexicon, type CustomEndpoint, type Settings } from "./store";
+import { backupOf, changeFolder, storageInfo, studioLexicon, type CustomEndpoint, type Settings } from "./store";
 
 
 
@@ -21,12 +21,13 @@ import { backupOf, studioLexicon, type CustomEndpoint, type Settings } from "./s
  * ElevenLabs key only to ElevenLabs.
  */
 
-type Section = "ai" | "voice" | "pronunciation" | "export";
+type Section = "ai" | "voice" | "pronunciation" | "export" | "storage";
 const SECTIONS: { id: Section; label: string }[] = [
   { id: "ai", label: "AI provider" },
   { id: "voice", label: "Voice and music" },
   { id: "pronunciation", label: "Pronunciation" },
   { id: "export", label: "Export" },
+  { id: "storage", label: "Storage" },
 ];
 
 const API_LABEL: Record<CustomEndpoint["api"], string> = { chat: "OpenAI Chat Completions", responses: "OpenAI Responses", messages: "Anthropic Messages" };
@@ -85,6 +86,8 @@ export function SettingsView({ open, settings: saved, models, onSave, onClose }:
               hint="How the voice says names, domains and acronyms in every video. The text on screen and in captions stays as written; only what the voice is sent changes. A term in capitals (AI) matches only in capitals. Changing a pronunciation re-records only the lines that use it."
             />
           </section>
+        ) : section === "storage" ? (
+          <StorageSection />
         ) : (
           <section className="settings-card">
             <h2>Export</h2>
@@ -136,6 +139,52 @@ function BackupField({ settings, models, chatModels, set }: { settings: Settings
       </select>
       <small className="hint">Only after three failed tries for a reason that passes (its provider down, timing out or rate limited), and only for that step. The log says when it happens.</small>
     </label>
+  );
+}
+
+/** Where the projects and settings are kept. Acts at once: the page reloads onto the new folder. */
+function StorageSection() {
+  const info = storageInfo();
+  const [dir, setDir] = useState(info.folder ?? "");
+  const [copy, setCopy] = useState(true);
+  const [state, setState] = useState<{ busy: boolean; error: string }>({ busy: false, error: "" });
+  const move = async () => {
+    setState({ busy: true, error: "" });
+    try {
+      await changeFolder(dir, copy);
+      window.location.reload();
+    } catch (err) {
+      setState({ busy: false, error: err instanceof Error ? err.message : "Could not use that folder." });
+    }
+  };
+  if (!info.folder)
+    return (
+      <section className="settings-card">
+        <h2>Storage</h2>
+        <p className="hint">Projects and settings are kept in this browser. The desktop app and a studio started on this computer keep them in a folder instead.</p>
+      </section>
+    );
+  return (
+    <section className="settings-card">
+      <h2>Storage</h2>
+      <label className="field">
+        <span>Projects folder</span>
+        <input type="text" spellCheck={false} value={dir} onChange={(e) => setDir(e.target.value)} />
+        <small className="hint">Every project is a file in the <em>projects</em> folder inside it. The desktop app and `npm start` use this same folder, so both show the same projects.</small>
+      </label>
+      <label className="switch">
+        <input type="checkbox" role="switch" checked={copy} onChange={(e) => setCopy(e.target.checked)} />
+        <span>Copy my current projects into it</span>
+      </label>
+      <div>
+        <button type="button" className="btn" onClick={() => void move()} disabled={state.busy || !dir.trim() || dir.trim() === info.folder}>
+          {state.busy ? "Moving…" : "Use this folder"}
+        </button>
+      </div>
+      {state.error ? <p className="hint" role="alert">{state.error}</p> : null}
+      {info.error ? <p className="hint" role="alert">The last save did not reach the folder ({info.error}). It is tried again.</p> : null}
+      <p className="hint">Settings, including your API keys, are kept apart in your user folder (<em>.onemotion</em>), not in the projects folder, so a backup or a synced folder does not carry them.</p>
+    </section>
   );
 }
 

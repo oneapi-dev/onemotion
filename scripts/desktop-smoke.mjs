@@ -4,7 +4,8 @@
 // must have carried) and the prompts. Exits non-zero on any failure.
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import os from "node:os";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
@@ -17,7 +18,9 @@ const port = await new Promise((r) => {
   });
 });
 const secret = randomBytes(32).toString("hex");
-const child = spawn(process.execPath, ["server.js"], { cwd: dir, env: { ...process.env, NODE_ENV: "production", PORT: String(port), HOSTNAME: "127.0.0.1", ONEMOTION_DESKTOP_SECRET: secret }, stdio: ["ignore", "pipe", "pipe"] });
+// The store writes files: a temporary folder, never the person's Documents.
+const scratch = mkdtempSync(path.join(os.tmpdir(), "onemotion-smoke-"));
+const child = spawn(process.execPath, ["server.js"], { cwd: dir, env: { ...process.env, NODE_ENV: "production", PORT: String(port), HOSTNAME: "127.0.0.1", ONEMOTION_DESKTOP_SECRET: secret, ONEMOTION_DATA_DIR: path.join(scratch, "data"), ONEMOTION_CONFIG_DIR: path.join(scratch, "cfg") }, stdio: ["ignore", "pipe", "pipe"] });
 let log = "";
 child.stdout.on("data", (d) => (log += d));
 child.stderr.on("data", (d) => (log += d));
@@ -68,12 +71,20 @@ try {
   check("bundled music", music.status === 200 && Number(music.headers.get("content-length")) > 100_000);
   const maps = readdirSync(path.join(dir, ".next", "static"), { recursive: true }).filter((f) => String(f).endsWith(".map"));
   check("no browser source maps", maps.length === 0, `${maps.length}`);
+  const S = { ...H, "x-onemotion-store": "1", "Content-Type": "application/json" };
+  check("store needs its header", (await fetch(`${base}/api/store`, { headers: H })).status === 403);
+  const put = await fetch(`${base}/api/store`, { method: "PUT", headers: S, body: JSON.stringify({ upsert: [{ id: "smoke-1", brief: "hi" }], settings: { key: "k", model: "m" } }) });
+  const got = await (await fetch(`${base}/api/store`, { headers: S })).json();
+  check("store keeps a project and settings in files", put.status === 200 && got.projects?.[0]?.id === "smoke-1" && got.settings?.key === "k" && existsSync(path.join(scratch, "data", "projects", "smoke-1.json")));
+  const evil = await fetch(`${base}/api/store`, { method: "PUT", headers: S, body: JSON.stringify({ upsert: [{ id: "../evil" }] }) });
+  check("store refuses an id that leaves the folder", evil.status === 400 && !existsSync(path.join(scratch, "evil.json")));
   const pkg = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8"));
   check("server package present", Boolean(pkg.name));
 } catch (err) {
   check("run", false, err instanceof Error ? err.message : String(err));
 } finally {
   child.kill();
+  rmSync(scratch, { recursive: true, force: true });
 }
 for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.detail ? `  (${r.detail})` : ""}`);
 process.exit(results.every((r) => r.ok) ? 0 : 1);
