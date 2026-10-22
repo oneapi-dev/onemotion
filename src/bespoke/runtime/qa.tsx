@@ -229,6 +229,7 @@ function scan(root: HTMLElement, width: number, frame: number) {
     }
   }
   collisions(texts, root, warn);
+  repeats(texts, warn);
   strokesOverText(texts, root, warn);
   emptyCards(root, box, scale, covers, warn);
   qaPrints.set(frame, prints(root));
@@ -355,6 +356,22 @@ function collisions(texts: TextBox[], root: Element, warn: (m: string) => void) 
       if (small > 0 && hit > small * 0.25) warn(`text ${labelOf(a)} and text ${labelOf(b)} overlap`);
     }
   }
+}
+
+/** Prices, percentages, big counts and model-style ids: the things a frame should say once. */
+const FIGURE = /(?:US)?\$\s?\d[\d.,]*|\d+(?:[.,]\d+)?\s?%|\d+(?:[.,]\d+)?\s?[MKB]\b|[a-z0-9]+(?:[-.][a-z0-9]+){3,}/gi;
+
+/** The figures shown by `times` or more separate blocks of a frame's words, with how many show each. */
+export function repeatedFigures(blocks: string[], times = 3): [string, number][] {
+  const seen = new Map<string, number>();
+  for (const b of blocks) for (const f of new Set((b.match(FIGURE) ?? []).map((x) => x.replace(/\s+/g, "").replace(/^US/i, "").replace(/[.,]+$/, "").toLowerCase()))) seen.set(f, (seen.get(f) ?? 0) + 1);
+  return [...seen].filter(([, n]) => n >= times);
+}
+
+/** The same figure in three or more places of one frame: a headline, a chip and a footer all saying "$0.2". */
+function repeats(texts: TextBox[], warn: (m: string) => void) {
+  const blocks = [...new Set(texts.map((t) => t.block))].map((b) => b.textContent ?? "");
+  for (const [f, n] of repeatedFigures(blocks)) warn(`"${f}" appears in ${n} places in one frame (a headline, a chip and a label all saying it): say it once where it lands hardest, and let the other places carry something else or nothing`);
 }
 
 /** A line drawn on a canvas painted over text (later in the page, so on top of it). Strike marks are meant to. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { frozenBeats, samePrint, type Print } from "./qa";
+import { frozenBeats, repeatedFigures, samePrint, type Print } from "./qa";
 
 /** A station's print: one headline and one bar, the bar `w` wide (a share of the station). */
 const print = (w: number, words = "Harga turun."): Print => ({
@@ -40,5 +40,16 @@ describe("the freeze check", () => {
   it("needs the two stills far enough apart, and reads a film without a World by its whole frame", () => {
     expect(frozenBeats(beats, at([[80, { b1: print(0.5) }], [100, { b1: print(0.5) }]]))).toEqual([]);
     expect(frozenBeats(beats, at([[195, { "*": print(0.5) }], [248, { "*": print(0.5) }]]))[0]).toContain("b2 (frames 195 to 248");
+  });
+});
+
+describe("figures said more than once in a frame", () => {
+  it("counts the blocks that show a price or a model id, and lets two places pass", () => {
+    const frame = ["FLASH CEPAT, INPUT $0.2.", "deepseek-v4.1-flash-1017-fast 0.97M Input $0.2", "NARAROUTER // GATEWAY — deepseek-v4.1-flash-1017-fast INPUT $0.2 / 1M", "> model=\"deepseek-v4.1-flash-1017-fast\""];
+    expect(repeatedFigures(frame)).toEqual([
+      ["$0.2", 3],
+      ["deepseek-v4.1-flash-1017-fast", 3],
+    ]);
+    expect(repeatedFigures(["Input US$0.19", "now $0.19"])).toEqual([]);
   });
 });

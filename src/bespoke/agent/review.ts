@@ -55,7 +55,7 @@ export function settledWarnings(tiles: Tile[], warnings: string[], probes: numbe
   return warnings.filter((w) => {
     const f = Number(/^frame (\d+):/.exec(w)?.[1]);
     if (probed.has(f) && !moving.has(f) && !tiles.some((t) => t.frame === f)) return false;
-    return !(moving.has(f) && /cut by the|nearly empty|clipped by its own box|too small to read|overlap|runs over text|covered by another element|empty card|cut off by its container|spills out of its panel/.test(w));
+    return !(moving.has(f) && /cut by the|nearly empty|clipped by its own box|too small to read|overlap|runs over text|covered by another element|empty card|cut off by its container|spills out of its panel|places in one frame/.test(w));
   });
 }
 
