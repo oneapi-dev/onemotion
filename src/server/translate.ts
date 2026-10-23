@@ -19,7 +19,7 @@ type ChatMessage =
   | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
   | { role: "tool"; tool_call_id: string; content: string | Part[] };
 type ChatTool = { type: "function"; function: { name: string; description?: string; parameters?: unknown } };
-export type ChatRequest = { model: string; messages: ChatMessage[]; tools?: ChatTool[]; temperature?: number; max_tokens?: number };
+export type ChatRequest = { model: string; messages: ChatMessage[]; tools?: ChatTool[]; max_tokens?: number };
 
 const textOf = (c: string | Part[] | null | undefined): string => (typeof c === "string" ? c : (c ?? []).map((p) => (p.type === "text" ? p.text : "")).join("\n"));
 const partsOf = (c: string | Part[] | null | undefined): Part[] => (typeof c === "string" ? (c ? [{ type: "text", text: c }] : []) : (c ?? []));
@@ -42,7 +42,6 @@ export function toResponses(r: ChatRequest): Record<string, unknown> {
     input,
     ...(instructions ? { instructions } : {}),
     ...(r.tools?.length ? { tools: r.tools.map((t) => ({ type: "function", name: t.function.name, description: t.function.description ?? "", parameters: t.function.parameters ?? { type: "object", properties: {} } })) } : {}),
-    ...(typeof r.temperature === "number" ? { temperature: r.temperature } : {}),
     ...(typeof r.max_tokens === "number" ? { max_output_tokens: Math.max(16, r.max_tokens) } : {}),
     store: false,
   };
@@ -118,7 +117,6 @@ export function toMessages(r: ChatRequest): Record<string, unknown> {
     messages: turns,
     ...(systemText ? { system } : {}),
     ...(r.tools?.length ? { tools: r.tools.map((t) => ({ name: t.function.name, description: t.function.description ?? "", input_schema: t.function.parameters ?? { type: "object", properties: {} } })) } : {}),
-    ...(typeof r.temperature === "number" ? { temperature: Math.min(1, r.temperature) } : {}),
   };
 }
 

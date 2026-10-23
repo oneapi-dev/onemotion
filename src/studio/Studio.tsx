@@ -789,6 +789,17 @@ export function Studio() {
     await remember(project.id, film, "music", before);
   }
 
+  /** The voice-over captions shown or hidden, in the preview and in the export. */
+  async function changeCaptions(on: boolean) {
+    const project = current;
+    const before = project?.film;
+    if (!project || !before || stage) return;
+    const film: FilmState = { ...before, spec: { ...before.spec, captions: on ? undefined : false } };
+    keepFilm(project, film);
+    setExporting({ state: "idle" });
+    await remember(project.id, film, on ? "captions on" : "captions off", before);
+  }
+
   function make() {
     if (stage || brief.length > MAX_BRIEF[mode]) return;
     // No brief: a launch promo for the website, or for OneAPI.
@@ -1294,6 +1305,12 @@ export function Studio() {
                 <dt>Spend</dt>
                 <dd className="mono">{film.spend.usd ? `$${film.spend.usd.toFixed(2)}` : `${Math.round((film.spend.input + film.spend.output) / 1000)}k tokens`}</dd>
               </dl>
+              {film.spec.beats.some((b) => b.words?.length) ? (
+                <label className="switch">
+                  <input type="checkbox" role="switch" checked={film.spec.captions !== false} disabled={filmBusy} onChange={(e) => void changeCaptions(e.target.checked)} />
+                  <span>Show captions (the narration as subtitles)</span>
+                </label>
+              ) : null}
               {current.brief ? (
                 <details className="disclosure">
                   <summary>Brief</summary>

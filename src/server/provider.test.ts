@@ -8,7 +8,6 @@ vi.mock("server-only", () => ({}));
 const request: ChatRequest = {
   model: "m",
   max_tokens: 500,
-  temperature: 0.5,
   messages: [
     { role: "system", content: "Be brief." },
     { role: "user", content: [{ type: "text", text: "Look:" }, { type: "image_url", image_url: { url: "data:image/png;base64,QUJD" } }] },

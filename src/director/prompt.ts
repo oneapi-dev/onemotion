@@ -152,7 +152,6 @@ export function directRequest(model: string, input: DirectInput) {
       { role: "user", content: userMessage(input) },
     ],
     max_tokens: MAX_TOKENS,
-    temperature: 0.9,
     stream: false,
   };
 }

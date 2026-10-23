@@ -38,7 +38,6 @@ type StepInput = {
   model: string;
   messages: Msg[];
   tools?: ToolSpec[];
-  temperature?: number;
   maxTokens?: number;
   /** Let the model search and read the web on this step (OneAPI web search, billed per search). */
   web?: boolean;
@@ -284,7 +283,6 @@ async function chatOnce(o: StepInput) {
       model: o.model,
       messages,
       tools: o.tools,
-      temperature: o.temperature,
       max_tokens: o.maxTokens ?? 32_000,
       web: o.web || undefined,
     }),

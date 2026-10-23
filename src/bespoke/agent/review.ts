@@ -137,7 +137,7 @@ export async function reviewFilm(o: {
     ]),
   ];
   try {
-    const r = await jsonStep({ key: o.key, model: o.model, messages: [{ role: "system", content: o.system }, { role: "user", content: parts }], temperature: 0.2, maxTokens: 6000, signal: o.signal }, normalizeReview);
+    const r = await jsonStep({ key: o.key, model: o.model, messages: [{ role: "system", content: o.system }, { role: "user", content: parts }], maxTokens: 6000, signal: o.signal }, normalizeReview);
     return { review: r.value, usage: r.usage, warnings, seen };
   } catch (err) {
     if (o.signal?.aborted) throw err;

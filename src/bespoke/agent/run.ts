@@ -209,7 +209,7 @@ async function makeConcept(o: { key: string; model: string; brief: string; site:
     .filter(Boolean)
     .join("\n\n");
   const r = await jsonStep(
-    { key: o.key, model: o.model, messages: [{ role: "system", content: system }, { role: "user", content: o.refs?.length ? [{ type: "text", text: user }, ...refParts(o.refs)] : user }], temperature: 1, maxTokens: 12000, web: o.web, signal: o.signal, onProgress: (p) => o.onActivity?.(`the art director is ${p.chars ? `writing the concept (${(p.chars / 1000).toFixed(1)}k characters)` : "thinking about the concept"}`) },
+    { key: o.key, model: o.model, messages: [{ role: "system", content: system }, { role: "user", content: o.refs?.length ? [{ type: "text", text: user }, ...refParts(o.refs)] : user }], maxTokens: 12000, web: o.web, signal: o.signal, onProgress: (p) => o.onActivity?.(`the art director is ${p.chars ? `writing the concept (${(p.chars / 1000).toFixed(1)}k characters)` : "thinking about the concept"}`) },
     normalizeConcept,
   );
   // A concept that is the brief's slogans, one per beat, in order, is asked once more for a story; if the answer is no better, the first one stays.
@@ -229,7 +229,6 @@ async function makeConcept(o: { key: string; model: string; brief: string; site:
             { role: "assistant", content: JSON.stringify(r.value) },
             { role: "user", content: [slides ? SLIDES_FIX : "", crowded ? CLOSE_FIX : "", short ? SHORT_FIX : ""].filter(Boolean).join("\n\n") },
           ],
-          temperature: 1,
           maxTokens: 12000,
           signal: o.signal,
         },
@@ -772,7 +771,6 @@ export async function reviseFilm(o: {
         { role: "system", content: revisePrompt() },
         { role: "user", content: reviseMessage({ note: o.note, locks: o.locks, targets: o.targets, concept: before.concept, spec: before.spec }) },
       ],
-      temperature: 0.6,
       maxTokens: 8000,
       signal: o.signal,
     },

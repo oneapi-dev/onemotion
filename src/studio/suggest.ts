@@ -37,7 +37,6 @@ export async function writeBrief(o: { key: string; model: string; idea: BriefIde
       { role: "system", content: p.system },
       { role: "user", content: p.user },
     ],
-    temperature: 0.7,
     maxTokens: 6000,
     signal: o.signal,
   });
@@ -64,7 +63,6 @@ export async function reviewBrief(o: { key: string; model: string; brief: string
         { role: "system", content: p.system },
         { role: "user", content: p.user },
       ],
-      temperature: 0.3,
       maxTokens: 3000,
       signal: o.signal,
     },

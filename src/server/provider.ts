@@ -124,10 +124,17 @@ async function chatStream(ep: Endpoint, key: string, body: Record<string, unknow
     return sse.result();
   } catch (err) {
     if (err instanceof StreamError) throw new OneAPIError(502, `${ep.name}: ${err.message}`);
+    if (err instanceof TypeError && !signal.aborted) throw dropped(ep, err);
     throw err;
   } finally {
     void close();
   }
+}
+
+/** The connection broke while the reply was coming ("terminated", ECONNRESET): the network or the gateway, worth asking again. */
+function dropped(ep: Endpoint, err: TypeError): OneAPIError {
+  const code = (err.cause as { code?: string } | undefined)?.code;
+  return new OneAPIError(502, `The connection to ${ep.name} dropped while the model was answering${code ? ` (${code})` : ""}. This is the network or the gateway, not the request.`);
 }
 
 /** A Responses or Messages endpoint: one answer, translated back to the chat shape. */
@@ -136,7 +143,9 @@ async function translated(ep: Endpoint, key: string, body: ChatRequest, signal: 
   const path = ep.api === "responses" ? "/responses" : "/messages";
   const { res, close } = await send(ep, key, path, { method: "POST", body: ep.api === "responses" ? toResponses(body) : toMessages(body), signal });
   try {
-    const text = await res.text();
+    const text = await res.text().catch((err) => {
+      throw err instanceof TypeError && !signal.aborted ? dropped(ep, err) : err;
+    });
     if (!res.ok) throw failure(ep, res.status, text);
     let parsed: unknown;
     try {

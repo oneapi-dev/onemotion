@@ -106,7 +106,6 @@ export async function runAgent(o: {
         model: o.model,
         messages,
         tools: specs,
-        temperature: 0.6,
         signal: o.signal,
         onRetry: (m) => o.onEvent({ kind: "error", text: m }),
         onProgress: (p) => o.onActivity?.(`${at}: the model is ${describeProgress(p)}`),
