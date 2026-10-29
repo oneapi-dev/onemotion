@@ -1,0 +1,60 @@
+{
+ "format": "landscape",
+ "brand": {
+  "name": "aiTrends",
+  "url": "aitrends.example",
+  "logo": null,
+  "colors": [
+   "#ffc68a"
+  ]
+ },
+ "score": {
+  "genre": "cinematic",
+  "bpm": 120,
+  "seed": 5
+ },
+ "beats": [
+  {
+   "id": "b1",
+   "says": "A fly buzzes past your face. You don't even think. You just catch it.",
+   "voice": "A fly buzzes past your face. You don't even think. You just catch it.",
+   "shows": "aiTrends reference shots",
+   "seconds": 10.4
+  },
+  {
+   "id": "b2",
+   "says": "Your friend knocks his coffee off the table. The cup hasn't even started to fall, and your hand is already under it.",
+   "voice": "Your friend knocks his coffee off the table. The cup hasn't even started to fall, and your hand is already under it.",
+   "shows": "aiTrends reference shots",
+   "seconds": 12.65
+  },
+  {
+   "id": "b3",
+   "says": "\"How? How did you do that?\"",
+   "voice": "\"How? How did you do that?\"",
+   "shows": "aiTrends reference shots",
+   "seconds": 4.15
+  },
+  {
+   "id": "b4",
+   "says": "A normal human reacts in about a quarter of a second. You react in 2.5 hundredths.",
+   "voice": "A normal human reacts in about a quarter of a second. You react in 2.5 hundredths.",
+   "shows": "aiTrends reference shots",
+   "seconds": 6.9
+  },
+  {
+   "id": "b5",
+   "says": "So what if your reaction time was 10x faster?",
+   "voice": "So what if your reaction time was 10x faster?",
+   "shows": "aiTrends reference shots",
+   "seconds": 5.7
+  },
+  {
+   "id": "b6",
+   "says": "Here's how it works. Your eyes see. Your brain decides. Your muscles move.",
+   "voice": "Here's how it works. Your eyes see. Your brain decides. Your muscles move.",
+   "shows": "aiTrends reference shots",
+   "seconds": 7.56
+  }
+ ]
+}

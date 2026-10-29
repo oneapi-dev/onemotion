@@ -324,6 +324,8 @@ function scan(root: HTMLElement, width: number, frame: number) {
       return cx > cr.left && cx < cr.right && cy > cr.top && cy < cr.bottom;
     });
   };
+  // Words drawn on a canvas (the 2D studio engine) are read from the canvas's data-qa-text.
+  for (const el of root.querySelectorAll<HTMLElement>("[data-qa-text]")) if (el.dataset.qaText) qaSeen.push(el.dataset.qaText);
   let n = 0;
   const texts: TextBox[] = [];
   /** Panels already reported as spilling: one warning each, not one per line inside. */

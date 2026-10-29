@@ -1,6 +1,9 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { E as STUDIO_E, backdrop, fillRect, layer, mood, setStyle } from "@/bespoke/kit/studio2d/core";
+import { POSES, breathe, drawFigure, posesAt } from "@/bespoke/kit/studio2d/rig2d";
+import { dust, godRays, lampPost, pool, sun } from "@/bespoke/kit/studio2d/fx2d";
 import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 
 /**
@@ -878,6 +881,55 @@ function MathBlackboard() {
   );
 }
 
+/** The cinematic 2D story look, drawn by the 2D studio engine itself (dusk style): a lit street, two characters acting. */
+function Cinematic2D() {
+  const f = useCurrentFrame();
+  const ref = useRef<HTMLCanvasElement>(null);
+  useLayoutEffect(() => {
+    const g = ref.current?.getContext("2d");
+    if (!g) return;
+    const t = f / 30;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const E = STUDIO_E as any;
+    Object.assign(E, { W: 1920, H: 1080, PX: 640 / 1920, vertical: false, fps: 30, words: [], shots: [], cfg: {} });
+    setStyle("dusk");
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = "#000";
+    g.fillRect(0, 0, 640, 360);
+    g.setTransform(E.PX, 0, 0, E.PX, 0, 0);
+    const M = mood("dusk");
+    const GY = 1080 * 0.8;
+    const cam = { z: 1 + 0.07 * (t / 3), x: -40 + 50 * (t / 3) };
+    backdrop(g, M.sky);
+    layer(g, cam, 0.15, (g: CanvasRenderingContext2D) => sun(g, 1380, 640, 80, "#fff6e0", M.key, 4));
+    layer(g, cam, 0.9, (g: CanvasRenderingContext2D) => {
+      fillRect(g, -1920, GY, 1920 * 3, 600, M.floor);
+      pool(g, 520, GY + 10, 220, 34, M.practical, 0.35);
+      lampPost(g, 520, GY, 360, {});
+    });
+    godRays(g, 1380, 640, { color: M.key, a: 0.12 });
+    layer(g, cam, 1, (g: CanvasRenderingContext2D) => {
+      drawFigure(g, { x: 860, y: GY, s: 1.6, facing: 1, outfit: { top: "hoodie", color: "#d64a33" }, pose: breathe(posesAt(t, [[0, "stand"], [1.3, "point"]]), t), expr: t > 1.5 ? "surprised" : "neutral", rim: { color: M.rim, dir: [0.7, -1] } });
+      drawFigure(g, { x: 1180, y: GY, s: 1.6, facing: -1, outfit: { top: "tshirt", color: "#3a6ea5", head: "cap", headColor: "#f2c21a" }, pose: breathe(POSES.crossArms, t, 1, 2), expr: t > 2 ? "smirk" : "neutral", rim: { color: M.rim, dir: [0.7, -1] }, blink: t % 3.1 > 3.0 });
+    });
+    dust(g, t, { count: 40, color: "#ffe2bd", a: 0.35 });
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    const v = g.createRadialGradient(320, 180, 120, 320, 180, 400);
+    v.addColorStop(0, "rgba(0,0,0,0)");
+    v.addColorStop(1, "rgba(0,0,0,0.55)");
+    g.fillStyle = v;
+    g.fillRect(0, 0, 640, 360);
+    g.fillStyle = "#000";
+    g.fillRect(0, 0, 640, 20);
+    g.fillRect(0, 340, 640, 20);
+  });
+  return (
+    <AbsoluteFill style={{ background: "#000" }}>
+      <canvas ref={ref} width={640} height={360} style={{ width: "100%", height: "100%" }} />
+    </AbsoluteFill>
+  );
+}
+
 function AutoPick() {
   const t = useCurrentFrame();
   const tiles = ["#FF5A1F", "#F6F2EA", "#0B0C0E", "#BDE0FE"];
@@ -917,6 +969,7 @@ const SCENES: Record<string, () => ReactNode> = {
   "editorial-map": EditorialMap,
   "isometric-model": IsometricModel,
   "math-blackboard": MathBlackboard,
+  "cinematic-2d-story": Cinematic2D,
   "continuous-action": ContinuousAction,
   "cartoon-collage": CartoonCollage,
   "visual-journalism": VisualJournalism,

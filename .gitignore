@@ -22,3 +22,7 @@ src/bespoke/examples/collab-*/
 
 # Third-party skill folder kept locally as reference, not part of the app
 scenario-kinetic-film/
+
+# aiTrends 2D Studio kit and its spec, kept locally as reference
+aitrends/
+SPEC.md

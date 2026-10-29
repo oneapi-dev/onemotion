@@ -5,7 +5,7 @@
  * measured with them.
  */
 
-type Loader = (style?: "normal", opts?: { weights?: string[]; subsets?: string[]; ignoreTooManyRequestsWarning?: boolean }) => { fontFamily: string; waitUntilDone: () => Promise<void> };
+type Loader = (style?: "normal" | "italic", opts?: { weights?: string[]; subsets?: string[]; ignoreTooManyRequestsWarning?: boolean }) => { fontFamily: string; waitUntilDone: () => Promise<void> };
 type FontModule = { loadFont: Loader; getInfo: () => { fonts: Record<string, Record<string, unknown>> } };
 
 const FONTS: Record<string, () => Promise<FontModule>> = {
@@ -45,6 +45,7 @@ const FONTS: Record<string, () => Promise<FontModule>> = {
   "Permanent Marker": () => import("@remotion/google-fonts/PermanentMarker") as Promise<FontModule>,
   "Shadows Into Light": () => import("@remotion/google-fonts/ShadowsIntoLight") as Promise<FontModule>,
   Fredoka: () => import("@remotion/google-fonts/Fredoka") as Promise<FontModule>,
+  Nunito: () => import("@remotion/google-fonts/Nunito") as Promise<FontModule>,
   "Baloo 2": () => import("@remotion/google-fonts/Baloo2") as Promise<FontModule>,
   Montserrat: () => import("@remotion/google-fonts/Montserrat") as Promise<FontModule>,
   Poppins: () => import("@remotion/google-fonts/Poppins") as Promise<FontModule>,
@@ -73,9 +74,16 @@ export async function loadFonts(req: FontRequest): Promise<string[]> {
         return;
       }
       const mod = await get();
-      const have = Object.keys(mod.getInfo().fonts.normal ?? {}).map(Number);
-      const want = (weights.length ? weights : ["400"]).map(Number).map((w) => (have.includes(w) ? w : have.reduce((a, b) => (Math.abs(b - w) < Math.abs(a - w) ? b : a), have[0])));
-      await mod.loadFont("normal", { weights: [...new Set(want)].map(String), subsets: ["latin"], ignoreTooManyRequestsWarning: true }).waitUntilDone();
+      // A weight ending in "i" ("900i") is that weight's italic.
+      const asked = weights.length ? weights : ["400"];
+      for (const style of ["normal", "italic"] as const) {
+        const ws = asked.filter((w) => w.endsWith("i") === (style === "italic")).map((w) => Number(w.replace(/i$/, "")));
+        if (!ws.length) continue;
+        const have = Object.keys(mod.getInfo().fonts[style] ?? {}).map(Number);
+        if (!have.length) continue;
+        const want = ws.map((w) => (have.includes(w) ? w : have.reduce((a, b) => (Math.abs(b - w) < Math.abs(a - w) ? b : a), have[0])));
+        await mod.loadFont(style, { weights: [...new Set(want)].map(String), subsets: ["latin"], ignoreTooManyRequestsWarning: true }).waitUntilDone();
+      }
     }),
   );
   await document.fonts.ready;

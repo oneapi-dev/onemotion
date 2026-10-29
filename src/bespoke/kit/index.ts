@@ -25,3 +25,5 @@ export { Pen, penTimes, penAt, Flow, flowPlan, focusLevel, softDraw, type PenAt,
 export { MapStage, useMap, stepped, densify, twoWords, type MapPin, type MapRoute, type MapHighlight, type MapCam, type MapKey, type MapApi, type MapView, type MapProjection, type MapDetail } from "./map";
 export { iso, isoDepth, isoFaces, isoBuild, explode, ISO_FLOOR, IsoScene, IsoBlock, IsoPlane, IsoGrid, IsoExplode, IsoPath, IsoPacket, type IsoPt } from "./iso";
 export { Plot, Formula, FormulaSteps, Morph, morphPoints, type Tok, type Tick } from "./math";
+export { Studio2D, shotSpans, type Shot2D, type ShotIn, type ShotBars, type ShotInfo } from "./studio2d/Studio2D";
+export { s2, rig, fx2, ui2, STUDIO_STYLES, STUDIO_MOODS } from "./studio2d/api";

@@ -6,6 +6,8 @@
  * makevoid motion skills (scratchpad research, 2026-10-29).
  */
 
+import { STUDIO2D_GUIDE } from "./looks/studio2d";
+
 export type LookGuide = { name: string; guide: string };
 
 export const LOOK_GUIDES: LookGuide[] = [
@@ -88,6 +90,7 @@ export const LOOK_GUIDES: LookGuide[] = [
 - <Plot t at xs ys w h fn|data grid ticks labels track readout tangent area drop ink color color2 font /> grows the axes, then the grid (dimmed to 0.55), then plots the curve left to right with a tracer whose readout comes from the same value. <FormulaSteps t steps={[[{ s, k?, c?, sup?, sub? }...], ...]} at={[f0, f1, ...]} colors size font ink /> builds an equation token by token and transforms it between steps: tokens with the same key glide to their new place, new ones rise, removed ones fade (<Formula> for one form). <Morph t at from to w h color fill spin /> turns one path into another, only when it is the same thing changing state.
 - Size: the plot or the formula fills 60 to 80 % of the width; formulas at least 96 px. One idea per beat; hold each new form 1 s before the next step; a slow push-in on the detail is the only camera move.`,
   },
+  { name: "Cinematic 2D story", guide: STUDIO2D_GUIDE },
 ];
 
 /** The guides for the look a concept picked (its direction names one or two looks), joined for the agents' task. */

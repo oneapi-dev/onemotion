@@ -195,6 +195,7 @@ const PLAIN: Record<string, string> = {
   "editorial-map": "A calm news map: the camera flies to a place, pins drop, a route draws itself.",
   "isometric-model": "Your system as a small tidy 3D model, seen from above.",
   "math-blackboard": "Graphs and formulas that draw themselves, like a great maths teacher.",
+  "cinematic-2d-story": "A cinematic cartoon: stick-figure characters act the story out in moody, lit scenes.",
 };
 
 /** The looks to pick from: the art director's choice, the style directions, the explainer styles. */

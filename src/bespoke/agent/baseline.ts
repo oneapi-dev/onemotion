@@ -364,6 +364,7 @@ const OPENING_LEAD = 0;
 
 /** The whole baseline: theme, stage, beats index and one finished file per beat. */
 export function baselineFiles(concept: Concept, beats: BaseBeat[], brand: Brand): Record<string, string> {
+  if (isStudio2D(concept)) return studio2dFiles(concept, beats, brand);
   const files: Record<string, string> = { "scene/theme.ts": theme(concept), "scene/index.tsx": stage(concept), [BEATS_INDEX]: beatsIndex(beats.map((b) => b.id)) };
   let prev = "";
   const kinetic = isKinetic(concept);
@@ -401,4 +402,123 @@ export function gutted(files: Record<string, string>, base: Record<string, strin
     if (n < 12 && n < lineCount(was) * 0.5) out.push(path);
   }
   return out;
+}
+
+/** A film in the Cinematic 2D story look (the aiTrends 2D studio): its concept names the look. */
+export const isStudio2D = (c: { look?: { direction?: string; concept?: string } }) => /cinematic 2d/i.test(`${c.look?.direction ?? ""} ${c.look?.concept ?? ""}`);
+
+/**
+ * The Cinematic 2D story baseline: the 2D studio's own grammar from the first draft. A street at dusk, one
+ * character (the viewer) in the film's accent, and each beat cut into a wide with the beat's words over
+ * the acting figure and a giant face close-up; the close is a title card with the name and the address.
+ */
+function studio2dFiles(concept: Concept, beats: BaseBeat[], brand: Brand): Record<string, string> {
+  const stage = `import { World } from "@kit";
+import { BEATS } from "./beats";
+
+export const fonts = { Fredoka: ["600", "700"], Nunito: ["800", "900"], "Playfair Display": ["900i"] };
+export const background = "#000000";
+export const captions = false;
+
+/** The 2D studio film: one full-frame canvas a beat (its shots inside), hard cuts between beats. */
+export default function Scene() {
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#000", overflow: "hidden" }}>
+      <World of={BEATS} move="cut" push={0} open={0} />
+    </div>
+  );
+}
+`;
+  const cast = `// STORY BIBLE (the studio's baseline; the designer rewrites it from the concept)
+// Logline: ${concept.title.replace(/\n/g, " ")}. Tone: wonder.
+// Cast: HERO, the viewer ("you"): a hoodie in the film's accent, the one signature colour.
+// Locations: a street at dusk (key light: the setting sun behind; a street lamp and its pool of light).
+// Motifs: the hero's colour marks what the film is about.
+export const HERO = { top: "hoodie", color: ${q(concept.palette.accent)} };
+`;
+  const set = `import { s2, fx2 } from "@kit";
+
+const { E, V, mood, layer, backdrop, fillRect } = s2;
+const FX = fx2;
+
+/** A street at dusk: sky, the sun behind, a lamp post and its pool of light, the floor. Returns the ground line and the mood. */
+export function street(g: any, t: number, cam: any, name = "dusk") {
+  const M = mood(name);
+  const GY = E.H * V(0.8, 0.68);
+  backdrop(g, M.sky);
+  layer(g, cam, 0.15, (g: any) => FX.sun(g, E.W * 0.7, GY - V(220, 320), 80, "#fff6e0", M.key, 4));
+  layer(g, cam, 0.9, (g: any) => {
+    fillRect(g, -E.W, GY, E.W * 3, E.H, M.floor);
+    FX.pool(g, E.W * 0.27, GY + 10, 220, 34, M.practical, 0.35);
+    FX.lampPost(g, E.W * 0.27, GY, 360, {});
+  });
+  FX.godRays(g, E.W * 0.7, GY - V(220, 320), { color: M.key, a: 0.12 });
+  FX.dust(g, t, { count: 40, color: "#ffe2bd", a: 0.35 });
+  return { GY, M };
+}
+`;
+  const head = `import { Studio2D, s2, rig, ui2 } from "@kit";
+import { HERO } from "../cast";
+import { street } from "../sets/street";
+
+const { E, V, ease, layer, blurLayer, veil, mood } = s2;
+const { drawFigure, posesAt, breathe, bigFace } = rig;
+`;
+  const files: Record<string, string> = { "scene/theme.ts": theme(concept), "scene/index.tsx": stage, [BEATS_INDEX]: beatsIndex(beats.map((b) => b.id)), "scene/cast.ts": cast, "scene/sets/street.ts": set };
+  beats.forEach((b, i) => {
+    const last = i === beats.length - 1;
+    const fade = i === 0 ? " fadeIn={0.5}" : last ? " fadeOut={0.8}" : "";
+    const says = b.says.replace(/\n/g, " ");
+    const body = last
+      ? `      {
+        id: "${b.id}a",
+        line: ${q(says)},
+        bars: "scope",
+        draw(g: any, t: number, info: any) {
+          street(g, t, { z: 1 + 0.04 * ease.inOut(t / info.dur) });
+          veil(g, "#000", 0.35);
+          ui2.titleCard(g, t, { lines: [${q((brand.name || says).toUpperCase())}], sub: ${q(brand.url || says)}, dur: info.dur + 1 });
+        },
+      },`
+      : `      {
+        id: "${b.id}a",
+        dur: 2.4,
+        line: ${q(says)},
+        bars: "wide",
+        // Wide: the hero on the street at dusk, acting the line, its words over them; slow push and drift.
+        draw(g: any, t: number, info: any) {
+          const k = ease.inOut(t / info.dur);
+          const cam = { z: 1 + 0.06 * k, x: -30 + 40 * k };
+          const { GY, M } = street(g, t, cam);
+          layer(g, cam, 1, (g: any) => drawFigure(g, { x: E.W * 0.46, y: GY, s: V(1.6, 1.8), facing: 1, outfit: HERO, pose: breathe(posesAt(t, [[0, "stand"], [0.8, "explain"]]), t), expr: "thinking", rim: { color: M.rim, dir: [0.7, -1] } }));
+          ui2.bigLine(g, t, { str: ${q(says.toUpperCase())}, dur: info.dur + 1, y: E.H * V(0.22, 0.2) });
+        },
+      },
+      {
+        id: "${b.id}b",
+        line: ${q(says)},
+        in: { type: "cut" },
+        bars: "scope",
+        // Giant face close-up: the street blurred and darkened behind, the hero reacting.
+        draw(g: any, t: number) {
+          blurLayer(g, 10, (g: any) => street(g, t, { z: 1.08 }));
+          veil(g, "#000", 0.3);
+          bigFace(g, E.W / 2, E.H * V(0.62, 0.58), V(300, 340), { outfit: HERO, expr: "${["surprised", "awe", "determined", "smile"][i % 4]}", blink: t % 3.1 > 3.0, rimColor: mood("dusk").rim, rimSide: 1 });
+        },
+      },`;
+    files[beatFile(b.id)] = `${head}
+// ${b.id}: ${says}
+export default function Beat() {
+  return (
+    <Studio2D
+      style="dusk"${fade}
+      shots={[
+${body}
+      ]}
+    />
+  );
+}
+`;
+  });
+  return files;
 }

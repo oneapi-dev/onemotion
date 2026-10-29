@@ -157,7 +157,9 @@ export class FilmHost {
           const layout = f === undefined ? undefined : qaLayouts.get(f);
           return layout ? [{ beat: b.id, frame: f, layout }] : [];
         });
-        qaWarnings.push(...sameLayouts(holds), ...slideSheets(holds));
+        // A beat drawn whole on one canvas (the 2D studio) composes inside it: its frame-sized canvas says nothing about layout.
+        const composed = holds.filter((h) => !(h.layout.hero && h.layout.hero.w >= 0.95 && h.layout.hero.h >= 0.9));
+        qaWarnings.push(...sameLayouts(composed), ...slideSheets(composed));
         return { images, warnings: [...new Set([...cueMisses, ...qaWarnings])].slice(0, 30), seen: [...new Set(qaSeen)].join(" ").slice(0, 4000) };
       }),
     );

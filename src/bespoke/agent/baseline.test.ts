@@ -70,6 +70,19 @@ describe("the baseline film", () => {
     expect(r.ok).toBe(true);
   }, TYPECHECK_MS);
 
+  it("writes a Cinematic 2D story film in the 2D studio's grammar, and it passes the scene check", () => {
+    const story = normalizeConcept({ ...concept, look: { ...concept.look, direction: "Cinematic 2D story", concept: "Problem, then gone" } });
+    const files = baselineFiles(story, beats, brand);
+    expect(files["scene/index.tsx"]).toContain('move="cut"');
+    expect(files["scene/cast.ts"]).toContain("STORY BIBLE");
+    expect(files[beatFile("b2")]).toContain("<Studio2D");
+    expect(files[beatFile("b2")]).toContain("bigFace(");
+    expect(files[beatFile("b5")]).toContain("ui2.titleCard");
+    const r = checkScene(files);
+    expect(r.errors).toEqual([]);
+    expect(r.ok).toBe(true);
+  }, TYPECHECK_MS);
+
   it("cuts a line into short CAPS shots", () => {
     expect(shotWords("Gerak itu bahasa.")).toEqual(["GERAK ITU", "BAHASA."]);
     expect(shotWords("Semua bergerak dengan alasan.")).toEqual(["SEMUA", "BERGERAK", "DENGAN", "ALASAN."]);
