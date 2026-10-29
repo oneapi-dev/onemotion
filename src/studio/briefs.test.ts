@@ -279,3 +279,12 @@ describe("the production brief", () => {
     expect(b).toContain("where the two differ, the brief above wins");
   });
 });
+
+describe("the pace on the form", () => {
+  it("names the picked pace after the look, and nothing when the art director decides", () => {
+    const pasted = "Promo GPT 6.1 Terra: diskon 50%. Input $0.50, Output $2.50.\n\nFokus: harga baru, satu API.";
+    expect(briefFromIdea({ ...defaultIdea("feature", "oneapi.id"), idea: pasted, pace: "calm" })).toContain("Pace: calm (slow and premium).");
+    expect(briefFromIdea({ ...defaultIdea("feature", "oneapi.id"), idea: pasted })).not.toContain("Pace:");
+    expect(basicBrief({ ...defaultIdea("launch", "oneapi.id"), idea: "Diskon 50%", pace: "lively" })).toContain("Pace: lively (bright and bouncy).");
+  });
+});

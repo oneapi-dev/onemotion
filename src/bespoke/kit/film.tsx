@@ -50,6 +50,8 @@ export type Film = {
   /** The music's tempo, and one music beat in frames: every film beat starts on that grid, so onBeat(beat.start, k, pulse) lands on the music. */
   bpm: number;
   pulse: number;
+  /** The film's pace (calm, balanced, lively, loud), or null on a film made before paces: the World's camera slows with it. */
+  pace: "calm" | "balanced" | "lively" | "loud" | null;
   beats: Beat[];
   /** A beat by id ("b3") or index. */
   beat: (id: string | number) => Beat;

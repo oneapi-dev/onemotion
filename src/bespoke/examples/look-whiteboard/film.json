@@ -1,0 +1,10 @@
+{
+  "format": "landscape",
+  "brand": { "name": "Tidepool", "url": "tidepool.example", "logo": null, "colors": ["#1E5BD8"] },
+  "score": { "genre": "ambient-tech", "bpm": 96, "seed": 3 },
+  "beats": [
+    { "id": "b1", "says": "Traffic comes in waves. The peak is the part that hurts.", "voice": "Traffic comes in waves. The peak is the part that hurts.", "shows": "a marker draws a wave on a white board, labels it, then circles the peak in blue", "seconds": 6.4 },
+    { "id": "b2", "says": "Every request goes through one gateway, which picks the right model.", "voice": "Every request goes through one gateway, which picks the right model.", "shows": "a clean diagram builds: client, gateway, three models; the path lights up and a pulse runs to the chosen model", "seconds": 7 },
+    { "id": "b3", "says": "tidepool.example", "voice": "Tidepool. Calm at the peak.", "shows": "the marker writes the name, underlines it in blue, and adds the address", "seconds": 3.6 }
+  ]
+}

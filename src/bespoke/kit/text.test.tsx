@@ -12,9 +12,10 @@ describe("Chars", () => {
     expect(html).not.toMatch(/white-space:pre[^>]*> </);
   });
 
-  it("times every character as before: the character after a space starts one step later", () => {
+  it("times the characters one step apart, the spaces taking no step of their own", () => {
     const at = (text: string, t: number) => renderToStaticMarkup(<Chars text={text} t={t} at={0} step={10} mode="fade" />);
-    // "a b": "b" is the third character, so it starts at frame 20 and is still hidden at frame 19.
-    expect(at("a b", 19)).toMatch(/opacity:0;[^>]*>b</);
+    // "a b": "b" is the second character, so it starts at frame 10 and is still hidden at frame 9.
+    expect(at("a b", 9)).toMatch(/opacity:0;[^>]*>b</);
+    expect(at("a b", 12)).not.toMatch(/opacity:0;[^>]*>b</);
   });
 });

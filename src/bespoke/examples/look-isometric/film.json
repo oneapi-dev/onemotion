@@ -1,0 +1,11 @@
+{
+  "format": "landscape",
+  "brand": { "name": "Tidepool", "url": "tidepool.surf", "logo": null, "colors": ["#2F7D8C"] },
+  "score": { "genre": "ambient-tech", "bpm": 96, "seed": 7 },
+  "beats": [
+    { "id": "b1", "says": "Sensors on the reef read every wave.", "voice": "Sensors on the reef read every wave.", "shows": "three sensor posts build bottom-up on a faint iso grid", "seconds": 3.4 },
+    { "id": "b2", "says": "Their readings travel to one server.", "voice": "Their readings travel to one server.", "shows": "the server block rises; packets ride floor routes from each sensor into it", "seconds": 3.6 },
+    { "id": "b3", "says": "Inside, three layers turn them into a forecast.", "voice": "Inside, three layers turn them into a forecast.", "shows": "the server opens as an exploded view, each layer named, then closes", "seconds": 4 },
+    { "id": "b4", "says": "Then it reaches your phone.", "voice": "Then it reaches your phone.", "shows": "a phone slab drops in beside the server, a packet lands, the forecast lies on its screen", "seconds": 3.6 }
+  ]
+}

@@ -104,7 +104,7 @@ export function slideIssues(files: Record<string, string>): string[] {
 }
 
 /** A kinetic film: its concept took the "Kinetic type" direction or the "Kinetic launch on the beat" concept. */
-export const isKinetic = (c: { look?: { direction?: string; concept?: string } }) => /kinetic/i.test(`${c.look?.direction ?? ""} ${c.look?.concept ?? ""}`);
+export const isKinetic = (c: { look?: { direction?: string; concept?: string } }) => /kinetic (type|launch)/i.test(`${c.look?.direction ?? ""} ${c.look?.concept ?? ""}`);
 
 /** The kit's kinetic engine: type cut on the music's beat, and the scene blocks built on it. */
 const KINETIC_ENGINE = /<(KineticType|PictureShot|Graph|PromptBox|FlyWords|Chain|Notes|Hero|Counters|Progress|Stretch|Rewind|Denial)\b/;

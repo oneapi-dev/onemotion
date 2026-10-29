@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 /** Files the server reads at runtime: the scene check's TypeScript libraries, the kit (in prompts and the check) and the example films. */
-const TYPED = ["@types/react", "csstype", "remotion", "@remotion/media", "@remotion/google-fonts"];
+const TYPED = ["@types/react", "csstype", "remotion", "@remotion/media", "@remotion/google-fonts", "@types/d3-geo", "@types/topojson-client", "@types/geojson", "@types/topojson-specification"];
 const SCENE_FILES = ["./src/bespoke/kit/**/*", "./src/bespoke/examples/**/*", "./node_modules/typescript/lib/*.d.ts", ...TYPED.flatMap((p) => [`./node_modules/${p}/**/*.d.ts`, `./node_modules/${p}/package.json`])];
 
 const nextConfig: NextConfig = {

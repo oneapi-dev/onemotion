@@ -126,3 +126,10 @@ describe("kineticGuard", () => {
     expect(guard("scene/beats/b3.tsx", `export default () => <div>oneapi.id</div>;`)).toBeNull();
   });
 });
+
+describe("isKinetic, narrowly", () => {
+  it("is Kinetic type and the kinetic launch only, not every look with the word in it", () => {
+    expect(isKinetic({ look: { direction: "Kinetic editorial" } })).toBe(false);
+    expect(isKinetic({ look: { direction: "Kinetic type" } })).toBe(true);
+  });
+});

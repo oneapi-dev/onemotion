@@ -1,0 +1,10 @@
+{
+  "format": "landscape",
+  "brand": { "name": "Tidepool", "url": "tidepool.surf", "logo": null, "colors": ["#FF5A1F"] },
+  "score": { "genre": "house", "bpm": 100, "seed": 5 },
+  "beats": [
+    { "id": "b1", "says": "Surf season is open.", "voice": "Surf season is open.", "shows": "a risograph poster: two inks, a sticker slaps on", "seconds": 4 },
+    { "id": "b2", "says": "Why waves break.", "voice": "Why waves break.", "shows": "a paper documentary strip and a photo card dropping", "seconds": 4 },
+    { "id": "b3", "says": "Tap to see the swell.", "voice": "Tap to see the swell.", "shows": "a button grows into the forecast card, which tilts and lands flat", "seconds": 4 }
+  ]
+}

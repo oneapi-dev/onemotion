@@ -187,6 +187,8 @@ export function parked(s: { share: number; longest: [number, number] | null }, f
 
 /** Two holds of one beat at least this many frames apart that print the same: the beat stood still. */
 export const FROZEN_FRAMES = 30;
+/** How long a hold may stand still at each pace: a calm film holds still on purpose so its words are read. */
+export const FROZEN_BY_PACE: Record<"calm" | "balanced" | "lively" | "loud", number> = { calm: 75, balanced: 54, lively: 30, loud: 30 };
 
 /** How far (a share of the station) a box may shift, or an opacity change, and still count as unmoved. */
 const STILL = 0.003;
@@ -204,7 +206,7 @@ export function samePrint(a: Print, b: Print): boolean {
  * entrance nothing on the beat's station moved, counted, drew or changed (the camera's push aside).
  * The close is left out: a final lockup may hold. One warning names them all, at the first frozen frame.
  */
-export function frozenBeats(beats: { id: string; start: number; end: number }[], prints: Map<number, Map<string, Print>>): string[] {
+export function frozenBeats(beats: { id: string; start: number; end: number }[], prints: Map<number, Map<string, Print>>, limit = FROZEN_FRAMES): string[] {
   const frames = [...prints.keys()].sort((a, b) => a - b);
   const spans: string[] = [];
   let first: number | null = null;
@@ -221,7 +223,7 @@ export function frozenBeats(beats: { id: string; start: number; end: number }[],
         from = i;
         continue;
       }
-      if (own[i] - own[from] >= FROZEN_FRAMES && (!longest || own[i] - own[from] > longest[1] - longest[0])) longest = [own[from], own[i]];
+      if (own[i] - own[from] >= limit && (!longest || own[i] - own[from] > longest[1] - longest[0])) longest = [own[from], own[i]];
     }
     if (!longest) continue;
     first ??= longest[1];
@@ -414,10 +416,12 @@ function layoutOf(root: HTMLElement, box: DOMRect, texts: TextBox[], scale: numb
     const media = /^(IMG|SVG|CANVAS|VIDEO)$/i.test(el.tagName);
     if (!media && !boxed(getComputedStyle(el))) continue;
     const r = el.getBoundingClientRect();
-    if (r.width < box.width * 0.04 || r.height < box.height * 0.04 || stageSized(r, box)) continue;
+    const marked = el instanceof HTMLElement && el.dataset.qa === "hero";
+    if (r.width < box.width * 0.04 || r.height < box.height * 0.04 || (stageSized(r, box) && !marked)) continue;
     if (r.right <= box.left || r.left >= box.right || r.bottom <= box.top || r.top >= box.bottom || opacityOf(el, root) < 0.5) continue;
     // A drawing canvas spanning the frame (lines, wires) is not a panel.
-    if (media && el.tagName === "CANVAS" && r.width * r.height > box.width * box.height * 0.5) continue;
+    // A canvas marked as the frame's subject (a map) is the hero however big it is.
+    if (media && el.tagName === "CANVAS" && r.width * r.height > box.width * box.height * 0.5 && !marked) continue;
     if (!hero || r.width * r.height > hero.width * hero.height) hero = r;
   }
   let type: TextBox | null = null;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filmSpecOf, languageName, musicPlanOf, normalizeConcept, UnusableConceptError, voiceLanguageOf } from "./concept";
+import { paceOf, paceRule } from "./styles";
 
 const raw = {
   title: "Switchboard",
@@ -181,5 +182,18 @@ describe("the narration language", () => {
     expect(voiceLanguageOf({ language: "en" })).toBe("en");
     expect(voiceLanguageOf({ language: "en", voiceLanguage: "id" })).toBe("id");
     expect(languageName("id")).toBe("Indonesian");
+  });
+});
+
+describe("the film's pace", () => {
+  it("reads the pace, else an old concept's ENERGY dial or a kinetic look, else calm", () => {
+    expect(paceOf({ pace: "lively" })).toBe("lively");
+    expect(paceOf({ pace: "frantic", dials: "ENERGY 2 / RHYTHM 2 / MOTION 2" })).toBe("balanced");
+    expect(paceOf({ direction: "Kinetic type" })).toBe("loud");
+    expect(paceOf({})).toBe("calm");
+  });
+  it("gives the motion designer one line of numbers to hold", () => {
+    expect(paceRule("calm")).toContain("entrances 12 to 18 frames, the beat's hero 24 to 36");
+    expect(paceRule("calm")).toContain("holds at least 0.6 s");
   });
 });

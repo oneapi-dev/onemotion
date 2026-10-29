@@ -5,7 +5,7 @@ import { DIMENSIONS } from "@/engine/plan";
 import type { FilmInput, FilmSpec } from "./film";
 import { FilmComposition, filmFrames } from "./runtime/FilmComposition";
 import { cueMisses } from "./kit/film";
-import { coverage, flashes, FLAT_SPREAD, flatness, frozenBeats, stillness, qaLayouts, qaPrints, qaSeen, qaWarnings, sameLayouts, slideSheets, SPARSE_SHARE } from "./runtime/qa";
+import { coverage, flashes, FLAT_SPREAD, flatness, FROZEN_BY_PACE, frozenBeats, stillness, qaLayouts, qaPrints, qaSeen, qaWarnings, sameLayouts, slideSheets, SPARSE_SHARE } from "./runtime/qa";
 import { FILM_FPS, filmTiming } from "./timing";
 import { profileOf, REMOTION_LICENSE_KEY, type RenderProfile, type Target } from "@/studio/renderTarget";
 
@@ -149,7 +149,7 @@ export class FilmHost {
           else if (empty === "sparse") qaWarnings.push(`frame ${f}: the frame is nearly empty (almost nothing on the background): the beat's hero should fill 50 to 75 % of the frame width, with its supporting layers around it`);
         }
         const { beats } = filmTiming(film.spec.beats, film.spec.score);
-        qaWarnings.push(...frozenBeats(beats, qaPrints));
+        qaWarnings.push(...frozenBeats(beats, qaPrints, film.spec.pace ? FROZEN_BY_PACE[film.spec.pace] : undefined));
         // One hold per beat, the one nearest two thirds in, for the layout comparison.
         const holds = beats.flatMap((b) => {
           const at = b.start + (b.end - b.start) * 0.65;

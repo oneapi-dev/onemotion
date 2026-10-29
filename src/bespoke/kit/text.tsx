@@ -43,16 +43,35 @@ export const Fit = ({ text, font, weight, size, maxW, track = 0, style, children
 };
 
 type CharsMode = "rise" | "drop" | "fade" | "scale" | "slam";
+/** Which characters go first: left to right, from the middle out, from both ends in, or a seeded scatter. */
+type CharsOrder = "start" | "center" | "edges" | "random";
+
+/**
+ * @internal Each character's place in the reveal (0 goes first), by order. The whole reveal is capped near
+ * 24 frames (kinetic-typography: a line's characters 20 to 40 ms apart, the reveal under 800 ms), so a long
+ * word never crawls in letter by letter.
+ */
+export function charSteps(n: number, step: number, order: CharsOrder): number[] {
+  const each = n > 1 ? Math.min(step, Math.max(0.6, 16 / (n - 1))) : step;
+  const mid = (n - 1) / 2;
+  const seed = (i: number) => {
+    const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  const rank = (i: number) => (order === "center" ? Math.abs(i - mid) : order === "edges" ? mid - Math.abs(i - mid) : order === "random" ? seed(i) * (n - 1) : i);
+  return Array.from({ length: n }, (_, i) => rank(i) * each);
+}
 
 /**
  * A per-character reveal from frame `at`: rise or drop (masked), fade, scale (pop), slam (big to size).
  * Characters are grouped by word, and the spaces between words stay plain text: a line breaks only
  * between words, and never starts with a space.
  */
-export const Chars = ({ text, t, at, step = 2.2, mode = "rise", style }: { text: string; t: number; at: number; step?: number; mode?: CharsMode; style?: CSSProperties }) => {
+export const Chars = ({ text, t, at, step = 2.2, mode = "rise", order = "start", style }: { text: string; t: number; at: number; step?: number; mode?: CharsMode; order?: CharsOrder; style?: CSSProperties }) => {
   const parts = text.split(/(\s+)/);
-  // Each part's first character's index in the whole text, so the timing runs on across words and spaces.
-  const starts = parts.map((_, k) => parts.slice(0, k).reduce((n, p) => n + [...p].length, 0));
+  const delays = charSteps([...text.replace(/\s+/g, "")].length, step, order);
+  // Each word's first character's index among the text's characters (spaces left out), so the timing runs on across words.
+  const starts = parts.map((_, k) => parts.slice(0, k).reduce((n, p) => n + (/^\s+$/.test(p) ? 0 : [...p].length), 0));
   return (
     <>
       {parts.map((part, k) =>
@@ -60,7 +79,7 @@ export const Chars = ({ text, t, at, step = 2.2, mode = "rise", style }: { text:
           part
         ) : (
           <span key={k} style={{ display: "inline-block", whiteSpace: "nowrap" }}>
-            {[...part].map((ch, j) => charOf(ch, starts[k] + j, t, at, step, mode, style))}
+            {[...part].map((ch, j) => charOf(ch, starts[k] + j, t, at + delays[starts[k] + j], mode, style))}
           </span>
         ),
       )}
@@ -68,9 +87,8 @@ export const Chars = ({ text, t, at, step = 2.2, mode = "rise", style }: { text:
   );
 };
 
-/** One character of Chars, the i-th of its text, revealed from at + i * step. */
-const charOf = (ch: string, i: number, t: number, at: number, step: number, mode: CharsMode, style?: CSSProperties) => {
-  const a = at + i * step;
+/** One character of Chars, the i-th of its text, revealed from frame `a`. */
+const charOf = (ch: string, i: number, t: number, a: number, mode: CharsMode, style?: CSSProperties) => {
   const p = prog(t, a, a + 16);
   let inner: CSSProperties = {};
   if (mode === "rise") inner = { transform: `translateY(${((1 - p) * 110).toFixed(1)}%) rotate(${((1 - p) * 6).toFixed(1)}deg)` };

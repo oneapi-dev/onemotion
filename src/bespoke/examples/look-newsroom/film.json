@@ -1,0 +1,10 @@
+{
+  "format": "landscape",
+  "brand": { "name": "Tidepool", "url": "tidepool.example", "logo": null, "colors": ["#C8442B"] },
+  "score": { "genre": "ambient-tech", "bpm": 96, "seed": 7 },
+  "beats": [
+    { "id": "b1", "says": "Riders tripled after swell alerts.", "voice": "Tidepool's riders more than tripled once swell alerts arrived.", "shows": "a claim headline over a line chart that draws itself, its area filling in, one callout on the launch month", "seconds": 6 },
+    { "id": "b2", "says": "Medewi logged the most surf days.", "voice": "And by June, Medewi had logged more surf days than any other break.", "shows": "a bar chart race of six Bali breaks by surf days, Medewi in the accent climbing to first", "seconds": 8 },
+    { "id": "b3", "says": "tidepool.example", "voice": "Tidepool. Know before you paddle out.", "shows": "a hairline rule, then the name and address under it", "seconds": 3.5 }
+  ]
+}

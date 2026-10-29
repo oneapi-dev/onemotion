@@ -6,7 +6,7 @@
  * Pure: the wizard, the Studio and "Improve with AI" all build on it.
  */
 
-import { DIRECTIONS, EXPLAINER_STYLES } from "@/bespoke/agent/styles";
+import { DIRECTIONS, EXPLAINER_STYLES, PACES, type Pace } from "@/bespoke/agent/styles";
 import type { SiteInfo } from "@/director/input";
 
 
@@ -184,6 +184,17 @@ const PLAIN: Record<string, string> = {
   "white-catalog": "Clean white catalogue with notes and scribbles.",
   "vintage-sketch": "Old book drawings on sepia paper, for history.",
   "cartoon-stage": "A busy cartoon scene where everything moves.",
+  "kinetic-editorial": "A magazine cover that moves: bold words, calmer than Kinetic type.",
+  "risograph-print": "A two-colour poster from a small print shop, a little off-register.",
+  "keynote-ui-morph": "Your app's buttons and cards turn into each other, like an Apple keynote.",
+  "paper-documentary": "A YouTube documentary feel: paper, torn strips, bold captions.",
+  "data-newsroom": "A chart is the star, like a business newspaper: grey bars, one that matters.",
+  "pictogram": "Numbers told with rows of little icons: 7 of 10 light up.",
+  whiteboard: "A marker draws the explanation on a white board, one thing at a time.",
+  "living-diagram": "A clean drawing of how the parts connect, lit up step by step.",
+  "editorial-map": "A calm news map: the camera flies to a place, pins drop, a route draws itself.",
+  "isometric-model": "Your system as a small tidy 3D model, seen from above.",
+  "math-blackboard": "Graphs and formulas that draw themselves, like a great maths teacher.",
 };
 
 /** The looks to pick from: the art director's choice, the style directions, the explainer styles. */
@@ -213,12 +224,17 @@ export type BriefIdea = {
   seconds: number;
   language: string;
   look: string;
+  /** How much the film moves (styles.ts PACES), or "auto" for the art director's call. Unset on ideas saved before it. */
+  pace?: Pace | "auto";
   voice: boolean;
   partner?: Partner | null;
 };
 
+/** The pace the person picked, as the brief names it (after the look), or nothing when the art director decides. */
+export const paceLine = (i: Pick<BriefIdea, "pace">) => (i.pace && i.pace !== "auto" ? ` Pace: ${i.pace} (${PACES[i.pace].plain}).` : "");
+
 /** A teach kind is narrated by default: a faceless video is told by its voice. */
-export const defaultIdea = (template: TemplateId = "launch", website = ""): BriefIdea => ({ template, idea: "", website, seconds: templateOf(template).seconds, language: LANGUAGES[0], look: "auto", voice: templateOf(template).group === "teach" });
+export const defaultIdea = (template: TemplateId = "launch", website = ""): BriefIdea => ({ template, idea: "", website, seconds: templateOf(template).seconds, language: LANGUAGES[0], look: "auto", pace: "auto", voice: templateOf(template).group === "teach" });
 
 /** The site a brief is about, as a bare address ("oneapi.id", "acme.com/pricing"). */
 export const siteOf = (website: string) => website.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
@@ -294,6 +310,7 @@ export function briefFromIdea(i: BriefIdea): string {
     says(/voice[\s-]?over|narrat|narasi/i) ? "" : i.voice ? `Voice-over in ${i.language}.` : "No voice-over.",
     // A look picked on the form is the person's choice, whatever the brief leaves open.
     i.look === "auto" || says(/^\s*look\s*:/im) ? "" : `Look: ${lookOf(i.look).brief}.`,
+    says(/^\s*pace\s*:/im) ? "" : paceLine(i).trim(),
   ].filter(Boolean);
   return [t, extra.length ? `\nFROM THE FORM: ${extra.join(" ")}` : "", `\n${factRules(site, partner)}`].join("\n").trim();
 }
@@ -312,7 +329,7 @@ export function basicBrief(i: BriefIdea): string {
       i.idea.trim() ? `The subject: ${i.idea.trim()}` : "",
       site ? `Read ${site} for facts about the subject and use them as they are.` : "",
       `Goal: ${t.goal}. Open within the first 2 seconds on ${t.hook}.${t.shape ? ` In this order: ${t.shape}.` : ""}`,
-      `Look: ${lookLine(i)}. Show the subject itself (the thing, the place, the process, the numbers) drawn clearly; no mascot, no robots or stock "AI" imagery.`,
+      `Look: ${lookLine(i)}.${paceLine(i)} Show the subject itself (the thing, the place, the process, the numbers) drawn clearly; no mascot, no robots or stock "AI" imagery.`,
       i.voice ? `Voice-over in ${i.language}, written to be heard: short sentences, one idea each.` : "No voice-over: on-screen text tells it, a few words at a time, with music and sound design.",
       `Every word on screen in ${i.language}, very little at once. End on the one thing to remember${site ? ` and ${site}` : ""}.`,
       factRules(site),
@@ -325,7 +342,7 @@ export function basicBrief(i: BriefIdea): string {
       i.idea.trim() ? `The idea: ${i.idea.trim()}` : "",
       partner ? `A collaboration with ${partner}: read ${partner} for its logo, colours and facts; the close shows its mark beside ours.` : "",
       `Goal: ${t.goal}. Open within the first 2 seconds on ${t.hook}, or on the offer when there is one.`,
-      `Look: ${lookOf(i.look).brief}.`,
+      `Look: ${lookOf(i.look).brief}.${paceLine(i)}`,
       i.voice ? `Voice-over in ${i.language}.` : "No voice-over: music, sound design and on-screen text carry it.",
       `Every word on screen in ${i.language}, very little at once. End on the name and one line.`,
       factRules(""),
@@ -339,7 +356,7 @@ export function basicBrief(i: BriefIdea): string {
     `Read ${site} for what it is, its features, supported APIs, models, prices and offers, its logo and colours, and use them as they are.`,
     partner && i.partner ? partnerLine(site, i.partner) : "",
     `Goal: ${t.goal}. Open within the first 2 seconds on ${t.hook}, or on the offer when there is one.`,
-    `Look: ${lookOf(i.look).brief}. Use the real logo and product interface; no invented mascot.`,
+    `Look: ${lookOf(i.look).brief}.${paceLine(i)} Use the real logo and product interface; no invented mascot.`,
     i.voice ? `Voice-over in ${i.language}.` : "No voice-over: music, sound design and on-screen text carry it.",
     `Every word on screen in ${i.language}, very little at once. ${partner ? `End on both logos, "${site} × ${partner}" and ${i.partner?.lead === "equal" ? `${site} and ${partner}` : site}.` : `End on the logo, the name and ${site}.`}`,
     factRules(site, partner),
@@ -390,7 +407,7 @@ Write the brief in English, with every on-screen text quoted in ${i.language}. P
 2. Brand: use the real logo, colours and product interface from the website; no invented mascot or fake assets. Name the brand colours if the website shows them.${partner ? ` This is a collaboration with ${partner} (the PARTNER below, a real partnership): ${equal ? "both brands carry the same weight, the palette draws on both" : `${host} leads, ${partner} joins where the story brings them together`}; use ${partner}'s real logo and colours from its own page.` : ""}
 3. Focus: what the product is in one line, then 2 to 4 capabilities to show, each one line, from the website.
 4. The story: first the inventory it stands on (what the product does that is not obvious, the moment of friction it removes, the clichés of its category this film will not use), then one core line of three short beats (in ${i.language}), then the journey in 3 to 5 sentences: the problem, the turn, what changes for the viewer. Goal: ${t.goal}.
-5. Visual style: ${look.brief}; the canvas, the camera language, how real objects, real code and real polished UI mix. Limits: one display face and one text face, at most three colours, and one accent colour with one meaning. Take the style from the brand's own site, not from its category: light, paper or textured surfaces by default, a dark screen only when the brand itself is dark. Never glowing colour gradients, glass cards, neon, glow on everything, particles, or a glowing dot or token as the story device: they read as generic AI. The story device is a real thing the viewer can name from the product's world (its UI, a request, a receipt, a number that moves, a line of code). Real code and UI are the subject itself, set straight on the frame or cropped close, never on a card or sheet that frames a whole section (that is a slide).
+5. Visual style: ${look.brief};${paceLine(i)} the canvas, the camera language, how real objects, real code and real polished UI mix. Limits: one display face and one text face, at most three colours, and one accent colour with one meaning. Take the style from the brand's own site, not from its category: light, paper or textured surfaces by default, a dark screen only when the brand itself is dark. Never glowing colour gradients, glass cards, neon, glow on everything, particles, or a glowing dot or token as the story device: they read as generic AI. The story device is a real thing the viewer can name from the product's world (its UI, a request, a receipt, a number that moves, a line of code). Real code and UI are the subject itself, set straight on the frame or cropped close, never on a card or sheet that frames a whole section (that is a slide).
 6. Storyboard: ${fit.sections} timed sections covering 0 to ${i.seconds} seconds, on the beat of the music (state its tempo in BPM once). For each: the seconds, what happens on screen in 2 to 4 concrete sentences (camera moves, transitions, what transforms into what), and the on-screen text in quotes, at most 4 words per fragment and never more than 8 words on screen at once, with no em or en dashes and no buzzwords (seamless, revolutionary, next-generation, supercharge). Each section grows out of the one before it (something in frame becomes the next thing); no crossfades between sections. The first 2 seconds show ${t.hook} or the offer.
 7. Visual motifs: ${fit.motifs} concrete things to show that fit this product (UI, code, data, objects), as a list.
 8. Banned for this film: a concrete list of what it must not do (effects, moves and looks), specific to this product and this style, not general advice.
@@ -435,7 +452,7 @@ Write the brief in English, with ${i.voice ? "the narration and " : ""}every on-
 2. The hook: the first 2 seconds show ${t.hook}, as a picture with at most 6 words on screen. Goal: ${t.goal}.${t.shape ? `\n3. The shape: ${t.shape}.` : "\n3. The shape: the order of sections that serves this subject, in one line."}
 4. ${i.voice ? `The script: the whole narration in ${i.language}, written to be heard: short sentences, one idea each, about ${words} words so it fits ${i.seconds} seconds. No filler openings ("did you know", "in this video").` : `No voice-over: the on-screen text tells it, a few words at a time; write every line of it in order.`}
 5. Storyboard: 5 to 9 timed sections covering 0 to ${i.seconds} seconds. For each: the seconds,${i.voice ? " its narration lines," : ""} what happens on screen in 2 to 4 concrete sentences (the subject itself made visible: the thing, the place, the process, a diagram that builds, a map, a timeline, a number that counts; the camera moves and what transforms into what), and the on-screen text in quotes, at most 6 words per fragment, with no em or en dashes. Each section grows out of the one before it; no crossfades, no slides.
-6. Visual style: ${lookLine(i)}. Limits: one display face and one text face, at most three colours, one accent with one meaning. Never glowing gradients, glass cards, neon, particles, robots, glowing brains or stock "AI" imagery.
+6. Visual style: ${lookLine(i)}.${paceLine(i)} Limits: one display face and one text face, at most three colours, one accent with one meaning. Never glowing gradients, glass cards, neon, particles, robots, glowing brains or stock "AI" imagery.
 7. Visual motifs: ${budgetOf(i.seconds).motifs} concrete things to draw for this subject, as a list.
 8. Banned for this video: a concrete list of what it must not do, specific to this subject and style.
 9. Sound: the music's mood and tempo in BPM, low under the voice; every cue tied to something visible.

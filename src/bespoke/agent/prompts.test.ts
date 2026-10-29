@@ -44,8 +44,14 @@ describe("prompts", () => {
       expect(p).toContain("The swap test");
       expect(p).toContain("no em dashes or en dashes");
     }
-    expect(conceptPrompt()).toContain('"dials": "ENERGY n / RHYTHM n / MOTION n');
+    // One pace for the film, with its numbers, replaces the three dials.
+    expect(conceptPrompt()).toContain('"pace": "calm, balanced, lively or loud');
+    expect(conceptPrompt()).toContain("# PACE (one per film");
+    expect(conceptPrompt()).toContain("- calm: Calm (slow and premium): entrances 12 to 18 frames");
     expect(conceptPrompt()).toContain("(never ask)");
+    // The rules that bred a new motif every beat are gone.
+    expect(agentPrompt()).not.toContain("Give each beat's hero a different one");
+    expect(agentPrompt()).not.toContain("no station stands perfectly still for more than about a second");
     expect(reviewPrompt()).toContain("8. Slop checks");
   });
 

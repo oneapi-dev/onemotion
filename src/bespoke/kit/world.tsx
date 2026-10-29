@@ -38,6 +38,11 @@ export type WorldScope = {
 
 /** Frames a move takes, how far it pulls back mid-way, how much it banks (degrees), its curve. */
 const DUR: Record<WorldMove, number> = { glide: 22, swoop: 26, whip: 12, cut: 0, dive: 30 };
+/**
+ * How much slower the moves run at each pace (motion-design skills: premium camera moves 1.2 to 2 s,
+ * a move's length grows with the square root of its distance). A film made before paces keeps 1.
+ */
+export const PACE_SLOW: Record<"calm" | "balanced" | "lively" | "loud", number> = { calm: 1.7, balanced: 1.35, lively: 1, loud: 1 };
 const DIP: Record<WorldMove, number> = { glide: 0.04, swoop: 0.26, whip: 0.1, cut: 0, dive: 0 };
 const BANK: Record<WorldMove, number> = { glide: 0, swoop: 1.2, whip: 2.5, cut: 0, dive: 0 };
 const EASE: Record<WorldMove, (x: number) => number> = { glide: E.glide, swoop: E.smooth, whip: E.whip, cut: (x) => (x < 1 ? 0 : 1), dive: E.smooth };
@@ -95,12 +100,12 @@ export function worldLayout(ids: string[], W: number, H: number, layout: WorldLa
  * @internal The camera's travels: into each station after the first, setting off just before its beat
  * so the station's first entrances arrive with the camera.
  */
-export function worldLegs(starts: number[], ends: number[], moves: WorldMove[]): WorldLeg[] {
+export function worldLegs(starts: number[], ends: number[], moves: WorldMove[], slow = 1): WorldLeg[] {
   const legs: WorldLeg[] = [];
   for (let i = 1; i < starts.length; i++) {
     const move = moves[i] ?? "swoop";
     const room = Math.min(ends[i - 1] - starts[i - 1], ends[i] - starts[i]);
-    const d = Math.max(0, Math.min(DUR[move], Math.floor(room * 0.6)));
+    const d = Math.max(0, Math.min(Math.round(DUR[move] * slow), Math.floor(room * 0.6)));
     const a = starts[i] - Math.round(d * 0.3);
     legs.push({ from: i - 1, to: i, a, b: a + d, move });
   }
@@ -291,6 +296,7 @@ export const World = ({
     placed.map((b) => b.start),
     placed.map((b) => b.end),
     placed.map((b) => moves?.[b.id] ?? move),
+    film.pace ? PACE_SLOW[film.pace] : 1,
   );
   const cam = worldCamWithFinale(t, stations, legs, total, push, finale === "reveal" && stations.length > 1 ? overview(stations, W, H) : null);
   const station = (id: string) => {

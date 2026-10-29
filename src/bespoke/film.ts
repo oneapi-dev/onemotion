@@ -32,7 +32,11 @@ export type FilmSpec = {
   mix?: { music?: number; off?: boolean; trim?: number };
   /** False hides the voice-over captions (narration in another language than the words on screen). */
   captions?: boolean;
+  /** The film's motion language (agent/styles.ts PACES); unset on films made before it, which keep the old speed. */
+  pace?: FilmPace;
 };
+
+export type FilmPace = "calm" | "balanced" | "lively" | "loud";
 
 /** What the film host renders: the spec, the scene compiled to CommonJS modules by path, and recorded voice lines by beat index. */
 export type FilmInput = {

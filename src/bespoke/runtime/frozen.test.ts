@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flashes, frozenBeats, repeatedFigures, sameLayouts, samePrint, smallHero, type Print } from "./qa";
+import { flashes, FROZEN_BY_PACE, frozenBeats, repeatedFigures, sameLayouts, samePrint, smallHero, type Print } from "./qa";
 
 /** A station's print: one headline and one bar, the bar `w` wide (a share of the station). */
 const print = (w: number, words = "Harga turun."): Print => ({
@@ -40,6 +40,12 @@ describe("the freeze check", () => {
   it("needs the two stills far enough apart, and reads a film without a World by its whole frame", () => {
     expect(frozenBeats(beats, at([[80, { b1: print(0.5) }], [100, { b1: print(0.5) }]]))).toEqual([]);
     expect(frozenBeats(beats, at([[195, { "*": print(0.5) }], [248, { "*": print(0.5) }]]))[0]).toContain("b2 (frames 195 to 248");
+  });
+
+  it("lets a calm film hold still longer, on purpose, so its words are read", () => {
+    const hold = at([[195, { "*": print(0.5) }], [248, { "*": print(0.5) }]]);
+    expect(frozenBeats(beats, hold, FROZEN_BY_PACE.calm)).toEqual([]);
+    expect(frozenBeats(beats, hold, FROZEN_BY_PACE.lively)).toHaveLength(1);
   });
 });
 

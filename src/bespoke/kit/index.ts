@@ -18,3 +18,10 @@ export { E, SPR, lmix, blurIn, blurOut, hitPulse, arrive, depart, squash, inerti
 export { PictureShot, Graph, PromptBox, FlyWords, Chain, Notes, Hero, Counters, Progress, Stretch, Rewind, type NoteEffect } from "./kineticBlocks";
 export { KineticType, whipPan, whipFrames, onBeat, isLight, letterAt, ZoomThrough, TvOff, Charge, Denial, type KShot, type KStyle, type WhipDir } from "./kinetic";
 export { PriceCount, UiReveal, PhoneFan, BarChart, LineChart, LogoLockup, KineticCenter, TerminalRun, FocusZoom, FlashThrough, ChromaWipe } from "./blocks";
+export { onTwos, slap, riso, knockout, Misprint, RisoPaper, Halftone, TornStrip } from "./print";
+export { Shell, Tilt, type Rect } from "./morph";
+export { RankRace, Pictogram, RingStat, Callout, raceLength, PICTO_ICONS, type RaceRow, type PictoIcon } from "./data";
+export { Pen, penTimes, penAt, Flow, flowPlan, focusLevel, softDraw, type PenAt, type PenStroke, type PenLabel, type PenTime, type PenPlan, type FlowNode, type FlowEdge, type FlowFocus } from "./explain";
+export { MapStage, useMap, stepped, densify, twoWords, type MapPin, type MapRoute, type MapHighlight, type MapCam, type MapKey, type MapApi, type MapView, type MapProjection, type MapDetail } from "./map";
+export { iso, isoDepth, isoFaces, isoBuild, explode, ISO_FLOOR, IsoScene, IsoBlock, IsoPlane, IsoGrid, IsoExplode, IsoPath, IsoPacket, type IsoPt } from "./iso";
+export { Plot, Formula, FormulaSteps, Morph, morphPoints, type Tok, type Tick } from "./math";

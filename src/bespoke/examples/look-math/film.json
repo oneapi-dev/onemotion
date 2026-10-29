@@ -1,0 +1,10 @@
+{
+  "format": "landscape",
+  "brand": { "name": "Tidepool", "url": "tidepool.surf", "logo": null, "colors": ["#F2B544"] },
+  "score": { "genre": "lofi", "bpm": 84, "seed": 11 },
+  "beats": [
+    { "id": "b1", "says": "A wave's height rises and falls.", "voice": "A wave's height rises and falls.", "shows": "axes grow from the origin, a faint grid draws out and dims, a sine plots left to right with a tracer and a height readout; the tracer slides back to the crest", "seconds": 4.4 },
+    { "id": "b2", "says": "Height is the sine of distance, scaled by the swell, moving in time.", "voice": "Height is the sine of distance, scaled by the swell, moving in time.", "shows": "h = sin(x) builds token by token, then rewrites to h = A sin(x), then h = A sin(x − t); a key names h and x in their colours", "seconds": 5 },
+    { "id": "b3", "says": "One turning circle traces the whole wave.", "voice": "One turning circle traces the whole wave.", "shows": "a circle turns a quarter and unrolls into one period of the wave, on a faint baseline", "seconds": 3.6 }
+  ]
+}

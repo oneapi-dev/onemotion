@@ -7,6 +7,7 @@
 // coloured by its props, so it takes the film's own look.
 import type { CSSProperties, ReactNode } from "react";
 import { Easing } from "remotion";
+import { Callout } from "./callout";
 import { clamp01, kf, mix, prog, typed } from "./motion";
 import { textW } from "./text";
 import { Mark } from "./ui";
@@ -22,6 +23,9 @@ const p4in = Easing.in(Easing.poly(5));
  * credits, totals. The currency sign and the suffix sit smaller beside the
  * digits. Counts over `dur` frames from `at`.
  */
+/** A number as a reader reads it: thousands grouped, the decimals fixed ("2,400,000", "2.400.000" in id-ID), never "2400000" or "0.30000000000000004". */
+export const fmtNum = (v: number, decimals = 0, locale = "en-US") => v.toLocaleString(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
 export const PriceCount = ({ t, at, from = 0, to, dur = 52, prefix = "", suffix = "", decimals = 0, locale = "en-US", size, color, font, weight = 700, style }: { t: number; at: number; from?: number; to: number; dur?: number; prefix?: string; suffix?: string; decimals?: number; locale?: string; size: number; color: string; font: string; weight?: number; style?: CSSProperties }) => {
   const enter = prog(t, at, at + 11, p3);
   const v = from + (to - from) * prog(t, at, at + dur, sineInOut);
@@ -31,7 +35,7 @@ export const PriceCount = ({ t, at, from = 0, to, dur = 52, prefix = "", suffix 
   return (
     <span style={{ display: "inline-flex", alignItems: "baseline", fontFamily: font, fontWeight: weight, fontSize: size, color, lineHeight: 1, fontVariantNumeric: "tabular-nums", opacity: enter, transform: `translateY(${(1 - enter) * 0.022 * size + drift}px) scale(${(0.98 + 0.02 * enter) * (1 + 0.07 * pulse)})`, ...style }}>
       {prefix ? <span style={{ fontSize: "0.55em", transform: "translateY(-0.31em)", marginRight: "0.04em" }}>{prefix}</span> : null}
-      {v.toLocaleString(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
+      {fmtNum(v, decimals, locale)}
       {suffix ? <span style={{ fontSize: "0.55em", marginLeft: "0.06em" }}>{suffix}</span> : null}
     </span>
   );
@@ -80,7 +84,7 @@ export const PhoneFan = ({ t, at, spread = 340, angle = 12, left, center, right,
 type Datum = { label: string; value: number };
 
 /** Bars that rise one after another from `at` (every `step` frames), each label counting to its value as it lands. Values come from the facts only. */
-export const BarChart = ({ t, at, data, w, h, color, ink, font, step = 15, unit = "", decimals = 0, max }: { t: number; at: number; data: Datum[]; w: number; h: number; color: string; ink: string; font: string; step?: number; unit?: string; decimals?: number; max?: number }) => {
+export const BarChart = ({ t, at, data, w, h, color, ink, font, step = 15, unit = "", decimals = 0, max, locale = "en-US" }: { t: number; at: number; data: Datum[]; w: number; h: number; color: string; ink: string; font: string; step?: number; unit?: string; decimals?: number; max?: number; locale?: string }) => {
   const top = max ?? Math.max(...data.map((d) => d.value), 1);
   const gap = w * 0.06;
   const bw = (w - gap * (data.length - 1)) / Math.max(1, data.length);
@@ -98,7 +102,7 @@ export const BarChart = ({ t, at, data, w, h, color, ink, font, step = 15, unit 
           <g key={d.label}>
             <rect x={x} y={base - bh} width={bw} height={bh} rx={Math.min(10, bw * 0.08)} fill={color} />
             <text x={x + bw / 2} y={base - bh - 12} textAnchor="middle" fill={ink} fontSize={Math.min(34, bw * 0.3)} fontWeight={700} opacity={p} style={{ fontVariantNumeric: "tabular-nums" }}>
-              {`${(d.value * p).toFixed(decimals)}${unit}`}
+              {`${fmtNum(d.value * p, decimals, locale)}${unit}`}
             </text>
             <text x={x + bw / 2} y={h - 6} textAnchor="middle" fill={ink} fillOpacity={0.7} fontSize={Math.min(24, bw * 0.2)}>
               {d.label}
@@ -110,14 +114,23 @@ export const BarChart = ({ t, at, data, w, h, color, ink, font, step = 15, unit 
   );
 };
 
-/** A line that draws itself through its points over `dur` frames, a dot riding its tip, each point's value counting up as the line reaches it. */
-export const LineChart = ({ t, at, data, w, h, color, ink, font, dur = 90, unit = "", decimals = 1, min, max }: { t: number; at: number; data: Datum[]; w: number; h: number; color: string; ink: string; font: string; dur?: number; unit?: string; decimals?: number; min?: number; max?: number }) => {
+/** The point a LineChart callout marks: its index among the points, and the few words said about it. */
+export type LineCallout = { index: number; text: string };
+
+/**
+ * A line that draws itself through its points over `dur` frames, a dot riding its tip, each point's value counting up as the line reaches it.
+ * `axis` draws the baseline, the left axis and three hairlines over 12 frames first (the line then starts 12 frames later); `area` fills
+ * under the line, fading in once the draw passes 90 %; `callout` marks one point with a leader and a short text as the line reaches it.
+ */
+export const LineChart = ({ t, at, data, w, h, color, ink, font, dur = 90, unit = "", decimals = 1, min, max, locale = "en-US", area = false, callout, axis = false }: { t: number; at: number; data: Datum[]; w: number; h: number; color: string; ink: string; font: string; dur?: number; unit?: string; decimals?: number; min?: number; max?: number; locale?: string; area?: boolean; callout?: LineCallout; axis?: boolean }) => {
   const lo = min ?? Math.min(...data.map((d) => d.value));
   const hi = max ?? Math.max(...data.map((d) => d.value));
-  const pts = data.map((d, i) => [data.length > 1 ? (i / (data.length - 1)) * w : w / 2, h - 40 - ((d.value - lo) / (hi - lo || 1)) * (h - 90)] as const);
+  const base = h - 40;
+  const pts = data.map((d, i) => [data.length > 1 ? (i / (data.length - 1)) * w : w / 2, base - ((d.value - lo) / (hi - lo || 1)) * (h - 90)] as const);
   const lens = pts.map((p, i) => (i ? Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0));
   const total = lens.reduce((a, b) => a + b, 0) || 1;
-  const p = prog(t, at, at + dur, Easing.inOut(Easing.sin));
+  const lineAt = at + (axis ? 12 : 0);
+  const p = prog(t, lineAt, lineAt + dur, sineInOut);
   // The tip, by arc length, so the dot stays on the stroke's front.
   let left = p * total;
   let tip = pts[0];
@@ -133,22 +146,41 @@ export const LineChart = ({ t, at, data, w, h, color, ink, font, dur = 90, unit 
     reached = i;
   }
   const d = pts.map((q, i) => `${i ? "L" : "M"}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join(" ");
+  const ax = axis ? prog(t, at, at + 12, p3) : 0;
+  const fill = area && pts.length > 1 ? +(0.16 * clamp01((p - 0.9) / 0.1)).toFixed(3) : 0;
+  // The frame the tip reaches the callout's point: the draw's sine ease inverted at that point's share of the length.
+  const ci = callout ? Math.max(0, Math.min(pts.length - 1, Math.round(callout.index))) : -1;
+  const share = ci > 0 ? lens.slice(1, ci + 1).reduce((a, b) => a + b, 0) / total : 0;
+  const event = lineAt + (dur * Math.acos(1 - 2 * share)) / Math.PI;
+  const cq = ci >= 0 ? pts[ci] : null;
+  const up = cq ? cq[1] > 150 : true;
   return (
     <svg width={w} height={h} style={{ overflow: "visible", fontFamily: font }}>
+      {axis ? (
+        <g>
+          {[1 / 3, 2 / 3, 1].map((g, i) => (
+            <line key={g} x1={0} x2={w * prog(t, at + i * 2, at + 8 + i * 2, p3)} y1={base - (h - 90) * g} y2={base - (h - 90) * g} stroke={ink} strokeOpacity={0.12} strokeWidth={1} />
+          ))}
+          <line x1={-20} x2={-20 + (w + 20) * ax} y1={base} y2={base} stroke={ink} strokeOpacity={0.55} strokeWidth={1.5} />
+          <line x1={-20} x2={-20} y1={base} y2={base - (base - 30) * ax} stroke={ink} strokeOpacity={0.55} strokeWidth={1.5} />
+        </g>
+      ) : null}
+      {fill > 0 ? <path d={`${d} L${pts[pts.length - 1][0].toFixed(1)} ${base} L${pts[0][0].toFixed(1)} ${base} Z`} fill={color} fillOpacity={fill} /> : null}
       <path d={d} fill="none" stroke={color} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={1 - p} />
       {p > 0 && p < 1 ? <circle cx={tip[0]} cy={tip[1]} r={10} fill={color} /> : null}
       {pts.map((q, i) => {
-        const shown = i <= reached || p >= 1 ? prog(t, at + (dur * i) / Math.max(1, pts.length - 1), at + (dur * i) / Math.max(1, pts.length - 1) + 24, p3) : 0;
+        const shown = i <= reached || p >= 1 ? prog(t, lineAt + (dur * i) / Math.max(1, pts.length - 1), lineAt + (dur * i) / Math.max(1, pts.length - 1) + 24, p3) : 0;
         return (
           <g key={data[i].label} opacity={shown}>
             <circle cx={q[0]} cy={q[1]} r={7} fill={color} />
-            <text x={q[0]} y={q[1] - 22} textAnchor="middle" fill={ink} fontSize={30} fontWeight={700} style={{ fontVariantNumeric: "tabular-nums" }}>{`${(data[i].value * shown).toFixed(decimals)}${unit}`}</text>
+            <text x={q[0]} y={q[1] - 22} textAnchor="middle" fill={ink} fontSize={30} fontWeight={700} style={{ fontVariantNumeric: "tabular-nums" }}>{`${fmtNum(data[i].value * shown, decimals, locale)}${unit}`}</text>
             <text x={q[0]} y={h - 6} textAnchor="middle" fill={ink} fillOpacity={0.7} fontSize={22}>
               {data[i].label}
             </text>
           </g>
         );
       })}
+      {callout && cq ? <Callout t={t} event={event} x={cq[0]} y={cq[1]} dy={up ? -Math.min(130, cq[1] - 20) : 110} start={up ? 56 : 26} text={callout.text} color={color} ink={ink} font={font} align={cq[0] > w * 0.6 ? "end" : "start"} /> : null}
     </svg>
   );
 };

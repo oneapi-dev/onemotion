@@ -3,7 +3,7 @@ export type Brand = { name: string; url: string; logo: string | null; colors: st
 export type Partner = Brand & { lead: "host" | "equal"; };
 export type Beat = { id: string; says: string; shows: string; voice: string; spoken: boolean; start: number; end: number; words: BeatWord[]; };
 export type BeatWord = { text: string; at: number; end: number; };
-export type Film = { fps: number; W: number; H: number; P: boolean; format: "landscape" | "portrait" | "square"; total: number; bpm: number; pulse: number; beats: Beat[]; beat: (id: string | number) => Beat; cue: (c: string) => number; brand: Brand; partner: Partner | null; assets: Record<string, string>; safe: { top: number; bottom: number; left: number; right: number; }; };
+export type Film = { fps: number; W: number; H: number; P: boolean; format: "landscape" | "portrait" | "square"; total: number; bpm: number; pulse: number; pace: "calm" | "balanced" | "lively" | "loud" | null; beats: Beat[]; beat: (id: string | number) => Beat; cue: (c: string) => number; brand: Brand; partner: Partner | null; assets: Record<string, string>; safe: { top: number; bottom: number; left: number; right: number; }; };
 export declare const useFilm: () => Film;
 --- @kit/beat ---
 export type BeatScope = { beat: Beat; len: number; cue: (c: string) => number; steps: (n: number, from?: string, to?: string) => number[]; };
@@ -15,6 +15,7 @@ export type WorldMove = "glide" | "swoop" | "whip" | "cut" | "dive";
 export type Station = { id: string; x: number; y: number; w: number; h: number; roll: number; };
 export type WorldCam = { x: number; y: number; k: number; r: number; blur: number; };
 export type WorldScope = { stations: Station[]; station: (id: string) => Station; cam: WorldCam; at: (id: string, x: number, y: number) => { x: number; y: number; }; toScreen: (p: { x: number; y: number; }) => { x: number; y: number; }; };
+export declare const PACE_SLOW: Record<"calm" | "balanced" | "lively" | "loud", number>;
 export declare function worldLayout(ids: string[], W: number, H: number, layout?: WorldLayout, gap?: number): Station[];
 export declare const useWorld: () => WorldScope;
 type Route = { color: string; width?: number; dot?: string; };
@@ -50,7 +51,8 @@ export declare const textW: (text: string, font: string, weight: number, size: n
 export declare const fit: (text: string, font: string, weight: number, max: number, maxW: number, trackEm?: number) => number;
 export declare const Fit: (props: { text: string; font: string; weight: number; size: number; maxW: number; track?: number; style?: CSSProperties; children?: ReactNode; }) => JSX.Element;
 type CharsMode = "rise" | "drop" | "fade" | "scale" | "slam";
-export declare const Chars: (props: { text: string; t: number; at: number; step?: number; mode?: CharsMode; style?: CSSProperties; }) => JSX.Element;
+type CharsOrder = "start" | "center" | "edges" | "random";
+export declare const Chars: (props: { text: string; t: number; at: number; step?: number; mode?: CharsMode; order?: CharsOrder; style?: CSSProperties; }) => JSX.Element;
 export declare const Caret: (props: { t: number; h: number; color: string; }) => JSX.Element;
 export declare const Typewriter: (props: { text: string; t: number; at: number; cps?: number; caret?: string; caretH?: number; style?: CSSProperties; }) => JSX.Element;
 export declare const Odometer: (props: { text: string; t: number; at: number; color?: string; style?: CSSProperties; }) => JSX.Element;
@@ -105,12 +107,14 @@ export declare const SFX: readonly ["whoosh", "swoosh", "impact", "sub", "riser"
 export type SfxName = (typeof SFX)[number];
 export declare const SFX_USE: Record<SfxName, string>;
 --- @kit/blocks ---
+export declare const fmtNum: (v: number, decimals?: number, locale?: string) => string;
 export declare const PriceCount: (props: { t: number; at: number; from?: number; to: number; dur?: number; prefix?: string; suffix?: string; decimals?: number; locale?: string; size: number; color: string; font: string; weight?: number; style?: CSSProperties; }) => JSX.Element;
 export declare const UiReveal: (props: { t: number; at: number; push?: number; tilt?: number; exit?: number; angle?: number; zoom?: number; children: ReactNode; style?: CSSProperties; }) => JSX.Element;
 export declare const PhoneFan: (props: { t: number; at: number; spread?: number; angle?: number; left: ReactNode; center: ReactNode; right: ReactNode; style?: CSSProperties; }) => JSX.Element;
 type Datum = { label: string; value: number; };
-export declare const BarChart: (props: { t: number; at: number; data: Datum[]; w: number; h: number; color: string; ink: string; font: string; step?: number; unit?: string; decimals?: number; max?: number; }) => JSX.Element;
-export declare const LineChart: (props: { t: number; at: number; data: Datum[]; w: number; h: number; color: string; ink: string; font: string; dur?: number; unit?: string; decimals?: number; min?: number; max?: number; }) => JSX.Element;
+export declare const BarChart: (props: { t: number; at: number; data: Datum[]; w: number; h: number; color: string; ink: string; font: string; step?: number; unit?: string; decimals?: number; max?: number; locale?: string; }) => JSX.Element;
+export type LineCallout = { index: number; text: string; };
+export declare const LineChart: (props: { t: number; at: number; data: Datum[]; w: number; h: number; color: string; ink: string; font: string; dur?: number; unit?: string; decimals?: number; min?: number; max?: number; locale?: string; area?: boolean; callout?: LineCallout; axis?: boolean; }) => JSX.Element;
 export declare const LogoLockup: (props: { t: number; at: number; name: string; line?: string; url?: string; size?: number; ink: string; accent: string; font: string; logo?: ReactNode; style?: CSSProperties; }) => JSX.Element;
 export declare const KineticCenter: (props: { t: number; at: number; words: string[]; font: string; size: number; weight?: number; color: string; step?: number; gapEm?: number; style?: CSSProperties; }) => JSX.Element;
 export declare const TerminalRun: (props: { t: number; at: number; command: string; output: string[]; prompt?: string; cps?: number; lineStep?: number; font?: string; size?: number; ink?: string; dim?: string; accent?: string; }) => JSX.Element;

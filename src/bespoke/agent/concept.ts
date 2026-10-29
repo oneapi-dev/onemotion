@@ -4,6 +4,7 @@ import { normalizeScore } from "@/music/score";
 import type { FilmFormat, FilmSpec } from "../film";
 import type { Partner } from "../kit/film";
 import { FONT_NAMES } from "../kit/fonts";
+import { paceOf, type Pace } from "./styles";
 
 /** The creative director's concept for one bespoke film. */
 export type Concept = {
@@ -70,6 +71,8 @@ export type ConceptLook = {
   specialMoment: string;
   /** How hard the film says hello, how much its beats differ, how much moves: "ENERGY 1 / RHYTHM 2 / MOTION 2". */
   dials: string;
+  /** The film's one motion language (styles.ts PACES): calm, balanced, lively or loud. */
+  pace: Pace;
 };
 
 export class UnusableConceptError extends Error {
@@ -244,6 +247,7 @@ export function normalizeConcept(input: unknown): Concept {
       signature: str(look.signature, 200),
       specialMoment: str(look.special_moment, 200),
       dials: str(look.dials, 80),
+      pace: paceOf({ pace: look.pace, dials: str(look.dials, 80), direction: str(look.direction, 200), concept: str(look.concept, 80) }),
     },
     brand: { name: str(brand.name, 60), url: str(brand.url, 80).replace(/^https?:\/\//, "").replace(/\/$/, "") },
     beats,
@@ -317,6 +321,7 @@ export function filmSpecOf(concept: Concept, format: FilmFormat, site: SiteInfo 
     beats: concept.beats,
     brand: { name: concept.brand.name || site?.name || "", url: concept.brand.url || site?.domain || "", logo: site?.logo ?? null, colors: [...new Set(colors)] },
     ...(partner ? { partner: partnerOf(partner) } : {}),
+    pace: concept.look.pace,
     // Narration in another language than the words on screen: no captions, they would put that language on screen.
     ...(concept.voiceLanguage && concept.voiceLanguage !== concept.language ? { captions: false } : {}),
     // A built-in track sets the tempo the beats snap to.

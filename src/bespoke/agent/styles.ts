@@ -17,6 +17,9 @@ export const DIRECTIONS = [
   { name: "Luxury dark", background: "black with gold or bronze, soft shadows, sheen", type: "tall wide-tracked serif", motion: "slow motion, sweeping light, depth", for: "fashion, automotive, property" },
   { name: "Flat pop with photos", background: "light neutral alternating with solid brand colour fields", type: "rounded heavy sans and giant cropped words", motion: "cutouts popping in, stickers, colour fields snapping on the beat", for: "consumer apps, fintech, e-commerce" },
   { name: "Kinetic type", background: "three solid grounds (a dark, the brand accent, a paper) flipping on phrase changes, fine grain", type: "one heavy or condensed display (Archivo, Anton, Bebas Neue, Archivo Black) filling the frame width, in caps", motion: "a word on every music beat, whip pans, a zoom through a letter's counter, a TV switch-off (the kit's KineticType)", for: "launch teasers, game trailers, hype cuts, events, a strong one-line claim" },
+  { name: "Kinetic editorial", background: "paper with one accent, nothing else", type: "a heavy condensed word in caps beside a soft italic serif word and at most one outlined word, a tracked kicker above", motion: "three or four words a scene, characters rising from the centre, exits leaving from the edges, hard cuts or a short whip", for: "manifestos, brand statements, event openers, a confident launch that is not a trailer" },
+  { name: "Risograph print", background: "warm paper with ink speckle, two spot inks that overprint into a third", type: "one heavy grotesk, knocked out, a little off-register", motion: "stickers slapping on, everything on twos, hard cuts on phrases", for: "music, events, community, newsletters, indie apps" },
+  { name: "Keynote UI morph", background: "#F5F5F7 or one flat wallpaper colour per scene, no glass", type: "the product's own UI font, tight and heavy, one caption a scene", motion: "one object changing shape (a button grows into a player, a card into a workspace) and a card tilting in real depth", for: "SaaS, apps, feature launches" },
 ] as const;
 
 /** Explainer styles: for films that explain rather than sell. */
@@ -27,6 +30,14 @@ export const EXPLAINER_STYLES = [
   { name: "White catalog", look: "white grid, product cutouts, mixed script and heavy sans, scribbles", for: "products, brands" },
   { name: "Vintage sketch", look: "sepia paper, engraving-like art, classic serifs, rust annotations", for: "history, biography" },
   { name: "Cartoon stage", look: "one living stage per scene with at least ten things moving, jointed characters, no captions", for: "education with characters" },
+  { name: "Paper documentary", look: "cream paper with halftone and grain, captions in bold condensed type on torn paper strips, motion on twos, colour fringing only at the frame's edges", for: "why explainers, product history, opinion pieces" },
+  { name: "Data newsroom", look: "off-white ground with hairline grids, the chart as the hero: grey series and ONE accent series that matters, a serif headline written as a claim, a small source line, tabular figures", for: "reports, growth, milestones, research, pricing and market numbers" },
+  { name: "Pictogram", look: "a flat ground, rows of one icon family where the counted share lights up in the accent and the rest stays dim, one big number beside them, rings for a single share", for: "survey results, health, education, any share of people or things" },
+  { name: "Whiteboard", look: "an off-white board, one black marker and one accent marker, a pen that draws each thing as it is said: outline, then fill, then a handwritten label; sparse, never clip-art", for: "how-to, concept explainers, myth or fact" },
+  { name: "Living diagram", look: "white or paper ground with hairlines, nodes and edges in grey ink built step by step, the active path lit in the one accent while the rest dims, a pulse running along it; mono labels", for: "APIs, architecture, processes, supply chains, how a system works" },
+  { name: "Editorial map", look: "a calm news-style map: cream or slate ground, muted land with hairline borders, one accent for the route, the pins and the highlighted country; the camera flies to a place, pins drop, a route draws itself", for: "logistics, travel, expansion (now in N cities), history and news explainers, supply chains" },
+  { name: "Isometric model", look: "a warm light grey ground with a faint 30-degree grid, the system as a small tidy model seen from above: blocks in one hue with three face tones, the active block in the accent, packets travelling along paths, an exploded view", for: "cloud and infrastructure, logistics, a tech stack, how a system works" },
+  { name: "Math blackboard", look: "a deep charcoal or navy board, axes and a faint grid that dims once drawn, curves plotted with a tracer, equations built term by term and transformed, at most two colours each meaning one quantity; no glow", for: "maths, physics, finance formulas, algorithms, why something grows" },
 ] as const;
 
 /** Opener and promo concepts: the structure, chosen per product. */
@@ -75,6 +86,34 @@ export const RENDER_FAMILIES = ["flat solid", "flat with palette dots", "soft 3D
 /** How a sentence gets its emphasis: one per film, "none" is a real choice. */
 export const EMPHASIS = ["none (word by word from dim to full, size, a pause, or an object beside the word)", "pill (a colour block growing from the left)", "underline drawing on", "marker swipe", "box drawing around", "colour only", "strike, then the replacement word"] as const;
 
+/**
+ * A film's pace: one motion language for the whole film, after the motion-design skills' personalities
+ * (Premium, Corporate, Playful, Energetic). Frames at 30 fps; the World's camera slows with it (kit/world.tsx PACE_SLOW).
+ * Consistency reads as confidence; a new effect every beat reads as noise.
+ */
+export const PACES = {
+  calm: { label: "Calm", plain: "slow and premium", enter: "12 to 18", hero: "24 to 36", stagger: 4, overshoot: "none", hold: 0.6, beat: "3 to 6", entrances: "rise, or zoom for a panel" },
+  balanced: { label: "Balanced", plain: "clear and confident", enter: "9 to 15", hero: "15 to 24", stagger: 2, overshoot: "at most 3 %", hold: 0.4, beat: "2.5 to 4", entrances: "rise for type, drop or zoom for objects" },
+  lively: { label: "Lively", plain: "bright and bouncy", enter: "6 to 10", hero: "12 to 18", stagger: 2, overshoot: "10 to 20 % on the hero only", hold: 0.3, beat: "2 to 3", entrances: "pop, drop or stamp" },
+  loud: { label: "Loud", plain: "fast cuts on the beat", enter: "4 to 8", hero: "9 to 15", stagger: 1, overshoot: "up to 30 % on hits only", hold: 0.2, beat: "1.5 to 3", entrances: "slam or stamp" },
+} as const;
+export type Pace = keyof typeof PACES;
+export const PACE_NAMES = Object.keys(PACES) as Pace[];
+
+/** The pace a film takes when nothing names one: an old concept's ENERGY dial, a kinetic look, else calm (the studio leans restrained). */
+export function paceOf(look: { pace?: unknown; dials?: string; direction?: string; concept?: string }): Pace {
+  if (typeof look.pace === "string" && (PACE_NAMES as string[]).includes(look.pace)) return look.pace as Pace;
+  if (/kinetic (type|launch)/i.test(`${look.direction ?? ""} ${look.concept ?? ""}`)) return "loud";
+  const energy = /ENERGY\s*(\d)/i.exec(look.dials ?? "")?.[1];
+  return energy === "3" ? "lively" : energy === "2" ? "balanced" : "calm";
+}
+
+/** The pace as the motion designer reads it: one line of numbers to hold for the whole film. */
+export const paceRule = (p: Pace) => {
+  const x = PACES[p];
+  return `${x.label} (${x.plain}): entrances ${x.enter} frames, the beat's hero ${x.hero}; stagger ${x.stagger} frame${x.stagger === 1 ? "" : "s"}; overshoot ${x.overshoot}; after each move the frame holds at least ${x.hold} s; beats of ${x.beat} s; entrances: ${x.entrances}`;
+};
+
 const list = (rows: readonly string[]) => rows.map((r) => `- ${r}`).join("\n");
 
 /** The menus as the creative director reads them. */
@@ -97,4 +136,7 @@ ${list(SURFACES)}
 ${list(RENDER_FAMILIES)}
 
 # EMPHASIS (one per film)
-${list(EMPHASIS)}`;
+${list(EMPHASIS)}
+
+# PACE (one per film: its motion language, held from the first beat to the last)
+${PACE_NAMES.map((p) => `- ${p}: ${paceRule(p)}`).join("\n")}`;

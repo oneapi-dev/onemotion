@@ -26,6 +26,22 @@ const FORMATS: { id: MotionFormat; label: string; hint: string }[] = [
 
 const TONES: (Tone | "auto")[] = ["auto", "punchy", "polished", "cinematic", "playful", "deadpan", "energetic", "clean"];
 
+/** How much the video moves, in plain words: one motion language for the whole video. */
+const PACE_OPTIONS = [
+  ["auto", "Let AI pick"],
+  ["calm", "Calm"],
+  ["balanced", "Balanced"],
+  ["lively", "Lively"],
+  ["loud", "Loud"],
+] as const;
+const PACE_HINTS: Record<(typeof PACE_OPTIONS)[number][0], string> = {
+  auto: "The art director matches it to the brand and the brief (it leans calm).",
+  calm: "Slow and premium: things glide in, then hold still so every word is read.",
+  balanced: "Clear and confident: crisp moves, short holds.",
+  lively: "Bright and bouncy: quicker moves with a little spring.",
+  loud: "Fast cuts on the music's beat, like a trailer.",
+};
+
 const LOOK_GROUPS = [
   ["auto", "Let the art director choose"],
   ["promo", "Promo and launch looks"],
@@ -350,6 +366,17 @@ export function CreateWizard(o: {
           <div className="field">
             <span>Look</span>
             <LookGallery looks={LOOKS} groups={LOOK_GROUPS} value={idea.look} onChange={(id) => set("look", id)} disabled={busy} />
+          </div>
+          <div className="field">
+            <span>Energy</span>
+            <div className="seg" role="radiogroup" aria-label="Energy">
+              {PACE_OPTIONS.map(([id, label]) => (
+                <button key={id} type="button" role="radio" aria-checked={(idea.pace ?? "auto") === id} onClick={() => set("pace", id)} disabled={busy}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <small className="hint">{PACE_HINTS[idea.pace ?? "auto"]}</small>
           </div>
           <div className="pair">
             <label className="field">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gapSegment, inView, overview, worldCam, worldCamWithFinale, worldLayout, worldLegs, type Station, type WorldLayout } from "./world";
+import { gapSegment, PACE_SLOW, inView, overview, worldCam, worldCamWithFinale, worldLayout, worldLegs, type Station, type WorldLayout } from "./world";
 
 const W = 1920;
 const H = 1080;
@@ -34,6 +34,14 @@ describe("the world's camera", () => {
   const stations = worldLayout(ids(3), W, H, "row");
   const legs = worldLegs(starts, ends, ["swoop", "swoop", "whip"]);
   const cam = (t: number) => worldCam(t, stations, legs, 270);
+
+  it("slows its moves with the film's pace, never past the room the beats leave", () => {
+    const calm = worldLegs(starts, ends, ["swoop", "swoop", "whip"], PACE_SLOW.calm);
+    expect(calm[0].b - calm[0].a).toBe(Math.round(26 * 1.7));
+    expect(calm[0].b - calm[0].a).toBeGreaterThan(legs[0].b - legs[0].a);
+    const short = worldLegs([0, 20, 40], [20, 40, 60], ["swoop", "swoop", "swoop"], PACE_SLOW.calm);
+    for (const l of short) expect(l.b - l.a).toBeLessThanOrEqual(12);
+  });
 
   it("opens on the first station, framed exactly: the thumbnail", () => {
     expect(cam(0)).toMatchObject({ x: W / 2, y: H / 2, k: 1, r: -0, blur: 0 });

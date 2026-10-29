@@ -1,0 +1,10 @@
+{
+  "format": "landscape",
+  "brand": { "name": "Tidepool", "url": "tidepool.example", "logo": null, "colors": ["#0B7A75"] },
+  "score": { "genre": "ambient-tech", "bpm": 92, "seed": 4 },
+  "beats": [
+    { "id": "b1", "says": "7 of 10 surfers check the forecast first.", "voice": "Seven in ten surfers check the forecast before they paddle out.", "shows": "a row of ten surfer icons, seven lighting up one after another, the claim above them", "seconds": 5 },
+    { "id": "b2", "says": "Most of them open Tidepool.", "voice": "And most of them open Tidepool first.", "shows": "a ring stat drawing to 64 percent, its number counting with the arc", "seconds": 5 },
+    { "id": "b3", "says": "tidepool.example", "voice": "Tidepool. Know before you paddle out.", "shows": "the name, the address and the survey's source line", "seconds": 3.5 }
+  ]
+}

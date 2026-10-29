@@ -58,6 +58,9 @@ export default function Scene() {
   });
 });
 
+/** A whole-film check runs the TypeScript compiler: about 3 s on its own, longer while the rest of the suite runs. */
+const TYPECHECK_MS = 20_000;
+
 describe("replaceScreenText", () => {
   it("changes one piece of text and the scene still passes the check", () => {
     const files = example("onemotion");
@@ -67,7 +70,7 @@ describe("replaceScreenText", () => {
     const changed = Object.keys(files).filter((f) => files[f] !== next[f]);
     expect(changed).toEqual([t.file]);
     expect(checkScene(next).ok).toBe(true);
-  });
+  }, TYPECHECK_MS);
 
   it("writes JSX text safely, braces and quotes included", () => {
     const files = example("onemotion");
@@ -78,7 +81,7 @@ describe("replaceScreenText", () => {
     const plain = replaceScreenText(files, t, "Mulai");
     expect(checkScene(plain).ok).toBe(true);
     expect(plain[t.file]).toContain(">Mulai<");
-  });
+  }, TYPECHECK_MS * 2);
 
   it("refuses when the files changed since the text was read", () => {
     const files = example("onemotion");
@@ -136,7 +139,7 @@ describe("colours", () => {
     const next = recolor(example("onemotion"), "#FF5B1F", "#2F6BFF");
     expect(Object.values(next).join("")).not.toMatch(/#FF5B1F/i);
     expect(checkScene(next).ok).toBe(true);
-  });
+  }, TYPECHECK_MS);
 
   it("offers the brand first, then curated neutrals and accents, never the colour itself", () => {
     const groups = colorChoices(["#ff5b1f", "#111111", "bad"], "#FF5B1F");

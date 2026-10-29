@@ -1,0 +1,10 @@
+{
+  "format": "landscape",
+  "brand": { "name": "Tidepool", "url": "tidepool.surf", "logo": null, "colors": ["#D9532B"] },
+  "score": { "genre": "lofi", "bpm": 88, "seed": 7 },
+  "beats": [
+    { "id": "b1", "says": "Surf forecasts, now on 6 coasts.", "voice": "Surf forecasts, now on six coasts.", "shows": "a calm world map; six pins drop one after another, each named", "seconds": 4 },
+    { "id": "b2", "says": "Sydney to Bali, one swell.", "voice": "From Sydney to Bali, one swell.", "shows": "the camera flies to Australia, the country lights up and a route draws from Sydney to Bali", "seconds": 4.5 },
+    { "id": "b3", "says": "tidepool.surf", "voice": "Tidepool.", "shows": "the camera pulls back to the whole map; the name and its address", "seconds": 3 }
+  ]
+}

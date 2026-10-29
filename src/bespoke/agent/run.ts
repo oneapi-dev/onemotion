@@ -12,6 +12,8 @@ import type { Pronunciation } from "@/voice/spoken";
 import { filmSpecOf, languageName, normalizeConcept, partnerOf, voiceLanguageOf, type Concept, type FilmPartner } from "./concept";
 import type { Partner } from "../kit/film";
 import { jsonStep, seesImages, sumUsage, type Msg, type Part } from "./llm";
+import { paceRule } from "./styles";
+import { lookGuides } from "./looks";
 import { CLOSE_FIX, crowdedClose, handTyped, isKinetic, isSlides, kineticGuard, silentBeats, slideIssues, SLIDES_FIX } from "./story";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
 import { reviewFilm, type Review } from "./review";
@@ -418,10 +420,15 @@ export async function makeFilm(o: {
   const imageNote = o.images ? `\n\n${IMAGE_NOTE}` : "";
   const kinetic = isKinetic(concept);
   const kineticNote = kinetic ? `\n\n${KINETIC_NOTE}` : "";
+  // The film's one motion language, in numbers: the agents hold it for every beat.
+  const paceNote = `\n\nTHE FILM'S PACE (concept look.pace), held for every beat: ${paceRule(concept.look.pace)}.`;
+  // The picked look's own rules and blocks: only the looks this film uses reach its agents.
+  const guides = lookGuides(concept.look.direction);
+  const lookNote = guides ? `\n\nTHE LOOK'S GUIDE:\n${guides}` : "";
   const imageTools = (ws: Workspace, changed: () => void): AgentTool[] => (o.images ? [imageTool(ws, o.images, pictures, changed, o.signal, blind)] : []);
   // One designer builds the whole film (the default), or a team: a lead lays the foundation and one agent per beat builds on it.
   const lead: Workspace = { spec, facts, files, modules: null, dirty: true };
-  const leadMessages: Msg[] = [{ role: "system", content: system }, task((o.team ? leadFoundationTask({ context, beats: timed }) : soloTask({ context, beats: timed })) + sightNote + imageNote + kineticNote)];
+  const leadMessages: Msg[] = [{ role: "system", content: system }, task((o.team ? leadFoundationTask({ context, beats: timed }) : soloTask({ context, beats: timed })) + sightNote + imageNote + kineticNote + paceNote + lookNote)];
   const leadTools = (all: boolean) =>
     sceneTools(
       lead,
@@ -540,7 +547,7 @@ export async function makeFilm(o: {
         );
         o.onActivity?.(b.id, "starting");
         try {
-          return await agent(b.id, [{ role: "system", content: system }, task(beatTask({ context, beat: b, index: i, beats: timed, notes, shared, assets }) + imageNote)], [
+          return await agent(b.id, [{ role: "system", content: system }, task(beatTask({ context, beat: b, index: i, beats: timed, notes, shared, assets }) + imageNote + paceNote + lookNote)], [
             ...tools,
             ...imageTools(ws, () => {
               if (ws.modules) shown = ws.modules;

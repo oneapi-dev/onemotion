@@ -31,6 +31,7 @@
     "@remotion/three": "^4.0.534",
     "@remotion/web-renderer": "4.0.534",
     "@types/react": "^19",
+    "d3-geo": "^3.1.1",
     "mediabunny": "1.56.1",
     "next": "16.2.11",
     "node-html-parser": "^7.0.1",
@@ -39,15 +40,19 @@
     "remotion": "4.0.534",
     "server-only": "^0.0.1",
     "three": "^0.186.1",
+    "topojson-client": "^3.1.0",
     "typescript": "^5.9.3",
-    "undici": "^7.10.0"
+    "undici": "^7.10.0",
+    "world-atlas": "^2.0.2"
   },
   "devDependencies": {
     "@remotion/bundler": "4.0.534",
     "@remotion/renderer": "4.0.534",
+    "@types/d3-geo": "^3.1.1",
     "@types/node": "^20",
     "@types/react-dom": "^19",
     "@types/three": "^0.186.0",
+    "@types/topojson-client": "^3.1.5",
     "electron": "44.9.0",
     "electron-builder": "26.15.3",
     "eslint": "^9",
