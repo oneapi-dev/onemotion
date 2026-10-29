@@ -1,5 +1,6 @@
 "use client";
 
+import type { ImageConfig } from "@/bespoke/agent/imageTool";
 import type { ClientEndpoint } from "@/bespoke/agent/llm";
 import type { FilmState } from "@/bespoke/agent/run";
 import type { CatalogModel, SiteInfo } from "@/director/input";
@@ -72,7 +73,20 @@ export type Settings = {
   pronunciations?: Pronunciation[];
   /** The model a step goes to when the chosen one keeps failing: unset picks one automatically, "none" turns it off. */
   backupModel?: string;
+  /** Illustrations in bespoke films, from the person's image endpoint. */
+  images?: ImageSettings;
 };
+
+/** The person's image endpoint: an OpenAI-compatible /images/generations and /images/edits (e.g. NaraRouter's). */
+export type ImageSettings = { on: boolean; base: string; key: string; model: string; quality: ImageConfig["quality"] };
+
+export const IMAGE_DEFAULTS: ImageSettings = { on: false, base: "https://api-images.bynara.id/v1", key: "", model: "gpt-image-2", quality: "medium" };
+
+/** The image endpoint a film is made with, or null when it is off or not set up. */
+export function imagesOf(s: Pick<Settings, "images">): ImageConfig | null {
+  const i = s.images;
+  return i?.on && /^https?:\/\//i.test(i.base) && i.key && i.model ? { base: i.base.trim(), key: i.key, model: i.model.trim(), quality: i.quality } : null;
+}
 
 /**
  * The backup model for a chosen one: the person's pick, none, or (by

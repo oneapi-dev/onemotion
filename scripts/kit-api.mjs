@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
-const FILES = ["film.tsx", "beat.tsx", "world.tsx", "motion.ts", "text.tsx", "draw.tsx", "annotate.tsx", "wire.tsx", "fx.tsx", "ui.tsx", "space.tsx", "sound.tsx", "sfx.ts", "blocks.tsx", "cinetic.tsx"];
+const FILES = ["film.tsx", "beat.tsx", "world.tsx", "motion.ts", "text.tsx", "draw.tsx", "annotate.tsx", "wire.tsx", "fx.tsx", "ui.tsx", "space.tsx", "sound.tsx", "sfx.ts", "blocks.tsx", "cinetic.tsx", "kinetic.tsx", "kineticBlocks.tsx"];
 
 export function kitApi(root = process.cwd()) {
   const kit = path.join(root, "src", "bespoke", "kit");

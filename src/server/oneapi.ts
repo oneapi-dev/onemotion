@@ -1,5 +1,7 @@
 import "server-only";
+import { Agent } from "undici";
 import type { CatalogModel } from "@/director/input";
+import { CONNECTION_TIMEOUT_MS } from "./budget";
 import { SseAssembler, StreamError, type Assembled, type Progress } from "./sse";
 
 /**
@@ -10,6 +12,18 @@ import { SseAssembler, StreamError, type Assembled, type Progress } from "./sse"
 
 export const BASE_URL = (process.env.ONEAPI_BASE_URL ?? "https://api.oneapi.id/v1").replace(/\/+$/, "");
 const CATALOG_URL = process.env.ONEAPI_CATALOG_URL ?? "https://oneapi.id/api/public/models";
+
+/**
+ * The connection OneAPI's long calls share. Its own socket timeouts sit above
+ * the step budget, so a slow model reaches the step's own abort (which carries
+ * a message the person can read) instead of the socket's timeout first: a
+ * gateway that buffers a whole reply before sending anything is the case this
+ * covers. Short calls carry their own AbortSignal, which fires well before it.
+ */
+const longCalls = new Agent({ headersTimeout: CONNECTION_TIMEOUT_MS, bodyTimeout: CONNECTION_TIMEOUT_MS });
+
+/** The DOM's RequestInit does not carry undici's `dispatcher`, which Node's fetch takes all the same. */
+type UndiciInit = RequestInit & { dispatcher: Agent };
 
 /** OneAPI's own words when a call fails, for the person to read. */
 export class OneAPIError extends Error {
@@ -73,12 +87,14 @@ export async function catalog(): Promise<CatalogModel[]> {
 
 /** One non-streaming chat completion with the person's key. */
 export async function chat(key: string, body: unknown, signal: AbortSignal): Promise<unknown> {
-  const res = await fetch(`${BASE_URL}/chat/completions`, {
+  const init: UndiciInit = {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "User-Agent": "oneapi-motion/0.1" },
     body: JSON.stringify(body),
     signal,
-  });
+    dispatcher: longCalls,
+  };
+  const res = await fetch(`${BASE_URL}/chat/completions`, init);
   const text = await res.text();
   let parsed: { error?: { message?: string } } | null = null;
   try {
@@ -117,7 +133,8 @@ export async function chatStreamed(key: string, body: Record<string, unknown>, s
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "text/event-stream", "User-Agent": "oneapi-motion/0.1" },
       body: JSON.stringify({ ...body, stream: true, ...extra }),
       signal,
-    });
+      dispatcher: longCalls,
+    } as UndiciInit);
   let res = await send({ stream_options: { include_usage: true } });
   if (res.status === 400) {
     // Some providers behind the gateway take no stream_options: ask again without (usage is then unknown).

@@ -1,0 +1,12 @@
+{
+  "format": "landscape",
+  "brand": { "name": "Tidepool", "url": "tidepool.surf", "logo": null, "colors": ["#FF5B2E"] },
+  "score": { "genre": "house", "bpm": 130.5, "seed": 5 },
+  "track": "goodnightmare",
+  "beats": [
+    { "id": "b1", "says": "The swell is coming. Be there first.", "voice": "The swell is coming. Be there first.", "shows": "kinetic type, one word a beat", "seconds": 4 },
+    { "id": "b2", "says": "No guessing. No empty beaches.", "voice": "No guessing. No empty beaches.", "shows": "a forecast chart and a beach webcam, each denied", "seconds": 4.5 },
+    { "id": "b3", "says": "Tidepool reads the ocean.", "voice": "Tidepool reads the ocean.", "shows": "the title punches out of depth, the camera flies through the O", "seconds": 3 },
+    { "id": "b4", "says": "tidepool.surf", "voice": "Tidepool.", "shows": "the name, held", "seconds": 3 }
+  ]
+}

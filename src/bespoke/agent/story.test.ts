@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { briefLines, crowdedClose, isSlides, silentBeats, slideIssues } from "./story";
+import { briefLines, crowdedClose, handTyped, isKinetic, isSlides, kineticGuard, silentBeats, slideIssues } from "./story";
 
 const brief = `Create a premium promotional motion video for **OneAPI (https://oneapi.id)**, announcing a **LIMITED-TIME 50% TOP-UP BONUS**.
 
@@ -77,5 +77,52 @@ describe("the close", () => {
   it("flags a close crammed with every line of the brief, not a clean lockup", () => {
     expect(crowdedClose(beats("Late build", "ONEAPI 50% TOP-UP BONUS $10 → $15 +$5 BONUS CREDIT MORE CREDIT. SAME PRICE. 50% BONUS. LIMITED TIME ONLY. TOP UP NOW oneapi.id"))).toBe(true);
     expect(crowdedClose(beats("Late build", "OneAPI. $10 → $15, limited time. TOP UP NOW oneapi.id"))).toBe(false);
+  });
+});
+
+describe("handTyped", () => {
+  const ids = ["b1", "b2", "b3"];
+  it("names the beats that place their words by hand, the close excepted", () => {
+    const files = {
+      "scene/beats/b1.tsx": `import { KineticType } from "@kit";\nexport default () => <KineticType t={0} shots={[]} font="A" />;`,
+      "scene/beats/b2.tsx": `export default () => <div>WAKTU.</div>;`,
+      "scene/beats/b3.tsx": `export default () => <LogoLockup />;`,
+    };
+    expect(handTyped(files, ids)).toEqual(["b2"]);
+  });
+  it("counts a shared component built on the engine", () => {
+    const files = {
+      "scene/components/Run.tsx": `export const Run = () => <KineticType t={0} shots={[]} font="A" />;`,
+      "scene/beats/b1.tsx": `import { Run } from "../components/Run";\nexport default () => <Run />;`,
+      "scene/beats/b2.tsx": `import { Word } from "../components/Word";\nexport default () => <Word />;`,
+      "scene/components/Word.tsx": `export const Word = () => <span />;`,
+    };
+    expect(handTyped(files, ids)).toEqual(["b2"]);
+  });
+});
+
+describe("isKinetic", () => {
+  it("reads the direction and the concept", () => {
+    expect(isKinetic({ look: { direction: "Kinetic type, dengan Swiss-grid datar" } })).toBe(true);
+    expect(isKinetic({ look: { concept: "Kinetic launch on the beat" } })).toBe(true);
+    expect(isKinetic({ look: { direction: "Flat vector", concept: "Object metaphor" } })).toBe(false);
+  });
+});
+
+describe("kineticGuard", () => {
+  const files = {
+    "scene/beats/b1.tsx": `import { KineticType } from "@kit";\nexport default () => <KineticType t={0} shots={[]} font="A" />;`,
+    "scene/beats/b2.tsx": `import { Run } from "../components/Run";\nexport default () => <Run />;`,
+    "scene/components/Run.tsx": `export const Run = () => <KineticType t={0} shots={[]} font="A" />;`,
+    "scene/beats/b3.tsx": `export default () => <LogoLockup />;`,
+  };
+  const guard = kineticGuard(() => files, ["b1", "b2", "b3"]);
+  it("refuses a beat or a shared component losing the engine", () => {
+    expect(guard("scene/beats/b1.tsx", `export default () => <div>WAKTU</div>;`)).toMatch(/b1/);
+    expect(guard("scene/components/Run.tsx", `export const Run = () => <div />;`)).toMatch(/b2/);
+  });
+  it("lets the shots change, and leaves the close free", () => {
+    expect(guard("scene/beats/b1.tsx", `export default () => <><Box /><KineticType t={0} shots={[]} font="B" /></>;`)).toBeNull();
+    expect(guard("scene/beats/b3.tsx", `export default () => <div>oneapi.id</div>;`)).toBeNull();
   });
 });

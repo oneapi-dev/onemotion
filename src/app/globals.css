@@ -1725,6 +1725,32 @@ select:focus-visible {
   gap: 8px;
 }
 
+/* The test illustration in Settings. */
+.image-test {
+  display: block;
+  width: 160px;
+  height: 160px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+/* The kinds in two families: promoting a product, teaching or telling. */
+.kind-group {
+  display: grid;
+  gap: 10px;
+}
+
+.kind-group + .kind-group {
+  margin-top: 6px;
+}
+
+.kind-group-title {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
 .kind {
   display: flex;
   align-items: flex-start;
@@ -1891,6 +1917,79 @@ input[aria-invalid="true"] {
   line-height: 1.3;
 }
 
+/* The look gallery: one card per look, each with a moving preview. */
+.look-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.look-group h3 {
+  margin: 0 0 8px;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.look-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.look-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 6px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out);
+}
+
+.look-card:hover:not(:disabled) {
+  border-color: var(--ink-3);
+}
+
+.look-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.look-card[aria-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.look-preview {
+  display: block;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 4px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--line);
+}
+
+.look-card strong {
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.look-plain {
+  padding: 0 4px;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .shape {
   height: 28px;
   margin-bottom: 4px;
@@ -1980,6 +2079,10 @@ input[aria-invalid="true"] {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.create-stage .kinds[data-group="teach"] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .create-stage .kind {
   flex-direction: column;
   gap: 14px;
@@ -2017,6 +2120,10 @@ input[aria-invalid="true"] {
   .create-stage .kinds {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .create-stage .kinds[data-group="teach"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
@@ -2040,6 +2147,10 @@ input[aria-invalid="true"] {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .create-stage .kinds[data-group="teach"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .create-stage .kind {
     flex-direction: row;
     min-height: 0;
@@ -2047,6 +2158,29 @@ input[aria-invalid="true"] {
 }
 
 /* An interrupted build, with the way to continue it. */
+/* Above the preview while a video builds: what is on screen is not the result yet. */
+.building-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.building-note strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.building-note .pulse {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
 .resume {
   display: flex;
   align-items: center;

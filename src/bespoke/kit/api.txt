@@ -3,7 +3,7 @@ export type Brand = { name: string; url: string; logo: string | null; colors: st
 export type Partner = Brand & { lead: "host" | "equal"; };
 export type Beat = { id: string; says: string; shows: string; voice: string; spoken: boolean; start: number; end: number; words: BeatWord[]; };
 export type BeatWord = { text: string; at: number; end: number; };
-export type Film = { fps: number; W: number; H: number; P: boolean; format: "landscape" | "portrait" | "square"; total: number; beats: Beat[]; beat: (id: string | number) => Beat; cue: (c: string) => number; brand: Brand; partner: Partner | null; assets: Record<string, string>; safe: { top: number; bottom: number; left: number; right: number; }; };
+export type Film = { fps: number; W: number; H: number; P: boolean; format: "landscape" | "portrait" | "square"; total: number; bpm: number; pulse: number; beats: Beat[]; beat: (id: string | number) => Beat; cue: (c: string) => number; brand: Brand; partner: Partner | null; assets: Record<string, string>; safe: { top: number; bottom: number; left: number; right: number; }; };
 export declare const useFilm: () => Film;
 --- @kit/beat ---
 export type BeatScope = { beat: Beat; len: number; cue: (c: string) => number; steps: (n: number, from?: string, to?: string) => number[]; };
@@ -145,3 +145,30 @@ export declare const float: (t: number, amp?: number, period?: number) => number
 export declare const wiggle: (t: number, seed?: number, amp?: number) => { x: number; y: number; r: number; };
 export declare const MaskRise: (props: { text: string; t: number; at: number; size: number; font: string; weight?: number; color: string; by?: "word" | "line"; stagger?: number; dur?: number; out?: number; outDur?: number; lead?: number; align?: "left" | "center" | "right"; style?: CSSProperties; }) => JSX.Element;
 export declare const Scramble: (props: { text: string; t: number; at: number; hold?: number; stagger?: number; seed?: string; cycle?: string; style?: CSSProperties; }) => JSX.Element | null;
+--- @kit/kinetic ---
+export declare const onBeat: (from: number, k: number, pulse: number) => number;
+export declare const whipFrames: (pulse: number) => number;
+export declare const isLight: (c: string) => boolean;
+export type WhipDir = "left" | "right" | "up" | "down";
+export declare function whipPan(t: number, at: number, dur: number, dir: WhipDir, W: number, H: number): { out: { x: number; y: number; }; in: { x: number; y: number; }; smear: number; dir: [number, number]; };
+export type KStyle = "slam" | "punch" | "stack" | "split" | "pair" | "cut";
+export type KShot = { at: number; text: string | [string, string]; style?: KStyle; ground?: string; color?: string; accent?: string; in?: "cut" | WhipDir; fx?: "punch" | "hit" | "beat" | "none"; second?: number; fill?: number; size?: number; rot?: number; };
+export declare const KineticType: (props: { t: number; shots: KShot[]; font: string; weight?: number; paper?: string; ink?: string; ground?: string; sound?: boolean; zoom?: { at: number; dur: number; char: number; }; style?: CSSProperties; }) => JSX.Element;
+export declare const letterAt: (text: string, index: number, font: string, weight: number, size: number, cx: number, cy: number, trackEm?: number) => { x: number; y: number; };
+export declare const ZoomThrough: (props: { t: number; at: number; dur: number; x: number; y: number; children: ReactNode; }) => JSX.Element | null;
+export declare const TvOff: (props: { t: number; at: number; dur?: number; color?: string; children: ReactNode; }) => JSX.Element;
+export declare const Charge: (props: { t: number; at: number; dur: number; color: string; x?: number; y?: number; }) => JSX.Element | null;
+export declare const Denial: (props: { t: number; at: number; word: string; mock: ReactNode; font: string; weight?: number; color: string; accent?: string; no?: string; }) => JSX.Element | null;
+--- @kit/kineticBlocks ---
+export declare const PictureShot: (props: { t: number; at: number; len?: number; src: string; words?: [number, string, string?][]; focus?: [number, number]; tint?: number; weather?: "rain" | "snow" | "dust" | null; cutIns?: [number, number, [number, number]][]; reveal?: "slash" | "zoom"; font: string; weight?: number; color?: string; x?: number; y?: number; }) => JSX.Element | null;
+export declare const Graph: (props: { t: number; at: number; len?: number; number: string; label: string; sub?: string; font: string; weight?: number; mono: string; color: string; accent: string; portal?: number; }) => JSX.Element | null;
+export declare const PromptBox: (props: { t: number; at: number; len?: number; text: [string, boolean?][]; label?: string; unit?: string; font: string; mono: string; color: string; accent: string; ground: string; size?: number; }) => JSX.Element | null;
+export declare const FlyWords: (props: { t: number; at: number; len?: number; words: [string, string?][]; font: string; weight?: number; color: string; accent: string; ground: string; }) => JSX.Element | null;
+export declare const Chain: (props: { t: number; at: number; len?: number; nodes: [string, string?, string?][]; font: string; weight?: number; mono: string; color: string; accent: string; ground: string; }) => JSX.Element | null;
+export type NoteEffect = "recolor" | "trim" | "punch";
+export declare const Notes: (props: { t: number; at: number; len?: number; preview: string; notes: [string, NoteEffect?][]; segments?: [string, number][]; font: string; weight?: number; mono: string; color: string; accent: string; ground: string; }) => JSX.Element | null;
+export declare const Hero: (props: { t: number; at: number; len?: number; kicker: string; title: string; sub?: string; font: string; weight?: number; mono: string; color: string; accent: string; }) => JSX.Element | null;
+export declare const Counters: (props: { t: number; at: number; counters: [string, string][]; step?: number; source?: string; font: string; weight?: number; mono: string; color: string; accent: string; }) => JSX.Element | null;
+export declare const Progress: (props: { t: number; at: number; len?: number; lines: [string, string]; cards: [string, string, string][]; label?: string; doneLabel?: string; font: string; weight?: number; mono: string; color: string; accent: string; }) => JSX.Element | null;
+export declare const Stretch: (props: { t: number; at: number; len?: number; word: string; grounds?: [number, string][]; code?: boolean; font: string; weight?: number; mono: string; color: string; accent: string; }) => JSX.Element | null;
+export declare const Rewind: (props: { t: number; at: number; dur: number; from: number; label?: string; color: string; accent: string; children: ReactNode; }) => JSX.Element | null;

@@ -1,12 +1,28 @@
+import { STEP_TIMEOUT_MS } from "@/server/budget";
 import { OneAPIError } from "@/server/oneapi";
 import { complete, endpointOf, type Endpoint } from "@/server/provider";
 
-// One step of the bespoke agent: a reply may take a few minutes on a reasoning model.
-export const maxDuration = 300;
+// One step of the bespoke agent: a reply may take minutes on a reasoning model
+// (a 45-second film's concept is the longest single reply it asks for). A
+// hosted deployment caps the request here at its own limit; raise it as far as
+// the host allows, and keep STEP_TIMEOUT_MS below it.
+export const maxDuration = 600;
 
 /** A request body this large is a mistake (renders are scaled down before they are sent). */
 const MAX_BODY = 12_000_000;
-const STEP_TIMEOUT = 280_000;
+
+/**
+ * Whether the step ran out of time: the step's own budget aborts with a
+ * TimeoutError, and a socket timeout (undici's HeadersTimeoutError or
+ * BodyTimeoutError) reaches the fetch caller as `TypeError: fetch failed`
+ * with the real name in `cause`.
+ */
+function timedOut(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (err.name === "TimeoutError" || err.name === "AbortError") return true;
+  const cause = err.cause;
+  return cause instanceof Error && cause.name.endsWith("TimeoutError");
+}
 
 /**
  * One chat completion for the bespoke agent, with the person's own key from
@@ -47,7 +63,7 @@ export async function POST(req: Request) {
       const send = (line: unknown) => ctrl.enqueue(encoder.encode(`${JSON.stringify(line)}\n`));
       let last = 0;
       try {
-        const answer = await complete(ep, key, request, AbortSignal.any([AbortSignal.timeout(STEP_TIMEOUT), req.signal]), (p) => {
+        const answer = await complete(ep, key, request, AbortSignal.any([AbortSignal.timeout(STEP_TIMEOUT_MS), req.signal]), (p) => {
           const now = Date.now();
           if (now - last < 400 && !p.note) return;
           last = now;
@@ -57,7 +73,12 @@ export async function POST(req: Request) {
       } catch (err) {
         // The provider's status passes through, so the browser knows a timeout or a rate limit is worth retrying.
         if (err instanceof OneAPIError) send({ type: "error", status: [401, 402, 429, 500, 502, 503, 504].includes(err.status) ? err.status : 502, error: err.message });
-        else if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) send({ type: "error", status: 504, error: "The model took too long on this step." });
+        else if (timedOut(err)) {
+          // The step's own budget, or the connection's own timeout.
+          const why = err instanceof Error ? (err.cause instanceof Error ? err.cause.name : err.name) : "unknown";
+          console.warn(`chat step gave up after ${Math.round(STEP_TIMEOUT_MS / 1000)}s on ${body.model} (${why})`);
+          send({ type: "error", status: 504, error: "The model took too long on this step." });
+        }
         else {
           console.error("chat step failed", err);
           send({ type: "error", status: 500, error: "The step failed. Try again." });

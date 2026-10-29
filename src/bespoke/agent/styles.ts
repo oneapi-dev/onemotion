@@ -16,6 +16,7 @@ export const DIRECTIONS = [
   { name: "Pastel playful", background: "stacked pastels, big round shapes", type: "heavy rounded sans", motion: "elastic bounce, shapes that bloom", for: "kids, health, lifestyle" },
   { name: "Luxury dark", background: "black with gold or bronze, soft shadows, sheen", type: "tall wide-tracked serif", motion: "slow motion, sweeping light, depth", for: "fashion, automotive, property" },
   { name: "Flat pop with photos", background: "light neutral alternating with solid brand colour fields", type: "rounded heavy sans and giant cropped words", motion: "cutouts popping in, stickers, colour fields snapping on the beat", for: "consumer apps, fintech, e-commerce" },
+  { name: "Kinetic type", background: "three solid grounds (a dark, the brand accent, a paper) flipping on phrase changes, fine grain", type: "one heavy or condensed display (Archivo, Anton, Bebas Neue, Archivo Black) filling the frame width, in caps", motion: "a word on every music beat, whip pans, a zoom through a letter's counter, a TV switch-off (the kit's KineticType)", for: "launch teasers, game trailers, hype cuts, events, a strong one-line claim" },
 ] as const;
 
 /** Explainer styles: for films that explain rather than sell. */
@@ -48,6 +49,7 @@ export const CONCEPTS = [
   { name: "Living UI ecosystem", for: "B2B SaaS, AI assistants, workflows" },
   { name: "Flat pop with photos", for: "consumer apps, fintech, campaigns" },
   { name: "Product tour with claims", for: "SaaS, team tools, dashboards" },
+  { name: "Kinetic launch on the beat", for: "teasers, trailers and launches the brief wants loud: the script cut into one or two words a music beat, the drop on the turn, the name last" },
 ] as const;
 
 /** How the background keeps moving: never still, and not by default things streaking sideways. */

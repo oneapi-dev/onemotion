@@ -52,6 +52,8 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover,
       P,
       format: spec.format,
       total: timing.total,
+      bpm: timing.bpm,
+      pulse: timing.beat,
       beats,
       beat: (id) => (typeof id === "number" ? beats[id] : beats.find((b) => b.id === id)) ?? beats[0],
       cue: makeCue(beats, timing.total, FILM_FPS),
@@ -63,7 +65,7 @@ export const FilmComposition: React.FC<FilmInput> = ({ spec, modules, voiceover,
         ? { top: Math.round(H * 0.07), bottom: Math.round(H * (voiced ? 0.78 : 0.86)), left: 60, right: W - 60 }
         : { top: 70, bottom: H - (voiced ? 180 : 90), left: 100, right: W - 100 },
     };
-  }, [W, H, spec.format, spec.brand, spec.partner, spec.assets, spec.captions, timing.total, beats]);
+  }, [W, H, spec.format, spec.brand, spec.partner, spec.assets, spec.captions, timing.total, timing.bpm, timing.beat, beats]);
 
   const ready = useFonts(scene.fonts ?? {});
   const Scene = scene.default;

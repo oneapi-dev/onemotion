@@ -5,8 +5,9 @@ import type { CatalogModel } from "@/director/input";
 import type { MotionFormat, Tone } from "@/engine/plan";
 import { prepareAsset, scaled } from "@/bespoke/agent/images";
 import { findUrl } from "@/director/facts";
-import { applyReview, basicBrief, briefFromIdea, defaultIdea, guideOf, isWebsite, looksLikeBrief, MAX_GUIDE, withGuide, withoutGuide, LANGUAGES, LENGTHS, LOOKS, siteOf, TEMPLATES, templateOf, withAnswers, type BriefIdea, type BriefReview, type Partner } from "./briefs";
+import { applyReview, basicBrief, briefFromIdea, defaultIdea, guideOf, isWebsite, looksLikeBrief, MAX_GUIDE, withGuide, withoutGuide, LANGUAGES, LENGTHS, LOOKS, siteOf, TEMPLATES, templateOf, websiteOk, withAnswers, type BriefIdea, type BriefReview, type Partner } from "./briefs";
 import { reviewBrief, writeBrief } from "./suggest";
+import { LookGallery } from "./LookGallery";
 
 /**
  * Making a video, one question at a time: what kind, what it is about,
@@ -31,6 +32,11 @@ const LOOK_GROUPS = [
   ["explainer", "Explainer looks"],
 ] as const;
 
+const KIND_GROUPS = [
+  ["product", "Promote a product or brand"],
+  ["teach", "Teach or tell: faceless videos"],
+] as const;
+
 /** Each kind's mark: a small drawing of what the video does. */
 const KIND_ICON: Record<string, ReactNode> = {
   launch: <path d="M12 3c3 2 5 6 5 10l-2 3H9l-2-3c0-4 2-8 5-10ZM10 19l2 2 2-2M12 9.5v.01" />,
@@ -39,6 +45,10 @@ const KIND_ICON: Record<string, ReactNode> = {
   switch: <path d="M4 8h13l-3-3M20 16H7l3 3" />,
   announcement: <path d="M4 10v4h3l7 4V6l-7 4H4ZM18 9a4 4 0 0 1 0 6" />,
   collab: <path d="M9 7a5 5 0 1 0 0 10A5 5 0 0 0 9 7ZM15 7a5 5 0 1 1 0 10A5 5 0 0 1 15 7Z" />,
+  explainer: <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z" />,
+  listicle: <path d="M9 6h11M9 12h11M9 18h11M4 5l1-1v4M3.5 11.5c.3-.6 1.7-.8 2 0 .3.7-2 2-2 2.5h2M3.5 16.5h2l-1 1.2c.8 0 1.2.4 1.2 1s-.6 1-1.2 1-.9-.2-1-.4" />,
+  story: <path d="M4 5c3-1 5-1 8 1v14c-3-2-5-2-8-1V5ZM20 5c-3-1-5-1-8 1v14c3-2 5-2 8-1V5Z" />,
+  myth: <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01M4 12a8 8 0 1 0 16 0 8 8 0 0 0-16 0Z" />,
   custom: <path d="M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4" />,
 };
 
@@ -94,13 +104,30 @@ export function CreateWizard(o: {
   const [review, setReview] = useState<{ found: BriefReview; answers: string[] } | null>(null);
   const set = <K extends keyof BriefIdea>(k: K, v: BriefIdea[K]) => setIdea((x) => ({ ...x, [k]: v }));
   const t = templateOf(idea.template);
+  /** A kind chosen: its length, narration for a teach kind (a faceless video is told by its voice), a partner for a collaboration. */
+  const pickKind = (id: BriefIdea["template"]) => {
+    const k = templateOf(id);
+    // A teach kind hides the website, partner and screenshots: none left over from a product kind may steer it unseen.
+    const teachKind = k.group === "teach";
+    setIdea((y) => ({ ...y, template: id, seconds: k.seconds, voice: teachKind ? true : y.voice, website: teachKind ? "" : y.website }));
+    if (id === "collab" && !o.partner) o.onPartner({ website: "", lead: "host" });
+    if (teachKind) {
+      if (o.partner) o.onPartner(null);
+      if (o.website) o.onWebsite("");
+      if (o.refs.length) o.onRefs([]);
+    }
+    setOwn(false);
+    setStep(1);
+  };
   const site = siteOf(idea.website || o.website);
-  // Every video is about a real product: its website is required (or, for a brief of their own, named in it).
-  const websiteOk = isWebsite(site);
+  // The website is optional (a video can be about no website at all); what is typed must be an address.
+  const siteOk = websiteOk(site);
   const briefNamesSite = Boolean(findUrl(o.brief));
+  // A video that teaches or tells: no product, so no website, partner or product screenshots to ask for.
+  const teach = t.group === "teach";
   // A partner, once added, needs its website; a collaboration needs a partner.
   const partnerOk = o.partner ? isWebsite(o.partner.website) : idea.template !== "collab";
-  const canMake = Boolean(o.brief.trim()) && (websiteOk || briefNamesSite) && partnerOk;
+  const canMake = Boolean(o.brief.trim()) && siteOk && partnerOk;
   const busy = o.busy || writing.busy;
   const chat = o.models.filter((m) => m.capabilities.includes("Chat") || m.capabilities.length === 0);
   const fullIdea = (x: BriefIdea): BriefIdea => ({ ...x, website: x.website || o.website, partner: o.partner });
@@ -201,7 +228,7 @@ export function CreateWizard(o: {
       <ol className="progress" aria-label="Steps">
         {STEPS.map((label, i) => (
           <li key={label} aria-current={step === i ? "step" : undefined} data-done={step > i || undefined}>
-            <button type="button" onClick={() => (i === 3 ? toBrief() : setStep(i as Step))} disabled={busy || (i >= 2 && !websiteOk && !own)}>
+            <button type="button" onClick={() => (i === 3 ? toBrief() : setStep(i as Step))} disabled={busy || (i >= 2 && !siteOk && !own)}>
               <span className="mono">{i + 1}</span> {label}
             </button>
           </li>
@@ -211,32 +238,27 @@ export function CreateWizard(o: {
       {step === 0 ? (
         <div className="wiz-step">
           <h2 className="step-q">What are you making?</h2>
-          <div className="kinds" role="radiogroup" aria-label="Kind of video">
-            {TEMPLATES.map((x) => (
-              <button
-                key={x.id}
-                type="button"
-                role="radio"
-                aria-checked={idea.template === x.id}
-                className="kind"
-                disabled={busy}
-                onClick={() => {
-                  setIdea((y) => ({ ...y, template: x.id, seconds: x.seconds }));
-                  if (x.id === "collab" && !o.partner) o.onPartner({ website: "", lead: "host" });
-                  setOwn(false);
-                  setStep(1);
-                }}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  {KIND_ICON[x.id]}
-                </svg>
-                <span className="kind-text">
-                  <strong>{x.label}</strong>
-                  <span>{x.hint}</span>
-                </span>
-              </button>
-            ))}
-          </div>
+          {KIND_GROUPS.map(([group, title]) => (
+            <div key={group} className="kind-group">
+              <h3 className="kind-group-title">{title}</h3>
+              <div className="kinds" role="radiogroup" aria-label={title} data-group={group}>
+                {TEMPLATES.filter((x) => x.group === group && x.id !== "custom").map((x) => (
+                  <button key={x.id} type="button" role="radio" aria-checked={idea.template === x.id} className="kind" disabled={busy} onClick={() => pickKind(x.id)}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      {KIND_ICON[x.id]}
+                    </svg>
+                    <span className="kind-text">
+                      <strong>{x.label}</strong>
+                      <span>{x.hint}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <button type="button" className="link" disabled={busy} onClick={() => pickKind("custom")}>
+            Something else: describe your own kind of video
+          </button>
           <button
             type="button"
             className="link"
@@ -246,53 +268,59 @@ export function CreateWizard(o: {
               setStep(3);
             }}
           >
-            I have my own brief or storyboard
+            I have my own brief, script or storyboard
           </button>
         </div>
       ) : step === 1 ? (
         <div className="wiz-step">
           <h2 className="step-q">What is it about?</h2>
-          <WebsiteField value={idea.website || o.website} onChange={(v) => {
-            set("website", v);
-            o.onWebsite(v);
-          }} disabled={busy} required />
-          {partnerSection}
+          {teach ? null : (
+            <>
+              <WebsiteField value={idea.website || o.website} onChange={(v) => {
+                set("website", v);
+                o.onWebsite(v);
+              }} disabled={busy} />
+              {partnerSection}
+            </>
+          )}
           <label className="field">
-            <span>In your words</span>
-            <textarea rows={4} value={idea.idea} onChange={(e) => set("idea", e.target.value)} placeholder={`${t.ideaPlaceholder}. Add an offer, a price or anything that must be in it.`} disabled={busy} />
+            <span>{teach ? "The subject" : "In your words"}</span>
+            <textarea rows={4} value={idea.idea} onChange={(e) => set("idea", e.target.value)} placeholder={teach ? `${t.ideaPlaceholder}${/[.?!]$/.test(t.ideaPlaceholder) ? "" : "."} Add any fact, number or source that must be in it.` : `${t.ideaPlaceholder}. Add an offer, a price or anything that must be in it.`} disabled={busy} />
             <small className="hint">{looksLikeBrief(idea.idea) ? "This reads as a whole brief: it becomes the brief as written, and the AI reviews it rather than rewriting it." : "A line or two is enough. Have a full brief or storyboard? Paste it here: it is used as written."}</small>
           </label>
-          <div className="field">
-            <span>Product screenshots (optional)</span>
-            <div className="refs">
-              {o.refs.map((url, i) => (
-                <button key={i} type="button" className="ref" aria-label={`Remove screenshot ${i + 1}`} title="Remove" onClick={() => o.onRefs(o.refs.filter((_, k) => k !== i))} disabled={busy}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" />
-                </button>
-              ))}
-              {o.refs.length < o.maxRefs ? (
-                <label className="ref add" title="Add screenshots">
-                  <span aria-hidden="true">+</span>
-                  <span className="sr-only">Add screenshots</span>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    multiple
-                    disabled={busy}
-                    onChange={async (e) => {
-                      const files = [...(e.target.files ?? [])].slice(0, o.maxRefs - o.refs.length);
-                      e.target.value = "";
-                      const urls = await Promise.all(files.map((f) => scaled(f, 1280).catch(() => null)));
-                      o.onRefs([...o.refs, ...urls.filter((u): u is string => Boolean(u))].slice(0, o.maxRefs));
-                    }}
-                  />
-                </label>
-              ) : null}
+          {teach ? null : (
+            <div className="field">
+              <span>Product screenshots (optional)</span>
+              <div className="refs">
+                {o.refs.map((url, i) => (
+                  <button key={i} type="button" className="ref" aria-label={`Remove screenshot ${i + 1}`} title="Remove" onClick={() => o.onRefs(o.refs.filter((_, k) => k !== i))} disabled={busy}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" />
+                  </button>
+                ))}
+                {o.refs.length < o.maxRefs ? (
+                  <label className="ref add" title="Add screenshots">
+                    <span aria-hidden="true">+</span>
+                    <span className="sr-only">Add screenshots</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      multiple
+                      disabled={busy}
+                      onChange={async (e) => {
+                        const files = [...(e.target.files ?? [])].slice(0, o.maxRefs - o.refs.length);
+                        e.target.value = "";
+                        const urls = await Promise.all(files.map((f) => scaled(f, 1280).catch(() => null)));
+                        o.onRefs([...o.refs, ...urls.filter((u): u is string => Boolean(u))].slice(0, o.maxRefs));
+                      }}
+                    />
+                  </label>
+                ) : null}
+              </div>
+              <small className="hint">The video remakes your real interface from these.</small>
             </div>
-            <small className="hint">The video remakes your real interface from these.</small>
-          </div>
-          <StepNav onBack={() => setStep(0)} onNext={() => setStep(2)} disabled={busy} nextDisabled={!websiteOk || !partnerOk} why={!websiteOk ? "Add the product's website to continue." : !partnerOk ? "Add the partner's website to continue." : null} />
+          )}
+          <StepNav onBack={() => setStep(0)} onNext={() => setStep(2)} disabled={busy} nextDisabled={!siteOk || !partnerOk} why={!siteOk ? "Fix the website address, or clear it." : !partnerOk ? "Add the partner's website to continue." : null} />
         </div>
       ) : step === 2 ? (
         <div className="wiz-step">
@@ -319,21 +347,10 @@ export function CreateWizard(o: {
               ))}
             </div>
           </div>
-          <label className="field">
+          <div className="field">
             <span>Look</span>
-            <select value={idea.look} onChange={(e) => set("look", e.target.value)} disabled={busy}>
-              {LOOK_GROUPS.map(([group, title]) => (
-                <optgroup key={group} label={title}>
-                  {LOOKS.filter((l) => l.group === group).map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-            <small className="hint">{LOOKS.find((l) => l.id === idea.look)?.hint}</small>
-          </label>
+            <LookGallery looks={LOOKS} groups={LOOK_GROUPS} value={idea.look} onChange={(id) => set("look", id)} disabled={busy} />
+          </div>
           <div className="pair">
             <label className="field">
               <span>Language</span>
@@ -351,7 +368,7 @@ export function CreateWizard(o: {
               </label>
             </div>
           </div>
-          <StepNav onBack={() => setStep(1)} onNext={toBrief} disabled={busy} nextDisabled={!websiteOk || !partnerOk} why={null} />
+          <StepNav onBack={() => setStep(1)} onNext={toBrief} disabled={busy} nextDisabled={!siteOk || !partnerOk} why={null} />
         </div>
       ) : (
         <div className="wiz-step">
@@ -379,8 +396,8 @@ export function CreateWizard(o: {
             />
             {o.brief.length > o.maxBrief ? <small className="error">Quick takes a short brief; switch to Bespoke for a long one.</small> : null}
           </label>
-          {own && !briefNamesSite ? <WebsiteField value={o.website} onChange={o.onWebsite} disabled={busy} required /> : null}
-          {own ? partnerSection : null}
+          {own && !briefNamesSite && !teach ? <WebsiteField value={o.website} onChange={o.onWebsite} disabled={busy} /> : null}
+          {own && !teach ? partnerSection : null}
           {o.partner && o.mode === "plan" ? <small className="warn">Quick videos read only the partner&apos;s name from the brief; switch to Bespoke for both logos and the partner&apos;s facts.</small> : null}
           {!own && askAbout ? (
             <label className="field">
@@ -395,10 +412,10 @@ export function CreateWizard(o: {
               type="button"
               className="btn small"
               onClick={() => void assist()}
-              disabled={!o.ai || busy || (!websiteOk && !briefNamesSite) || needsAbout}
+              disabled={!o.ai || busy || !siteOk || needsAbout}
               title={!o.ai ? "Add your OneAPI key and a model in Settings first" : needsAbout ? "Say what the video is about first" : `One call on your key (${o.ai.model})`}
             >
-              {writing.busy ? `Reading ${site || "the brief"} and ${own ? "checking" : "writing"}…` : own ? "Improve with AI" : "Let AI write it in full"}
+              {writing.busy ? (site ? `Reading ${site} and ${own ? "checking" : "writing"}…` : own ? "Checking…" : "Writing…") : own ? "Improve with AI" : teach ? "Let AI write the script" : "Let AI write it in full"}
             </button>
             {writing.before !== null ? (
               <button
@@ -418,10 +435,12 @@ export function CreateWizard(o: {
             <small className={writing.error ? "error" : "hint"}>
               {writing.error ??
                 (own
-                  ? "Keeps your brief exactly as written. Your model checks it against the website, adds only what is missing below it, and asks what only you can answer."
+                  ? `Keeps your brief exactly as written. Your model checks it${site ? " against the website" : ""}, adds only what is missing below it, and asks what only you can answer.`
                   : needsAbout
                     ? "Say what the video is about first: the AI writes the film around it, not a general introduction."
-                    : "Your model reads the website and writes a story, a timed storyboard, the look and the sound around what you said. Facts and prices stay as given.")}
+                    : teach
+                      ? "Your model writes the narration, a timed storyboard, the look and the sound, and lists every fact it states at the end. Check those facts before you make the video: they come from the model's knowledge."
+                      : `Your model ${site ? "reads the website and " : ""}writes a story, a timed storyboard, the look and the sound around what you said. Facts and prices stay as given.`)}
             </small>
           </div>
           <div className="field">
@@ -526,7 +545,7 @@ export function CreateWizard(o: {
             <button type="button" className="btn primary block big" onClick={o.onMake} disabled={busy || !canMake || o.brief.length > o.maxBrief}>
               {o.running ?? "Make the video"}
             </button>
-            {!canMake && !o.running ? <p className="hint">{!o.brief.trim() ? "Write the brief first." : !partnerOk ? "Add the partner's website." : "Add the product's website, or name it in the brief."}</p> : null}
+            {!canMake && !o.running ? <p className="hint">{!o.brief.trim() ? "Write the brief first." : !partnerOk ? "Add the partner's website." : "Fix the website address, or clear it."}</p> : null}
             {o.onStop ? (
               <button type="button" className="btn block" onClick={o.onStop}>
                 Stop
@@ -552,7 +571,7 @@ function BriefCheck({ review, answers, onAnswer, onAdd, disabled }: { review: Br
   return (
     <section className="brief-check" aria-label="What the review found">
       <p className="brief-check-lead">
-        {nothing ? "Nothing missing: the brief is ready as it is." : review.additions.length ? `Added ${review.additions.length} detail${review.additions.length === 1 ? "" : "s"} below your brief, from the website. Your words are unchanged.` : "Your words are unchanged; nothing needed adding."}
+        {nothing ? "Nothing missing: the brief is ready as it is." : review.additions.length ? `Added ${review.additions.length} detail${review.additions.length === 1 ? "" : "s"} below your brief. Your words are unchanged.` : "Your words are unchanged; nothing needed adding."}
       </p>
       {review.conflicts.length ? (
         <div className="brief-check-group">
@@ -668,17 +687,17 @@ function PartnerField({ partner, onChange, onRemove, disabled }: { partner: Part
   );
 }
 
-/** The product's website: required, with the reason it is needed and a check that it is an address. */
-function WebsiteField({ value, onChange, disabled, required }: { value: string; onChange: (v: string) => void; disabled: boolean; required?: boolean }) {
+/** The product's website: optional, with what it is used for and a check that what is typed is an address. */
+function WebsiteField({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled: boolean }) {
   const typed = value.trim().length > 0;
   const ok = isWebsite(value);
   return (
     <label className="field">
       <span>
-        Website{required ? <em>required</em> : null}
+        Website<em>optional</em>
       </span>
-      <input type="text" inputMode="url" spellCheck={false} value={value} onChange={(e) => onChange(e.target.value)} placeholder="yourproduct.com" disabled={disabled} required={required} aria-invalid={typed && !ok} />
-      <small className={typed && !ok ? "error" : "hint"}>{typed && !ok ? "That is not a website address. Write it like yourproduct.com." : "The product the video is about. Facts, prices, the logo and colours are read from it."}</small>
+      <input type="text" inputMode="url" spellCheck={false} value={value} onChange={(e) => onChange(e.target.value)} placeholder="yourproduct.com" disabled={disabled} aria-invalid={typed && !ok} />
+      <small className={typed && !ok ? "error" : "hint"}>{typed && !ok ? "That is not a website address. Write it like yourproduct.com, or leave it empty." : "Facts, prices, the logo and colours are read from it. Leave it empty and the video uses only what you write."}</small>
     </label>
   );
 }

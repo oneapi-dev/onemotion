@@ -5,7 +5,7 @@ import { readExample } from "./examples";
 vi.mock("server-only", () => ({}));
 
 describe("example films", () => {
-  it.each(["pattern", "onemotion"])("%s passes the scene check", (name) => {
+  it.each(["pattern", "onemotion", "kinetic", "kinetic-blocks"])("%s passes the scene check", (name) => {
     const ex = readExample(name);
     expect(ex).not.toBeNull();
     const r = checkScene(ex!.files);

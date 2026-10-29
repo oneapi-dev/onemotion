@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANSWERS_HEADING, applyReview, basicBrief, briefFromIdea, cleanBrief, looksLikeBrief, defaultIdea, formatLine, guideOf, ideaFromBrief, isWebsite, MAX_GUIDE, needsProductionBrief, normalizeReview, partnerInfo, partnerSite, REVIEW_HEADING, reviewPrompt, siteOf, TEMPLATES, withAnswers, withGuide, withoutGuide, withProductionBrief, writerPrompt } from "./briefs";
+import { ANSWERS_HEADING, applyReview, basicBrief, briefFromIdea, cleanBrief, looksLikeBrief, defaultIdea, formatLine, guideOf, ideaFromBrief, isWebsite, MAX_GUIDE, needsProductionBrief, normalizeReview, partnerInfo, partnerSite, REVIEW_HEADING, reviewPrompt, siteOf, TEMPLATES, withAnswers, withGuide, websiteOk, withoutGuide, withProductionBrief, writerPrompt } from "./briefs";
 
 describe("basic briefs", () => {
   it("never falls back to OneAPI: no website is no website", () => {
@@ -22,6 +22,26 @@ describe("basic briefs", () => {
     for (const bad of ["acme", "my product", "http://", ".com", "acme..com"]) expect(isWebsite(bad)).toBe(false);
   });
 
+  it("takes no website: empty is fine, a typed one must be an address", () => {
+    expect(websiteOk("")).toBe(true);
+    expect(websiteOk("acme.dev")).toBe(true);
+    expect(websiteOk("my product")).toBe(false);
+    const b = basicBrief({ ...defaultIdea("launch"), idea: "A habit tracker for students" });
+    expect(b).toMatch(/^Create a 30-second launch film\./);
+    expect(b).not.toMatch(/Read |the website|undefined/);
+    expect(b).toContain("no invented statistics");
+  });
+
+  it("makes a teach kind a narrated, faceless video about its subject", () => {
+    const i = { ...defaultIdea("listicle"), idea: "5 kebiasaan kecil untuk tidur nyenyak" };
+    expect(i.voice).toBe(true);
+    const b = basicBrief(i);
+    expect(b).toMatch(/^Create a 45-second list video, faceless/);
+    expect(b).toContain("The subject: 5 kebiasaan kecil untuk tidur nyenyak");
+    expect(b).toContain("the strongest item last");
+    expect(b).not.toMatch(/logo|product/);
+  });
+
   it("carries the idea, the look and the language", () => {
     const b = basicBrief({ ...defaultIdea("announcement", "oneapi.id"), idea: "Bayar $2 dapat $10 usage", look: "paper-and-print", language: "English", voice: true });
     expect(b).toContain("The idea: Bayar $2 dapat $10 usage");
@@ -36,7 +56,11 @@ describe("the brief writer", () => {
   it("asks for a creative director's brief with a timed storyboard, from the site's facts only", () => {
     const { system, user } = writerPrompt({ ...defaultIdea("launch", "router.bynara.id"), idea: "Introducing NaraRouter", seconds: 30 }, site, formatLine("landscape"));
     expect(system).toContain("use only what the WEBSITE and the person's IDEA say");
-    expect(system).toContain("Storyboard: 4 to 6 timed sections covering 0 to 30 seconds");
+    expect(system).toContain("Storyboard: 4 to 5 timed sections covering 0 to 30 seconds");
+    expect(system).toContain("Visual motifs: 4 to 7 concrete things");
+    // No qualities the site does not write, one line for the core and the close, and no card framing a section.
+    expect(system).toContain("CLAIMS: a quality the sources do not state in words");
+    expect(system).toContain("never on a card or sheet that frames a whole section");
     expect(system).toContain("Deliverable: 16:9, 1920 x 1080, 30 fps, 30 seconds at most.");
     expect(system).toContain("the address router.bynara.id");
     expect(system).not.toMatch(/NaraRouter|OneAPI/);
@@ -44,9 +68,36 @@ describe("the brief writer", () => {
     expect(user).toContain("TEXT: OpenAI-compatible and Anthropic-compatible APIs");
   });
 
+  it("scales the brief to the film's length: a 20-second film holds a few sections and motifs, and a short voice-over", () => {
+    const { system } = writerPrompt({ ...defaultIdea("launch", "oneapi.id"), idea: "Apa itu oneapi.id?", seconds: 20, voice: true }, site, formatLine("landscape"));
+    expect(system).toContain("Storyboard: 3 to 4 timed sections");
+    expect(system).toContain("Visual motifs: 3 to 5 concrete things");
+    expect(system).toContain("under 40 words so it fits the length");
+  });
+
   it("still writes without the website, and every kind has a goal and an opening", () => {
-    expect(writerPrompt(defaultIdea("tutorial"), null, formatLine("portrait")).user).toContain("the website could not be read");
-    for (const t of TEMPLATES) expect(writerPrompt(defaultIdea(t.id), site, formatLine("square")).system).toContain(`The first 2 seconds show ${t.hook} or the offer.`);
+    expect(writerPrompt(defaultIdea("tutorial"), null, formatLine("portrait")).user).toContain("(no website: use only the idea)");
+    expect(writerPrompt(defaultIdea("tutorial", "acme.dev"), null, formatLine("portrait")).user).toContain("the website could not be read");
+    const noSite = writerPrompt(defaultIdea("launch"), null, formatLine("portrait")).system;
+    expect(noSite).toContain("the logo, the name, one line, and the final frame");
+    expect(noSite).not.toContain("the address ");
+    for (const t of TEMPLATES) {
+      const { system } = writerPrompt(defaultIdea(t.id, "router.bynara.id"), site, formatLine("square"));
+      expect(system).toContain(t.group === "teach" ? `the first 2 seconds show ${t.hook}` : `The first 2 seconds show ${t.hook} or the offer.`);
+    }
+  });
+
+  it("writes a faceless video's script, with its facts listed for the person to check", () => {
+    const { system, user } = writerPrompt({ ...defaultIdea("explainer"), idea: "Kenapa langit berwarna biru?", seconds: 60 }, null, formatLine("portrait"));
+    expect(system).toContain("head writer of a faceless educational channel");
+    expect(system).toContain("about 108 words so it fits 60 seconds");
+    expect(system).toContain("FACTS TO CHECK");
+    expect(system).not.toMatch(/logo|product interface/);
+    expect(user).toContain("Kenapa langit berwarna biru?");
+    expect(user).not.toContain("WEBSITE");
+    // A custom video about no website is told, not sold; with one, it is about that product.
+    expect(writerPrompt(defaultIdea("custom"), null, formatLine("square")).system).toContain("faceless educational channel");
+    expect(writerPrompt(defaultIdea("custom", "acme.dev"), null, formatLine("square")).system).toContain("premium launch films");
   });
 
   it("strips a fence around the model's brief and caps its length", () => {
@@ -157,6 +208,13 @@ describe("a whole brief pasted as the idea", () => {
     expect(b).not.toContain("No voice-over.");
     expect(b).not.toContain("Every word on screen in");
     expect(b).toContain("Only state facts from oneapi.id");
+    expect(b).not.toContain("Look:");
+  });
+
+  it("keeps the look picked on the form", () => {
+    const b = briefFromIdea({ ...defaultIdea("feature", "oneapi.id"), idea: pasted, look: "kinetic-type" });
+    expect(b.startsWith(pasted)).toBe(true);
+    expect(b).toContain('Look: the "Kinetic type" style direction');
   });
 });
 

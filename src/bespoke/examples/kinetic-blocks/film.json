@@ -1,0 +1,96 @@
+{
+ "format": "landscape",
+ "brand": {
+  "name": "Tidepool",
+  "url": "tidepool.surf",
+  "logo": null,
+  "colors": [
+   "#FF5B2E"
+  ]
+ },
+ "score": {
+  "genre": "house",
+  "bpm": 130.5,
+  "seed": 5
+ },
+ "track": "goodnightmare",
+ "beats": [
+  {
+   "id": "b1",
+   "says": "Monsters next door.",
+   "voice": "Monsters next door.",
+   "shows": "the PictureShot block",
+   "seconds": 4
+  },
+  {
+   "id": "b2",
+   "says": "Zero keyframes.",
+   "voice": "Zero keyframes.",
+   "shows": "the Graph block",
+   "seconds": 3.5
+  },
+  {
+   "id": "b3",
+   "says": "A teaser for Tidepool.",
+   "voice": "A teaser for Tidepool.",
+   "shows": "the PromptBox block",
+   "seconds": 7
+  },
+  {
+   "id": "b4",
+   "says": "Camera flies through the type.",
+   "voice": "Camera flies through the type.",
+   "shows": "the FlyWords block",
+   "seconds": 5
+  },
+  {
+   "id": "b5",
+   "says": "Brief, code, film.",
+   "voice": "Brief, code, film.",
+   "shows": "the Chain block",
+   "seconds": 5.5
+  },
+  {
+   "id": "b6",
+   "says": "Hotter orange. Cut the intro.",
+   "voice": "Hotter orange. Cut the intro.",
+   "shows": "the Notes block",
+   "seconds": 7
+  },
+  {
+   "id": "b7",
+   "says": "Made by Tidepool.",
+   "voice": "Made by Tidepool.",
+   "shows": "the Hero block",
+   "seconds": 4
+  },
+  {
+   "id": "b8",
+   "says": "One page, twelve scenes.",
+   "voice": "One page, twelve scenes.",
+   "shows": "the Counters block",
+   "seconds": 4.5
+  },
+  {
+   "id": "b9",
+   "says": "Rendered on a laptop.",
+   "voice": "Rendered on a laptop.",
+   "shows": "the Progress block",
+   "seconds": 4
+  },
+  {
+   "id": "b10",
+   "says": "Elastic.",
+   "voice": "Elastic.",
+   "shows": "the Stretch block",
+   "seconds": 4
+  },
+  {
+   "id": "b11",
+   "says": "Rewind.",
+   "voice": "Rewind.",
+   "shows": "the Rewind block",
+   "seconds": 3
+  }
+ ]
+}

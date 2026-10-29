@@ -24,6 +24,8 @@ export type FilmSpec = {
   assets?: Record<string, string>;
   /** Where each asset came from (address -> name), so the same image is never fetched twice. */
   assetSources?: Record<string, string>;
+  /** The art style every illustration of this film shares, fixed by the first one made (src/bespoke/agent/imageTool.ts). */
+  imageStyle?: string;
   /** A person's own track, as read when it was added: its tempo, downbeat and drops. */
   musicMap?: MusicMap;
   /** The mix: the music's level (0 to 1; src/music/mix.ts when unset), no music at all, and the gain that matched a person's own track to the library's loudness. */

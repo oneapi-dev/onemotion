@@ -344,11 +344,23 @@ const nextVisible = (s: string, from: number) => {
   return undefined;
 };
 
+/** Where the next non-space character is (the end of the text when there is none). */
+const visibleAt = (s: string, from: number) => {
+  let i = from;
+  while (i < s.length && /\s/.test(s[i])) i++;
+  return i;
+};
+
+/** What could follow a comma in JSON: a string, object, array, number, literal, or a closing bracket. */
+const startsValue = (s: string, at: number) => /^(["{[\]}]|-?\d|true\b|false\b|null\b)/.test(s.slice(at, at + 6));
+
 /**
  * Fixes the slips models make in long JSON: a double quote inside a string
  * left unescaped, a raw line break inside a string, a comma before a closing
- * bracket. A quote ends a string only when what follows it could follow a
- * string (, : } ] or the end); any other quote is part of the text.
+ * bracket, a missing comma between two elements. A quote ends a string only
+ * when what follows it could follow a string (, : } ] or the end), and after
+ * a comma only when a value or a closing bracket comes next ("go", then
+ * ...): any other quote is part of the text.
  */
 export function repairJson(raw: string): string {
   let out = "";
@@ -360,8 +372,12 @@ export function repairJson(raw: string): string {
         out += c + (raw[i + 1] ?? "");
         i++;
       } else if (c === '"') {
-        const next = nextVisible(raw, i + 1);
-        if (next === undefined || ",:}]".includes(next)) {
+        const at = visibleAt(raw, i + 1);
+        const next = raw[at];
+        // A new string on the next line with no comma between: the element ended there (on the same line it is quoted text).
+        const lineBreak = next !== undefined && '"{['.includes(next) && raw.slice(i + 1, at).includes("\n");
+        const ends = next === undefined || next === ":" || next === "}" || next === "]" || lineBreak || (next === "," && startsValue(raw, visibleAt(raw, at + 1)));
+        if (ends) {
           inString = false;
           out += c;
         } else out += '\\"';
@@ -370,6 +386,11 @@ export function repairJson(raw: string): string {
       else if (c === "\t") out += "\\t";
       else out += c;
       continue;
+    }
+    if (c === '"' || c === "{" || c === "[") {
+      // A value that starts right after a finished one has lost its comma: `"a" "b"`, `} {`, `] [`.
+      const prev = out.trimEnd().slice(-1);
+      if (prev && "\"}]0123456789el".includes(prev)) out += ",";
     }
     if (c === '"') inString = true;
     if (c === ",") {
@@ -451,7 +472,8 @@ export async function jsonStep<T>(o: StepInput, validate?: (value: unknown) => T
       parsed = parseJson<unknown>(reply.text);
     } catch (second) {
       const said = second instanceof Error ? second.message : String(second);
-      throw new JsonReplyError(`The model answered with broken JSON twice (${said}${reply.finish === "length" ? ", cut off at the length limit" : ""}). Try again, or pick another model.`);
+      const where = second instanceof JsonReplyError && second.near ? `, near «${second.near.replace(/\s+/g, " ")}»` : "";
+      throw new JsonReplyError(`The model answered with broken JSON twice (${said}${where}${reply.finish === "length" ? ", cut off at the length limit" : ""}). Try again, or pick another model.`);
     }
   }
   if (!validate) return { value: parsed as T, usage };

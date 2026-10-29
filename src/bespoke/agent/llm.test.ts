@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ChatError, chatStep, jsonStep, SchemaError, setBackupModel } from "./llm";
+import { ChatError, chatStep, jsonStep, parseJson, SchemaError, setBackupModel } from "./llm";
 import { describeProgress } from "./loop";
 
 /** A sent message's text, whether a string or parts (the last message carries a prompt-cache breakpoint). */
@@ -116,6 +116,23 @@ describe("describeProgress", () => {
   });
 });
 
+describe("parseJson repairs", () => {
+  it("restores a comma that is missing between two elements", () => {
+    expect(parseJson('{"b": [{"k": 1} {"k": 2}], "c": [[1] [2]]}')).toEqual({ b: [{ k: 1 }, { k: 2 }], c: [[1], [2]] });
+    expect(parseJson(`{"a": ["x"\n"y"\n"z"], "n": [{"k": 1}\n{"k": 2}]}`)).toEqual({ a: ["x", "y", "z"], n: [{ k: 1 }, { k: 2 }] });
+    // On one line it is quoted text, not two elements.
+    expect(parseJson('{"a": ["x" "y"]}')).toEqual({ a: ['x" "y'] });
+  });
+
+  it("keeps a quoted word followed by a comma inside the string", () => {
+    expect(parseJson('{"says": ["He said "go", then left.", "Next"]}')).toEqual({ says: ['He said "go", then left.', "Next"] });
+  });
+
+  it("still ends a string at a comma that is followed by a value", () => {
+    expect(parseJson('{"a": ["one", "two", 3, true, null, {"k": "v"}], "b": "x",}')).toEqual({ a: ["one", "two", 3, true, null, { k: "v" }], b: "x" });
+  });
+});
+
 describe("jsonStep", () => {
   it("never sends response_format, which OneAPI cannot carry to every provider", async () => {
     const fetch = vi.fn(async () => reply('{"ok": true}'));
@@ -159,13 +176,13 @@ describe("jsonStep", () => {
   });
 
   it("tells the model what was wrong and where when it asks again", async () => {
-    const fetch = vi.fn().mockResolvedValueOnce(reply('{"beats": [{"says": "a"} {"says": "b"}]}')).mockResolvedValueOnce(reply('{"beats": []}'));
+    const fetch = vi.fn().mockResolvedValueOnce(reply('{"beats": [{"says": "a"}, {"says" "b"}]}')).mockResolvedValueOnce(reply('{"beats": []}'));
     vi.stubGlobal("fetch", fetch);
     await jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] });
     const again = JSON.parse((fetch.mock.calls[1] as unknown as [string, RequestInit])[1].body as string);
     const ask = textOf(again.messages.at(-1).content);
-    expect(ask).toMatch(/Expected ',' or ']' after array element/);
-    expect(ask).toContain('{"says": "a"} {"says"');
+    expect(ask).toMatch(/Expected ':' after property name/);
+    expect(ask).toContain('{"says" "b"}');
   });
 
   it("asks again with more room when the answer was cut off", async () => {
@@ -179,8 +196,8 @@ describe("jsonStep", () => {
   });
 
   it("says plainly when the second answer is broken too", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => reply('{"beats": [{"says": "a"} {"says": "b"}]}')));
-    await expect(jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] })).rejects.toThrow(/broken JSON twice.*Expected ',' or ']'/);
+    vi.stubGlobal("fetch", vi.fn(async () => reply('{"beats": [{"says": "a"}, {"says" "b"}]}')));
+    await expect(jsonStep({ key: "k", model: "m", messages: [{ role: "user", content: "hi" }] })).rejects.toThrow(/broken JSON twice.*Expected ':' after property name/);
   });
 });
 

@@ -30,7 +30,8 @@ describe("prompts", () => {
     expect(p).not.toContain("overlap={10}");
     expect(p).not.toContain("--- @kit/blocks.tsx ---");
     // The motion designer reads this on every step: it was 119k characters with the kit's source in it.
-    expect(p.length).toBeLessThan(60_000);
+    // 60k until the kinetic kit and its scene blocks (about 4k of API and docs) joined it.
+    expect(p.length).toBeLessThan(66_000);
     // Rules that fought restraint and each other are gone.
     expect(p).not.toContain("no picture holds completely still");
     expect(p).not.toContain("An impact gets a short screen shake");

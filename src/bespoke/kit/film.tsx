@@ -47,6 +47,9 @@ export type Film = {
   P: boolean;
   format: "landscape" | "portrait" | "square";
   total: number;
+  /** The music's tempo, and one music beat in frames: every film beat starts on that grid, so onBeat(beat.start, k, pulse) lands on the music. */
+  bpm: number;
+  pulse: number;
   beats: Beat[];
   /** A beat by id ("b3") or index. */
   beat: (id: string | number) => Beat;

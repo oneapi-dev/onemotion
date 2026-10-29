@@ -1,5 +1,6 @@
 import "server-only";
 import { Agent, fetch as pinnedFetch } from "undici";
+import { CONNECTION_TIMEOUT_MS } from "./budget";
 import { breakpointsFor, refusedBreakpoints, usesBreakpoints, withoutBreakpoints } from "./cache";
 import { BASE_URL, chatResilient, OneAPIError } from "./oneapi";
 import { SiteError, vet } from "./site";
@@ -62,7 +63,7 @@ async function send(ep: Endpoint, key: string, path: string, init: { method: "GE
   } catch (err) {
     throw new OneAPIError(400, err instanceof SiteError ? `${ep.name}: ${err.message}` : `${ep.name} could not be reached.`);
   }
-  const dispatcher = new Agent({ connect: { lookup: (_h, _o, cb) => cb(null, [{ address: addr.address, family: addr.family }] as never) }, headersTimeout: 300_000, bodyTimeout: 300_000 });
+  const dispatcher = new Agent({ connect: { lookup: (_h, _o, cb) => cb(null, [{ address: addr.address, family: addr.family }] as never) }, headersTimeout: CONNECTION_TIMEOUT_MS, bodyTimeout: CONNECTION_TIMEOUT_MS });
   const once = (ua?: string) =>
     pinnedFetch(url, {
       method: init.method,

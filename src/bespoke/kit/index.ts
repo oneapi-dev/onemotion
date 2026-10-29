@@ -15,4 +15,6 @@ export { Asset, Picture, Mark, CoMark, Window, Phone, Cursor, Notification } fro
 export { Sfx, SFX, type SfxName } from "./sound";
 export { FONT_NAMES } from "./fonts";
 export { E, SPR, lmix, blurIn, blurOut, hitPulse, arrive, depart, squash, inertia, lc, shotStyle, toScreen, breath, dip, PACE, holdFor, revealFor, MaskRise, Scramble, enter, float, wiggle, type Shot, type Move } from "./cinetic";
+export { PictureShot, Graph, PromptBox, FlyWords, Chain, Notes, Hero, Counters, Progress, Stretch, Rewind, type NoteEffect } from "./kineticBlocks";
+export { KineticType, whipPan, whipFrames, onBeat, isLight, letterAt, ZoomThrough, TvOff, Charge, Denial, type KShot, type KStyle, type WhipDir } from "./kinetic";
 export { PriceCount, UiReveal, PhoneFan, BarChart, LineChart, LogoLockup, KineticCenter, TerminalRun, FocusZoom, FlashThrough, ChromaWipe } from "./blocks";

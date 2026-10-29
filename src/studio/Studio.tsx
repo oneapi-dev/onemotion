@@ -31,13 +31,13 @@ import { Editor } from "./Editor";
 
 import { SettingsView } from "./Settings";
 import { CreateWizard } from "./CreateWizard";
-import { formatLine, ideaFromBrief, isWebsite, needsProductionBrief, partnerInfo, siteOf, withProductionBrief, type Partner, type TemplateId } from "./briefs";
+import { formatLine, ideaFromBrief, isWebsite, needsProductionBrief, partnerInfo, siteOf, websiteOk, withProductionBrief, type Partner, type TemplateId } from "./briefs";
 import { writeBrief } from "./suggest";
 import { hasNarration, recordNarration, storedNarration } from "@/voice/narrate";
 import { putLine } from "@/voice/cache";
 import { matchGain, rmsDb } from "@/music/mix";
 import { analyzeMusic, type MusicMap } from "@/music/analyze";
-import { aiOf, backupOf, deleteProject, hydrate, lexiconOf, loadProjects, recoverInterrupted, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
+import { aiOf, backupOf, deleteProject, hydrate, imagesOf, lexiconOf, loadProjects, recoverInterrupted, loadSettings, newId, saveProject, saveSettings, voiceReady, type Project, type Settings } from "./store";
 
 const Preview = dynamic(() => import("./Preview"), { ssr: false, loading: () => <div className="preview-wait" aria-hidden="true" /> });
 const FilmStage = dynamic(() => import("./FilmStage"), { ssr: false, loading: () => <div className="preview-wait" aria-hidden="true" /> });
@@ -78,6 +78,8 @@ type Exporting = { state: "idle" } | { state: "running"; progress: number } | { 
 const recentOf = (p: Plan): Recent => ({ look: p.look, path: p.path, music: p.music, angle: p.angle, tone: p.tone, scenes: p.scenes.map((s) => s.type) });
 
 const hasPlan = (p: Project | null): p is PlanProject => Boolean(p?.plan);
+const FORMAT_NAMES: Record<MotionFormat, string> = { landscape: "16:9", portrait: "9:16", square: "1:1" };
+
 const titleOf = (p: Project) => p.film?.concept.title || p.plan?.brand || p.film?.spec.brand.name || p.site?.name || "Untitled video";
 const recentFilmOf = (f: FilmState): RecentFilm => {
   // Films saved before concepts had a look have none.
@@ -504,6 +506,7 @@ export function Studio() {
           resume: opts.resume,
           // Web search is a OneAPI service.
           web: settings.webSearch && !ai.custom,
+          images: imagesOf(settings) ?? undefined,
           team: settings.team,
           host: () => host.current,
           voice: voiceReady(settings) ? { apiKey: settings.voice.key, voiceId: settings.voice.voiceId, voiceName: settings.voice.voiceName, tuning: settings.voice.tuning } : undefined,
@@ -789,6 +792,40 @@ export function Studio() {
     await remember(project.id, film, "music", before);
   }
 
+  /**
+   * The video's frame changed (16:9, 9:16, 1:1): at once, with no AI, so the
+   * preview and the export are at the new size; the scenes lay themselves out
+   * from the frame's size, so what was written for another one may need
+   * recomposing (recomposeFilm). Its own step in the history.
+   */
+  async function changeFormat(target: MotionFormat) {
+    const project = current;
+    const before = project?.film;
+    if (!project || !before || stage || before.spec.format === target) return;
+    const film: FilmState = { ...before, spec: { ...before.spec, format: target } };
+    const p = { ...project, format: target, film };
+    setCurrent(p);
+    setProjects(saveProject(p));
+    setExporting({ state: "idle" });
+    await remember(project.id, film, `format ${FORMAT_NAMES[target]}`, before);
+  }
+
+  /** The designer recomposes every scene for the current frame, keeping the words, narration, music and structure. */
+  async function recomposeFilm() {
+    const film = current?.film;
+    if (!current || !film) return;
+    if (!ready) {
+      setSettingsOpen(true);
+      return;
+    }
+    const { width, height } = DIMENSIONS[film.spec.format];
+    await improveFilm(
+      `The frame is now ${FORMAT_NAMES[film.spec.format]} (${width}x${height}). Recompose every scene for it: lay out for this frame instead of the one the film was first written for (${film.spec.format === "portrait" ? "stack vertically, bigger type, key content inside the safe area" : film.spec.format === "square" ? "centre the composition, keep generous margins" : "use the full width, put content side by side"}). Change only layout, scale, position and camera; keep every word, the narration, the music and the story exactly as they are.`,
+      { narration: true, text: true, structure: true, music: true, visuals: false },
+      [],
+    );
+  }
+
   /** The voice-over captions shown or hidden, in the preview and in the export. */
   async function changeCaptions(on: boolean) {
     const project = current;
@@ -802,11 +839,10 @@ export function Studio() {
 
   function make() {
     if (stage || brief.length > MAX_BRIEF[mode]) return;
-    // No brief: a launch promo for the website, or for OneAPI.
     const text = brief.trim();
-    // A video is always about something the person named: a brief, and a website (typed in or in the brief).
-    if (!text || !(isWebsite(website) || findUrl(text))) {
-      setError(!text ? "Write the brief first." : "Add the product's website, or name it in the brief.");
+    // A video is about what the brief says; a website is optional, but what is typed must be an address.
+    if (!text || !websiteOk(website)) {
+      setError(!text ? "Write the brief first." : "That is not a website address. Fix it, or clear it.");
       return;
     }
     if (partner && !isWebsite(partner.website)) {
@@ -1181,6 +1217,14 @@ export function Studio() {
             </div>
           </div>
         ) : null}
+        {status === "Building" ? (
+          <p className="building-note" role="status">
+            <span className="pulse" aria-hidden="true" />
+            <span>
+              <strong>Preview while it builds.</strong> The agents are still working on it, so rough edges are expected. Wait for Ready to see the finished video.
+            </span>
+          </p>
+        ) : null}
         <div className={`canvas canvas-${isFilm && film ? film.spec.format : !current && example ? example.spec.format : format}`}>
           <div className="frame">
             {isFilm || (!current && example) ? (
@@ -1305,6 +1349,20 @@ export function Studio() {
                 <dt>Spend</dt>
                 <dd className="mono">{film.spend.usd ? `$${film.spend.usd.toFixed(2)}` : `${Math.round((film.spend.input + film.spend.output) / 1000)}k tokens`}</dd>
               </dl>
+              <div className="field">
+                <span>Format</span>
+                <div className="choices" role="radiogroup" aria-label="Video format">
+                  {(["landscape", "portrait", "square"] as const).map((f) => (
+                    <button key={f} type="button" role="radio" aria-checked={film.spec.format === f} className="choice" disabled={filmBusy} onClick={() => void changeFormat(f)}>
+                      <strong>{FORMAT_NAMES[f]}</strong>
+                    </button>
+                  ))}
+                </div>
+                <small className="hint">Switching is instant and free: the scenes lay out from the frame&apos;s size. If something looks off in the new frame, let the designer recompose it (uses your AI key).</small>
+                <button type="button" className="btn block" disabled={filmBusy} onClick={() => void recomposeFilm()}>
+                  Recompose for {FORMAT_NAMES[film.spec.format]} with AI
+                </button>
+              </div>
               {film.spec.beats.some((b) => b.words?.length) ? (
                 <label className="switch">
                   <input type="checkbox" role="switch" checked={film.spec.captions !== false} disabled={filmBusy} onChange={(e) => void changeCaptions(e.target.checked)} />

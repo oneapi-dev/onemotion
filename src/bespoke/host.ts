@@ -5,7 +5,7 @@ import { DIMENSIONS } from "@/engine/plan";
 import type { FilmInput, FilmSpec } from "./film";
 import { FilmComposition, filmFrames } from "./runtime/FilmComposition";
 import { cueMisses } from "./kit/film";
-import { coverage, flashes, FLAT_SPREAD, flatness, frozenBeats, qaLayouts, qaPrints, qaSeen, qaWarnings, sameLayouts, SPARSE_SHARE } from "./runtime/qa";
+import { coverage, flashes, FLAT_SPREAD, flatness, frozenBeats, stillness, qaLayouts, qaPrints, qaSeen, qaWarnings, sameLayouts, slideSheets, SPARSE_SHARE } from "./runtime/qa";
 import { FILM_FPS, filmTiming } from "./timing";
 import { profileOf, REMOTION_LICENSE_KEY, type RenderProfile, type Target } from "@/studio/renderTarget";
 
@@ -157,7 +157,7 @@ export class FilmHost {
           const layout = f === undefined ? undefined : qaLayouts.get(f);
           return layout ? [{ beat: b.id, frame: f, layout }] : [];
         });
-        qaWarnings.push(...sameLayouts(holds));
+        qaWarnings.push(...sameLayouts(holds), ...slideSheets(holds));
         return { images, warnings: [...new Set([...cueMisses, ...qaWarnings])].slice(0, 30), seen: [...new Set(qaSeen)].join(" ").slice(0, 4000) };
       }),
     );
@@ -166,31 +166,47 @@ export class FilmHost {
   }
 
   /**
-   * The film scanned for flashing: every `every`th frame rendered small, its brightness in a 4 x 4 grid, checked for
-   * three or more light/dark flashes in a second (runtime/qa.ts flashes). About a quarter of the film's frames.
+   * The film scanned for flashing and for standing still: every `every`th frame rendered small. Its brightness in a
+   * 4 x 4 grid is checked for three or more light/dark flashes in a second (runtime/qa.ts flashes); a 128 x 72 copy
+   * measures how much of the film barely changes from sample to sample, up to its close (runtime/qa.ts stillness).
+   * About a quarter of the film's frames.
    */
-  async flashScan(film: WireFilm, signal?: AbortSignal, every = 4): Promise<string[]> {
+  async motionScan(film: WireFilm, signal?: AbortSignal, every = 4): Promise<{ flashing: string[]; still: ReturnType<typeof stillness> }> {
     const run = this.queue.then(() =>
       withBackgroundFrames(async () => {
         this.rendering();
         const input = toInput(film);
         const comp = composition(input);
         const samples: { frame: number; grid: number[] }[] = [];
-        const c = new OffscreenCanvas(4, 4);
-        const ctx = c.getContext("2d");
-        if (!ctx) return [];
+        const lumas: { frame: number; luma: number[] }[] = [];
+        const big = new OffscreenCanvas(128, 72).getContext("2d");
+        if (!big) return { flashing: [], still: { share: 0, longest: null } };
         for (let f = 0; f < comp.durationInFrames; f += every) {
           signal?.throwIfAborted();
-          const still = await renderStillOnWeb({ composition: comp, inputProps: input, frame: f, signal: signal ?? null, delayRenderTimeoutInMilliseconds: 120_000, licenseKey: REMOTION_LICENSE_KEY });
-          const bmp = await createImageBitmap(await still.blob({ format: "jpeg", quality: 0.4 }));
-          ctx.drawImage(bmp, 0, 0, 4, 4);
+          // A quarter-size render, read straight from its canvas: the scan only needs brightness, and a full
+          // 1080p render with a JPEG encode took seconds a frame on a busy film.
+          const still = await renderStillOnWeb({ composition: comp, inputProps: input, frame: f, scale: 0.25, signal: signal ?? null, delayRenderTimeoutInMilliseconds: 120_000, licenseKey: REMOTION_LICENSE_KEY });
+          // Scaled down with a real filter: a plain drawImage to a few pixels samples a handful of the frame's
+          // pixels, so a line of type that happens to sit under one reads as a flash.
+          const bmp = await createImageBitmap(await still.canvas(), { resizeWidth: 128, resizeHeight: 72, resizeQuality: "high" });
+          big.drawImage(bmp, 0, 0);
           bmp.close();
-          const px = ctx.getImageData(0, 0, 4, 4).data;
+          const lp = big.getImageData(0, 0, 128, 72).data;
+          const luma: number[] = [];
+          for (let i = 0; i < lp.length; i += 4) luma.push(0.2126 * lp[i] + 0.7152 * lp[i + 1] + 0.0722 * lp[i + 2]);
+          lumas.push({ frame: f, luma });
+          // The flash grid: each of its 4 x 4 regions is the mean of its 32 x 18 block.
           const grid: number[] = [];
-          for (let i = 0; i < 64; i += 4) grid.push(0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]);
+          for (let ry = 0; ry < 4; ry++)
+            for (let rx = 0; rx < 4; rx++) {
+              let sum = 0;
+              for (let y = ry * 18; y < ry * 18 + 18; y++) for (let x = rx * 32; x < rx * 32 + 32; x++) sum += luma[y * 128 + x];
+              grid.push(sum / 576);
+            }
           samples.push({ frame: f, grid });
         }
-        return flashes(samples, FILM_FPS, every);
+        const { timing } = filmTiming(film.spec.beats, film.spec.score);
+        return { flashing: flashes(samples, FILM_FPS, every), still: stillness(lumas, timing.closeAt) };
       }),
     );
     this.queue = run.catch(() => undefined);

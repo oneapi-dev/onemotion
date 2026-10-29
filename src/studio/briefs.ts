@@ -10,12 +10,14 @@ import { DIRECTIONS, EXPLAINER_STYLES } from "@/bespoke/agent/styles";
 import type { SiteInfo } from "@/director/input";
 
 
-export type TemplateId = "launch" | "feature" | "tutorial" | "switch" | "announcement" | "collab" | "custom";
+export type TemplateId = "launch" | "feature" | "tutorial" | "switch" | "announcement" | "collab" | "explainer" | "listicle" | "story" | "myth" | "custom";
 
 export type Template = {
   id: TemplateId;
   label: string;
   hint: string;
+  /** "product": about a product or brand (its website, when given, is read). "teach": teaches or tells, no product: a faceless channel's video, narrated. */
+  group: "product" | "teach";
   /** What it is called in the brief: "launch film". */
   noun: string;
   goal: string;
@@ -24,11 +26,14 @@ export type Template = {
   /** What the idea box suggests for this kind. */
   ideaPlaceholder: string;
   seconds: number;
+  /** A teach kind's order of sections, for the writer. */
+  shape?: string;
 };
 
 export const TEMPLATES: Template[] = [
   {
     id: "launch",
+    group: "product",
     label: "Launch promo",
     hint: "Introduce the product: what it is, why it matters, try it now.",
     noun: "launch film",
@@ -39,6 +44,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "feature",
+    group: "product",
     label: "New feature or model",
     hint: "Something new is available: show it, say why it matters.",
     noun: "announcement of something new",
@@ -49,6 +55,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "tutorial",
+    group: "product",
     label: "How-to",
     hint: "Teach one thing in a few steps, with real code or UI.",
     noun: "how-to film",
@@ -59,6 +66,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "switch",
+    group: "product",
     label: "Why switch",
     hint: "The old way hurts; show the way out, before and after.",
     noun: '"why switch" film',
@@ -69,6 +77,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "announcement",
+    group: "product",
     label: "Announcement",
     hint: "News, an offer or an event: make sure nobody misses it.",
     noun: "announcement",
@@ -79,6 +88,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "collab",
+    group: "product",
     label: "Collaboration",
     hint: "Two brands together: a partnership, an integration, a co-launch.",
     noun: "collaboration film",
@@ -88,7 +98,56 @@ export const TEMPLATES: Template[] = [
     seconds: 30,
   },
   {
+    id: "explainer",
+    group: "teach",
+    label: "Explainer",
+    hint: "Teach one idea so anyone gets it: the question, the answer, why it works.",
+    noun: "explainer",
+    goal: "make the viewer understand one idea and remember it",
+    hook: "the question the viewer already has, or the most surprising fact in the answer",
+    ideaPlaceholder: "e.g. Kenapa langit berwarna biru?",
+    shape: "the question, the everyday picture of it, how it really works in two or three steps, the answer in one line, why it matters",
+    seconds: 45,
+  },
+  {
+    id: "listicle",
+    group: "teach",
+    label: "Top list",
+    hint: "Facts, tips or mistakes, one at a time, counted on screen.",
+    noun: "list video",
+    goal: "keep the viewer watching to the last item",
+    hook: "how many items there are and why the last one matters",
+    ideaPlaceholder: "e.g. 5 kebiasaan kecil yang bikin tidur lebih nyenyak",
+    shape: "the count on screen first; each item a section of its own with its number large on screen; the strongest item last",
+    seconds: 45,
+  },
+  {
+    id: "story",
+    group: "teach",
+    label: "Story or history",
+    hint: "A true story, a piece of history, how something came to be.",
+    noun: "story video",
+    goal: "make the viewer feel the story and remember what happened",
+    hook: "the most dramatic moment of the story, in one line",
+    ideaPlaceholder: "e.g. Kisah runtuhnya Majapahit",
+    shape: "told in order, with its dates and names; the turning point; what it changed; what is left of it today",
+    seconds: 60,
+  },
+  {
+    id: "myth",
+    group: "teach",
+    label: "Myth or fact",
+    hint: "A common belief, checked: what people think, what is true.",
+    noun: "myth-busting video",
+    goal: "replace a wrong belief with the right one",
+    hook: "the myth, said the way most people believe it",
+    ideaPlaceholder: "e.g. Benarkah kita cuma pakai 10% otak?",
+    shape: "the myth as people say it, why people believe it, what is true and how we know, the right belief in one line",
+    seconds: 30,
+  },
+  {
     id: "custom",
+    group: "product",
     label: "Custom",
     hint: "Your own kind of video: say what it is and what it should do.",
     noun: "film",
@@ -103,17 +162,39 @@ export const templateOf = (id: TemplateId): Template => TEMPLATES.find((t) => t.
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-export type Look = { id: string; label: string; group: "auto" | "promo" | "explainer"; hint: string; brief: string };
+/** `plain`: the look in everyday words, for someone who has never heard of a style direction. */
+export type Look = { id: string; label: string; group: "auto" | "promo" | "explainer"; hint: string; brief: string; plain: string };
+
+/** Each look in everyday words: how it feels, not how it is made. */
+const PLAIN: Record<string, string> = {
+  auto: "Not sure? The AI picks a look that fits your brand.",
+  "cinematic-dark": "Dark and dramatic, like a movie trailer.",
+  "poster-color-block": "Bold colour blocks and giant words, like a poster.",
+  "editorial-light": "Calm and tidy, like a magazine.",
+  "paper-and-print": "Paper, stamps and handwriting: warm and handmade.",
+  "retro-analog": "Old TV feel: faded colours, grain, a little glitch.",
+  "brutalist-mono": "Black and white code style, for developers.",
+  "pastel-playful": "Soft pastels and bouncy shapes: friendly and fun.",
+  "luxury-dark": "Black and gold, slow and elegant.",
+  "flat-pop-with-photos": "Bright colours with photo stickers: cheerful and modern.",
+  "kinetic-type": "Loud and fast: huge words cut on the music's beat.",
+  "continuous-action": "One moving scene that explains how something works.",
+  "cartoon-collage": "Cut-out drawings and handwriting, like a school poster.",
+  "visual-journalism": "Like a news report: photos, sources, highlighter.",
+  "white-catalog": "Clean white catalogue with notes and scribbles.",
+  "vintage-sketch": "Old book drawings on sepia paper, for history.",
+  "cartoon-stage": "A busy cartoon scene where everything moves.",
+};
 
 /** The looks to pick from: the art director's choice, the style directions, the explainer styles. */
 export const LOOKS: Look[] = [
-  { id: "auto", label: "Art director's choice", group: "auto", hint: "Picked from the brand and the product.", brief: "the art director's choice from the style directions, fitted to the brand" },
-  ...DIRECTIONS.map((d): Look => ({ id: slug(d.name), label: d.name, group: "promo", hint: `${d.background}. Good for ${d.for}.`, brief: `the "${d.name}" style direction (${d.background}; ${d.type}; ${d.motion})` })),
-  ...EXPLAINER_STYLES.map((d): Look => ({ id: slug(d.name), label: d.name, group: "explainer", hint: `${d.look}. Good for ${d.for}.`, brief: `the "${d.name}" explainer style (${d.look})` })),
+  { id: "auto", label: "Art director's choice", group: "auto", hint: "Picked from the brand and the product.", brief: "the art director's choice from the style directions, fitted to the brand", plain: PLAIN.auto },
+  ...DIRECTIONS.map((d): Look => ({ id: slug(d.name), label: d.name, group: "promo", hint: `${d.background}. Good for ${d.for}.`, brief: `the "${d.name}" style direction (${d.background}; ${d.type}; ${d.motion})`, plain: PLAIN[slug(d.name)] ?? d.for })),
+  ...EXPLAINER_STYLES.map((d): Look => ({ id: slug(d.name), label: d.name, group: "explainer", hint: `${d.look}. Good for ${d.for}.`, brief: `the "${d.name}" explainer style (${d.look})`, plain: PLAIN[slug(d.name)] ?? d.for })),
 ];
 
 export const LANGUAGES = ["Bahasa Indonesia", "English"] as const;
-export const LENGTHS = [15, 20, 30, 45] as const;
+export const LENGTHS = [15, 20, 30, 45, 60, 90] as const;
 
 /**
  * The second brand of a collaboration video: its website (its logo, colours
@@ -136,13 +217,20 @@ export type BriefIdea = {
   partner?: Partner | null;
 };
 
-export const defaultIdea = (template: TemplateId = "launch", website = ""): BriefIdea => ({ template, idea: "", website, seconds: templateOf(template).seconds, language: LANGUAGES[0], look: "auto", voice: false });
+/** A teach kind is narrated by default: a faceless video is told by its voice. */
+export const defaultIdea = (template: TemplateId = "launch", website = ""): BriefIdea => ({ template, idea: "", website, seconds: templateOf(template).seconds, language: LANGUAGES[0], look: "auto", voice: templateOf(template).group === "teach" });
 
 /** The site a brief is about, as a bare address ("oneapi.id", "acme.com/pricing"). */
 export const siteOf = (website: string) => website.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
 
 /** Whether text is a website address a video can be about: a host with a dot, optionally a path. */
 export const isWebsite = (website: string) => /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:\d+)?(\/\S*)?$/i.test(siteOf(website));
+
+/** The website is optional: empty is fine, but what is typed must be an address. */
+export const websiteOk = (website: string) => !website.trim() || isWebsite(website);
+
+/** Whether a video teaches or tells rather than sells: a teach kind, or a custom one about no website. */
+export const teaches = (i: Pick<BriefIdea, "template" | "website">) => templateOf(i.template).group === "teach" || (i.template === "custom" && !isWebsite(i.website));
 
 const lookOf = (id: string) => LOOKS.find((l) => l.id === id) ?? LOOKS[0];
 
@@ -171,7 +259,12 @@ export function partnerLine(site: string, partner: Partner): string {
 
 /** The rules every brief ends with, whoever wrote it. */
 const factRules = (site: string, partner = "") =>
-  `Only state facts from ${site}${partner ? `, ${partner}` : ""} or this brief: names, features, supported APIs, models, prices and offers exactly as written. No fake clients, partnerships, statistics, testimonials, benchmarks, savings or features${partner ? ` (the partnership with ${partner} is real)` : ""}. Show every brand, tool or model the film uses with its real logo; a competitor named only to compare appears as text, without its logo.`;
+  site
+    ? `Only state facts from ${site}${partner ? `, ${partner}` : ""} or this brief: names, features, supported APIs, models, prices and offers exactly as written. No fake clients, partnerships, statistics, testimonials, benchmarks, savings or features${partner ? ` (the partnership with ${partner} is real)` : ""}. Show every brand, tool or model the film uses with its real logo; a competitor named only to compare appears as text, without its logo.`
+    : TEACH_FACTS;
+
+/** The fact rule of a video about no website. */
+const TEACH_FACTS = "Only state what this brief states, and well-established facts any encyclopedia agrees on. Every number, date, name and quote exactly as written here; no invented statistics, studies, percentages, quotes, dates or names. When a fact is uncertain or disputed, leave it out.";
 
 /**
  * Whether what the person wrote as their idea is already a whole brief (a
@@ -199,15 +292,46 @@ export function briefFromIdea(i: BriefIdea): string {
     partner && i.partner ? partnerLine(site || "the website", i.partner) : "",
     says(/\b\d{1,3}\s*(?:-|\s)?(?:s|sec|secs|seconds?|detik)\b/i) ? "" : `Length: about ${i.seconds} seconds.`,
     says(/voice[\s-]?over|narrat|narasi/i) ? "" : i.voice ? `Voice-over in ${i.language}.` : "No voice-over.",
+    // A look picked on the form is the person's choice, whatever the brief leaves open.
+    i.look === "auto" || says(/^\s*look\s*:/im) ? "" : `Look: ${lookOf(i.look).brief}.`,
   ].filter(Boolean);
-  return [t, extra.length ? `\nFROM THE FORM: ${extra.join(" ")}` : "", `\n${factRules(site || "the website", partner)}`].join("\n").trim();
+  return [t, extra.length ? `\nFROM THE FORM: ${extra.join(" ")}` : "", `\n${factRules(site, partner)}`].join("\n").trim();
 }
+
+/** The look as a brief names it: "auto" fits the subject when there is no brand. */
+const lookLine = (i: BriefIdea) => (i.look === "auto" && teaches(i) ? "the art director's choice of explainer style, fitted to the subject" : lookOf(i.look).brief);
 
 /** A plain brief built without a model: used when there is no key, and when the person writes nothing. */
 export function basicBrief(i: BriefIdea): string {
   const t = templateOf(i.template);
   const site = siteOf(i.website);
   const partner = partnerSite(i);
+  if (teaches(i))
+    return [
+      `Create a ${i.seconds}-second ${t.noun}, faceless: no presenter on screen; the picture, the on-screen text${i.voice ? " and the narration" : ""} carry it.`,
+      i.idea.trim() ? `The subject: ${i.idea.trim()}` : "",
+      site ? `Read ${site} for facts about the subject and use them as they are.` : "",
+      `Goal: ${t.goal}. Open within the first 2 seconds on ${t.hook}.${t.shape ? ` In this order: ${t.shape}.` : ""}`,
+      `Look: ${lookLine(i)}. Show the subject itself (the thing, the place, the process, the numbers) drawn clearly; no mascot, no robots or stock "AI" imagery.`,
+      i.voice ? `Voice-over in ${i.language}, written to be heard: short sentences, one idea each.` : "No voice-over: on-screen text tells it, a few words at a time, with music and sound design.",
+      `Every word on screen in ${i.language}, very little at once. End on the one thing to remember${site ? ` and ${site}` : ""}.`,
+      factRules(site),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  if (!site)
+    return [
+      `Create a ${i.seconds}-second ${t.noun}.`,
+      i.idea.trim() ? `The idea: ${i.idea.trim()}` : "",
+      partner ? `A collaboration with ${partner}: read ${partner} for its logo, colours and facts; the close shows its mark beside ours.` : "",
+      `Goal: ${t.goal}. Open within the first 2 seconds on ${t.hook}, or on the offer when there is one.`,
+      `Look: ${lookOf(i.look).brief}.`,
+      i.voice ? `Voice-over in ${i.language}.` : "No voice-over: music, sound design and on-screen text carry it.",
+      `Every word on screen in ${i.language}, very little at once. End on the name and one line.`,
+      factRules(""),
+    ]
+      .filter(Boolean)
+      .join("\n");
   const name = partner && i.partner?.lead === "equal" ? `${site} and ${partner}` : site;
   return [
     `Create a ${i.seconds}-second ${t.noun} for ${name}.`,
@@ -227,6 +351,13 @@ export function basicBrief(i: BriefIdea): string {
 
 export type SiteText = { url: string; title: string; description: string; text: string };
 
+/** What a film of this length holds: its sections, its motifs and its voice-over words (about two a second). More, and the film is crammed and runs long. */
+export const budgetOf = (seconds: number) => ({
+  sections: seconds <= 20 ? "3 to 4" : seconds <= 45 ? "4 to 5" : "5 to 7",
+  motifs: seconds <= 20 ? "3 to 5" : seconds <= 45 ? "4 to 7" : "6 to 10",
+  words: Math.round(seconds * 2),
+});
+
 /**
  * What the person's model is asked, to write a full creative brief: the
  * shape of a senior creative director's brief (positioning, capabilities,
@@ -237,10 +368,12 @@ export type SiteText = { url: string; title: string; description: string; text: 
  */
 export function writerPrompt(i: BriefIdea, site: SiteText | null, format: string, partnerPage: SiteText | null = null): { system: string; user: string } {
   const t = templateOf(i.template);
+  const fit = budgetOf(i.seconds);
   const look = lookOf(i.look);
   const host = siteOf(i.website);
   const partner = partnerSite(i);
   const equal = i.partner?.lead === "equal";
+  if (teaches(i)) return teachPrompt(i, site, format);
   return {
     system: `You are the creative director of a motion studio that makes premium launch films for technical products. Write the brief a motion designer will build one short film from: specific, visual, opinionated, technical where the product is technical, never generic.
 
@@ -248,25 +381,29 @@ THE IDEA IS THE FILM: when the person's IDEA says what the film is about (an off
 
 FACTS: use only what the WEBSITE and the person's IDEA say about the product: its name, positioning, features, supported APIs, models, prices and offers, copied exactly. Never invent features, models, clients, partnerships, statistics, testimonials, benchmarks or savings; what the sources do not state is left out or shown as a clearly visual metaphor of how the product works. An offer or price in the IDEA appears on screen exactly as written, early. A competitor named only to compare appears as text, without its logo.
 
+CLAIMS: a quality the sources do not state in words (cheap, hemat, fast, real or asli, in minutes, the best) is a claim: leave it out, or say what the product does instead. The core line and the close's line are the same line.
+
+FIT THE LENGTH: a ${i.seconds}-second film holds ${fit.sections} sections and ${fit.motifs} motifs; a brief that asks for more makes a crammed film that runs long. Leave out what does not fit.
+
 Write the brief in English, with every on-screen text quoted in ${i.language}. Plain text with short headings, no tables, under 900 words. Cover, in this order:
 1. One opening paragraph: what to create (a ${i.seconds}-second ${t.noun} for the product), in which visual style, and the feeling it must leave. Then the concept in one line, and its one story device: an object, gesture or line that is carried through every section and transforms with the story.
 2. Brand: use the real logo, colours and product interface from the website; no invented mascot or fake assets. Name the brand colours if the website shows them.${partner ? ` This is a collaboration with ${partner} (the PARTNER below, a real partnership): ${equal ? "both brands carry the same weight, the palette draws on both" : `${host} leads, ${partner} joins where the story brings them together`}; use ${partner}'s real logo and colours from its own page.` : ""}
 3. Focus: what the product is in one line, then 2 to 4 capabilities to show, each one line, from the website.
 4. The story: first the inventory it stands on (what the product does that is not obvious, the moment of friction it removes, the clichés of its category this film will not use), then one core line of three short beats (in ${i.language}), then the journey in 3 to 5 sentences: the problem, the turn, what changes for the viewer. Goal: ${t.goal}.
-5. Visual style: ${look.brief}; the canvas, the camera language, how real objects, real code and real polished UI mix. Limits: one display face and one text face, at most three colours, and one accent colour with one meaning. Take the style from the brand's own site, not from its category: light, paper or textured surfaces by default, a dark screen only when the brand itself is dark. Never glowing colour gradients, glass cards, neon, glow on everything, particles, or a glowing dot or token as the story device: they read as generic AI. The story device is a real thing the viewer can name from the product's world (its UI, a request, a receipt, a number that moves, a line of code).
-6. Storyboard: 4 to 6 timed sections covering 0 to ${i.seconds} seconds, on the beat of the music (state its tempo in BPM once). For each: the seconds, what happens on screen in 2 to 4 concrete sentences (camera moves, transitions, what transforms into what), and the on-screen text in quotes, at most 4 words per fragment and never more than 8 words on screen at once, with no em or en dashes and no buzzwords (seamless, revolutionary, next-generation, supercharge). Each section grows out of the one before it (something in frame becomes the next thing); no crossfades between sections. The first 2 seconds show ${t.hook} or the offer.
-7. Visual motifs: 8 to 14 concrete things to show that fit this product (UI, code, data, objects), as a list.
+5. Visual style: ${look.brief}; the canvas, the camera language, how real objects, real code and real polished UI mix. Limits: one display face and one text face, at most three colours, and one accent colour with one meaning. Take the style from the brand's own site, not from its category: light, paper or textured surfaces by default, a dark screen only when the brand itself is dark. Never glowing colour gradients, glass cards, neon, glow on everything, particles, or a glowing dot or token as the story device: they read as generic AI. The story device is a real thing the viewer can name from the product's world (its UI, a request, a receipt, a number that moves, a line of code). Real code and UI are the subject itself, set straight on the frame or cropped close, never on a card or sheet that frames a whole section (that is a slide).
+6. Storyboard: ${fit.sections} timed sections covering 0 to ${i.seconds} seconds, on the beat of the music (state its tempo in BPM once). For each: the seconds, what happens on screen in 2 to 4 concrete sentences (camera moves, transitions, what transforms into what), and the on-screen text in quotes, at most 4 words per fragment and never more than 8 words on screen at once, with no em or en dashes and no buzzwords (seamless, revolutionary, next-generation, supercharge). Each section grows out of the one before it (something in frame becomes the next thing); no crossfades between sections. The first 2 seconds show ${t.hook} or the offer.
+7. Visual motifs: ${fit.motifs} concrete things to show that fit this product (UI, code, data, objects), as a list.
 8. Banned for this film: a concrete list of what it must not do (effects, moves and looks), specific to this product and this style, not general advice.
-9. Sound design: every cue tied to something visible (a stroke, a click, an impact, a number landing, a transition) and how the music builds. ${i.voice ? `A voice-over in ${i.language}.` : "No voice-over."}
-10. The close: ${partner ? `both logos, "${host} × ${partner}", one line and ${equal ? `both addresses (${host}, ${partner})` : `the address ${host}`}` : `the logo, the name, one line and the address ${host}`}, and the final frame as a poster: exactly what it shows, held still long enough to read.
+9. Sound design: every cue tied to something visible (a stroke, a click, an impact, a number landing, a transition) and how the music builds. ${i.voice ? `A voice-over in ${i.language}: its whole script, under ${fit.words} words so it fits the length, stating the same facts as the screen.` : "No voice-over."}
+10. The close: ${partner ? `both logos, "${host} × ${partner}", one line and ${equal ? `both addresses (${host}, ${partner})` : `the address ${host}`}` : `the logo, the name, one line${host ? ` and the address ${host}` : ""}`}, and the final frame as a poster: exactly what it shows, held still long enough to read.
 11. Deliverable: ${format}, 30 fps, ${i.seconds} seconds at most.
 
 Reply with the brief only.`,
     user: [
       `KIND: ${t.label} (${t.hint})`,
       `IDEA (the person's own words; keep every fact and number exactly): ${i.idea.trim() || "(none: a film that introduces the product)"}`,
-      `WEBSITE: ${host}`,
-      site ? `PAGE: "${site.title}". ${site.description}\nTEXT: ${site.text.slice(0, 8000)}` : "(the website could not be read: use only the idea)",
+      `WEBSITE: ${host || "(none given)"}`,
+      site ? `PAGE: "${site.title}". ${site.description}\nTEXT: ${site.text.slice(0, 8000)}` : host ? "(the website could not be read: use only the idea)" : "(no website: use only the idea)",
       partner ? `PARTNER: ${partner} (${equal ? "co-branded, the same weight" : `${host} leads, ${partner} joins`})` : "",
       partner ? (partnerPage ? `PARTNER PAGE: "${partnerPage.title}". ${partnerPage.description}\nTEXT: ${partnerPage.text.slice(0, 4000)}` : "(the partner's website could not be read: name it, add no facts about it)") : "",
     ]
@@ -275,7 +412,50 @@ Reply with the brief only.`,
   };
 }
 
-const PRODUCTION = "PRODUCTION BRIEF (written by the studio from the brief above; where the two differ, the brief above wins):";
+/**
+ * The writer of a video that teaches or tells (a faceless channel's
+ * explainer, list, story or myth checked): the script and a timed
+ * storyboard, with every fact listed at the end for the person to check,
+ * since these facts come from the model's knowledge, not from a website.
+ */
+function teachPrompt(i: BriefIdea, site: SiteText | null, format: string): { system: string; user: string } {
+  const t = templateOf(i.template);
+  const host = siteOf(i.website);
+  // Narration as it is really spoken: Indonesian runs slower than English (about 1.8 words a second measured on a 45 s film that came out at 64 s).
+  const words = Math.round(i.seconds * (/indonesia/i.test(i.language) ? 1.8 : 2.4));
+  return {
+    system: `You are the head writer of a faceless educational channel: short videos where the picture, the on-screen text${i.voice ? " and the narration" : ""} teach, and no presenter appears. Write the brief a motion designer will build one ${i.seconds}-second ${t.noun} from: specific, visual, accurate, never generic.
+
+THE SUBJECT IS THE FILM: the whole video is about what the IDEA names, from the first second to the last. When the IDEA is about a product, an event or a person instead, the video is about that, with facts only from the IDEA${host ? " and the WEBSITE" : ""}.
+
+ACCURACY: state only facts you are certain of, the kind an encyclopedia or a textbook states. Every number, date, name and quote in the IDEA is kept exactly. Never invent statistics, studies, percentages, quotes, dates or names; when a fact is uncertain or disputed, leave it out or say plainly that it is disputed. One clear, true explanation beats many facts.
+
+Write the brief in English, with ${i.voice ? "the narration and " : ""}every on-screen text in ${i.language}. Plain text with short headings, no tables, under 1000 words. Cover, in this order:
+1. One opening paragraph: what to create (a ${i.seconds}-second ${t.noun}, faceless), in which visual style, and the feeling it must leave. Then the one thing the viewer must remember, in one line, and the story device: one picture from the subject's own world, carried through every section, that changes as the explanation goes.
+2. The hook: the first 2 seconds show ${t.hook}, as a picture with at most 6 words on screen. Goal: ${t.goal}.${t.shape ? `\n3. The shape: ${t.shape}.` : "\n3. The shape: the order of sections that serves this subject, in one line."}
+4. ${i.voice ? `The script: the whole narration in ${i.language}, written to be heard: short sentences, one idea each, about ${words} words so it fits ${i.seconds} seconds. No filler openings ("did you know", "in this video").` : `No voice-over: the on-screen text tells it, a few words at a time; write every line of it in order.`}
+5. Storyboard: 5 to 9 timed sections covering 0 to ${i.seconds} seconds. For each: the seconds,${i.voice ? " its narration lines," : ""} what happens on screen in 2 to 4 concrete sentences (the subject itself made visible: the thing, the place, the process, a diagram that builds, a map, a timeline, a number that counts; the camera moves and what transforms into what), and the on-screen text in quotes, at most 6 words per fragment, with no em or en dashes. Each section grows out of the one before it; no crossfades, no slides.
+6. Visual style: ${lookLine(i)}. Limits: one display face and one text face, at most three colours, one accent with one meaning. Never glowing gradients, glass cards, neon, particles, robots, glowing brains or stock "AI" imagery.
+7. Visual motifs: ${budgetOf(i.seconds).motifs} concrete things to draw for this subject, as a list.
+8. Banned for this video: a concrete list of what it must not do, specific to this subject and style.
+9. Sound: the music's mood and tempo in BPM, low under the voice; every cue tied to something visible.
+10. The close: the one thing to remember in at most 8 words${host ? `, and ${host}` : ", and the channel's name or handle when the IDEA gives one"}, held still long enough to read.
+11. FACTS TO CHECK: every fact, number, date and name the video states, one per line, so the person can verify each before the video is made.
+12. Deliverable: ${format}, 30 fps, ${i.seconds} seconds at most.
+
+Reply with the brief only.`,
+    user: [
+      `KIND: ${t.label} (${t.hint})`,
+      `IDEA (the person's own words; keep every fact and number exactly): ${i.idea.trim() || "(none)"}`,
+      host ? `WEBSITE: ${host}` : "",
+      host ? (site ? `PAGE: "${site.title}". ${site.description}\nTEXT: ${site.text.slice(0, 8000)}` : "(the website could not be read: use only the idea)") : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+  };
+}
+
+const PRODUCTION ="PRODUCTION BRIEF (written by the studio from the brief above; where the two differ, the brief above wins):";
 
 /**
  * Whether a brief is the person's own raw notes rather than a production brief: no timed storyboard

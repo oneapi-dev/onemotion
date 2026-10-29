@@ -9,6 +9,7 @@ import { LIBRARY } from "@/music/library";
 import { musicStart } from "@/music/analyze";
 import type { SiteInfo } from "@/director/input";
 import { prepareAsset, scaled, sheet } from "./images";
+import { isGenerated } from "./imageTool";
 
 export type ToolResult = { text: string; images?: { label: string; url: string }[]; done?: boolean };
 export type AgentTool = { name: string; description: string; parameters: Record<string, unknown>; run: (args: Record<string, unknown>) => Promise<ToolResult> };
@@ -109,6 +110,8 @@ export type ToolScope = {
   mine?: (error: string) => boolean;
   /** Called after this agent's files pass the check. */
   onPassed?: () => void;
+  /** A write this film refuses (a kinetic beat losing its engine): the refusal, or null to write it. */
+  guard?: (path: string, next: string) => string | null;
   /** The frames this agent is responsible for: its contact sheet shows them and the seams around them. */
   focus?: { from: number; to: number; label: string };
 };
@@ -224,7 +227,10 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
       parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } }, required: ["path", "content"] },
       run: async (a) => {
         const p = writable(path(a));
-        write(p, String(a.content ?? ""));
+        const next = String(a.content ?? "");
+        const refused = scope.guard?.(p, next);
+        if (refused) return { text: `not written: ${refused}` };
+        write(p, next);
         return { text: `wrote ${p} (${lines(ws.files[p])} lines)` };
       },
     },
@@ -240,7 +246,10 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
         const count = old ? src.split(old).length - 1 : 0;
         if (!count) return { text: "old_string not found: read the file and copy the exact text" };
         if (count > 1 && !a.replace_all) return { text: `old_string occurs ${count} times: add context, or set replace_all` };
-        write(p, a.replace_all ? src.split(old).join(String(a.new_string ?? "")) : src.replace(old, () => String(a.new_string ?? "")));
+        const next = a.replace_all ? src.split(old).join(String(a.new_string ?? "")) : src.replace(old, () => String(a.new_string ?? ""));
+        const refused = scope.guard?.(p, next);
+        if (refused) return { text: `not edited: ${refused}` };
+        write(p, next);
         return { text: `edited ${p}` };
       },
     },
@@ -250,6 +259,8 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
       parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
       run: async (a) => {
         const p = writable(path(a));
+        const refused = scope.guard?.(p, "");
+        if (refused) return { text: `not deleted: ${refused}` };
         delete ws.files[p];
         ws.dirty = true;
         changed();
@@ -358,7 +369,7 @@ export function sceneTools(ws: Workspace, host: FilmHost, changed: () => void, s
         try {
           const ready = await prepareAsset(body.data);
           const variantKey = ready.tone === "dark" ? `${name}@light` : `${name}@dark`;
-          const total = Object.entries(assets).reduce((n, [k, v]) => n + (k === name || k.startsWith(`${name}@`) ? 0 : v.length), 0) + ready.data.length + (ready.variant?.length ?? 0);
+          const total = Object.entries(assets).reduce((n, [k, v]) => n + (k === name || k.startsWith(`${name}@`) || isGenerated(sources, k) ? 0 : v.length), 0) + ready.data.length + (ready.variant?.length ?? 0);
           if (total > MAX_ASSET_BYTES) return { text: "The film's assets are too heavy together: drop one, or use a smaller image." };
           assets[name] = ready.data;
           delete assets[`${name}@light`];

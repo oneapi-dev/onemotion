@@ -6,7 +6,8 @@
  * a slide; every beat is a finished moment from the kit (a price that
  * counts and lands, a command that runs, a headline that rises from a mask,
  * the logo lockup), laid out differently from the beat before, with its
- * sounds. The designer starts from a film that already works and makes it
+ * sounds. A kinetic film's headlines are KineticType runs on the music's
+ * beat instead, its stations hard cuts. The designer starts from a film that already works and makes it
  * its own; a beat it makes worse goes back to this one. That is the
  * studio's floor, whatever the model. Pure: concept in, files out.
  */
@@ -15,6 +16,7 @@ import type { WorldLayout, WorldMove } from "../kit/world";
 import type { Concept } from "./concept";
 import { codeSize } from "./floor";
 import { BEATS_INDEX, beatFile, beatsIndex } from "./parallel";
+import { isKinetic } from "./story";
 
 type BaseBeat = { id: string; says: string; shows: string };
 /** The film's brand, and in a collaboration the partner's name. */
@@ -89,7 +91,28 @@ export function worldOf(c: Pick<Concept, "camera" | "title">): { layout: WorldLa
   return { layout, move };
 }
 
+/** A kinetic film's stage: full-frame stations the camera hard-cuts between on the beat. */
+const kineticStage = () => `import { Grain, World } from "@kit";
+import { BEATS } from "./beats";
+import { BG, DISPLAY, MONO, TEXT } from "./theme";
+
+export const fonts = { [DISPLAY]: ["500", "700"], [TEXT]: ["400", "600"], [MONO]: ["400", "500"] };
+export const background = BG;
+export const captions = false;
+
+/** Kinetic type on the music's beat: every station is full frame and the camera hard-cuts between them on the beat. */
+export default function Scene() {
+  return (
+    <div style={{ position: "absolute", inset: 0, background: BG, overflow: "hidden" }}>
+      <World of={BEATS} move="cut" push={0} />
+      <Grain opacity={0.05} />
+    </div>
+  );
+}
+`;
+
 const stage = (c: Concept) => {
+  if (isKinetic(c)) return kineticStage();
   const { layout, move } = worldOf(c);
   // A route reads as a track where the stations line up; across a diagonal gap it is a stray stroke.
   const route = layout === "row" || layout === "column" ? ` route={{ color: \`\${INK}2E\`, width: 3, dot: ACCENT }}` : "";
@@ -158,6 +181,53 @@ export default function Beat() {
       ${sfx("pop", 14, 0.25, lead)}
     </div>
   );
+}
+`;
+}
+
+/** A line cut into kinetic shots: CAPS, one or two words a shot (two only while they stay short). */
+export function shotWords(says: string): string[] {
+  const words = says.replace(/\s+/g, " ").trim().toUpperCase().split(" ").filter(Boolean);
+  const out: string[] = [];
+  for (const w of words) {
+    const last = out[out.length - 1];
+    if (last && !last.includes(" ") && !/[.!?:]$/.test(last) && last.length + w.length < 12) out[out.length - 1] = `${last} ${w}`;
+    else out.push(w);
+  }
+  return out;
+}
+
+const WHIPS = ["right", "up", "left", "down"] as const;
+
+/** A kinetic beat: its words as a KineticType run, one shot a music beat (half a beat when the words outnumber the beats), the grounds turning. */
+function kineticBeat(b: BaseBeat, i: number, lead: number): string {
+  const words = shotWords(b.says);
+  const shots = words.map((text, k) => {
+    const last = k === words.length - 1;
+    const style = k === 0 ? "slam" : last && k > 1 ? "punch" : "cut";
+    const into = k === 0 ? "" : `, in: ${q(WHIPS[(k + i) % 4])}`;
+    return `    { at: b(${k} * step), text: ${q(text)}, style: ${q(style)}, ground: grounds[${(k + i) % 3}]${into}${last ? `, fx: "hit"` : ""} },`;
+  });
+  return `import { useCurrentFrame } from "remotion";
+import { KineticType, isLight, onBeat, useFilm, type KShot } from "@kit";
+import { ACCENT, BG, DISPLAY, INK } from "../theme";
+
+// ${b.id}: ${b.says.replace(/\n/g, " ")}
+export default function Beat() {
+  ${clock(lead)}
+  const { pulse, beat } = useFilm();
+  const { start, end } = beat(${q(b.id)});
+  // One shot a music beat, half a beat when the words outnumber the beats, at most two beats a shot.
+  const step = Math.min(2, Math.max(0.5, Math.floor(((end - start) / pulse / ${words.length}) * 2) / 2));
+  const b = (k: number) => onBeat(0, k, pulse);
+  const light = isLight(BG);
+  const paper = light ? BG : INK;
+  const ink = light ? INK : BG;
+  const grounds = [BG, ACCENT, paper];
+  const shots: KShot[] = [
+${shots.join("\n")}
+  ];
+  return <KineticType t={t} shots={shots} font={DISPLAY} weight={700} paper={paper} ink={ink} ground={BG} />;
 }
 `;
 }
@@ -296,13 +366,15 @@ const OPENING_LEAD = 0;
 export function baselineFiles(concept: Concept, beats: BaseBeat[], brand: Brand): Record<string, string> {
   const files: Record<string, string> = { "scene/theme.ts": theme(concept), "scene/index.tsx": stage(concept), [BEATS_INDEX]: beatsIndex(beats.map((b) => b.id)) };
   let prev = "";
+  const kinetic = isKinetic(concept);
   beats.forEach((b, i) => {
     // Two price or code moments in a row look like the same frame twice: the second is a headline.
     const found = kindOf(b, i === beats.length - 1);
     const kind = found === prev && found !== "close" ? "headline" : found;
     prev = kind;
     const lead = i === 0 ? OPENING_LEAD : 0;
-    files[beatFile(b.id)] = kind === "close" ? closeBeat(b, brand, lead) : kind === "price" ? priceBeat(b, lead) : kind === "code" ? codeBeat(b, brand, lead) : headlineBeat(b, i, lead);
+    // A kinetic film cuts every beat but the close as type on the beat, prices and code included.
+    files[beatFile(b.id)] = kind === "close" ? closeBeat(b, brand, lead) : kinetic ? kineticBeat(b, i, lead) : kind === "price" ? priceBeat(b, lead) : kind === "code" ? codeBeat(b, brand, lead) : headlineBeat(b, i, lead);
   });
   return files;
 }

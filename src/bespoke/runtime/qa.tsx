@@ -57,8 +57,21 @@ export type Print = { keys: string[]; nums: number[] };
 /** The prints of the stills being rendered now, by frame and station ("*" for a film without a World); the film host empties it before a job. */
 export const qaPrints = new Map<number, Map<string, Print>>();
 
-/** A frame's composition, as shares of the frame: its largest panel or object, and its largest line of type (with its rendered height in px). */
-export type Layout = { hero: { x: number; y: number; w: number; h: number } | null; type: { x: number; y: number; w: number; px: number } | null };
+/**
+ * A frame's composition, as shares of the frame: its largest panel or object, and its largest line of type (with its rendered height in px).
+ * `sheet`: the frame's words sit on one edged sheet (a border or a shadow) covering most of the frame, a slide inside the frame.
+ */
+export type Layout = { hero: { x: number; y: number; w: number; h: number } | null; type: { x: number; y: number; w: number; px: number } | null; sheet?: boolean };
+
+/** An edged sheet this share of the frame's area or more, holding the frame's words, is a slide. */
+const SHEET_SHARE = 0.55;
+
+/** Beats that each put everything on one bordered sheet filling the frame: three or more, and at least half the film. */
+export function slideSheets(holds: { beat: string; frame: number; layout: Layout }[]): string[] {
+  const on = holds.filter((h) => h.layout.sheet);
+  if (on.length < 3 || on.length < holds.length * 0.5) return [];
+  return [`frame ${on[0].frame}: ${on.map((h) => h.beat).join(", ")} each sit on one bordered sheet that fills the frame: a slide per beat, the camera only moving from one to the next. Take the sheets away: the frame is the canvas; set the words straight on the background or on the subject itself, crop into the subject, and let one object carry from beat to beat`];
+}
 
 /** The layouts of the stills being rendered now, by frame; the film host empties it before a job. */
 export const qaLayouts = new Map<number, Layout>();
@@ -128,6 +141,48 @@ export function flashes(samples: { frame: number; grid: number[] }[], fps: numbe
     }
   }
   return out.slice(0, 3);
+}
+
+/** A pixel changed when its brightness moved more than this (0 to 255) between two samples. */
+const STILL_STEP = 12;
+/** A sample stood still when less than this share of its pixels changed (the scenario-kinetic-film skill's finish.py: 1.5 %). */
+export const STILL_SHARE = 0.015;
+/** Longest a kinetic film may stand still before its close, and the share of still samples it may have (finish.py's gates). */
+export const PARK_SECONDS = 0.6;
+export const STILL_MAX = 0.4;
+
+/**
+ * How much of a film stands still, from small brightness samples taken `every` frames apart: the share
+ * of samples that barely changed from the one before, and the longest run of them, counted up to frame
+ * `until` (the close, where a film may rest).
+ */
+export function stillness(samples: { frame: number; luma: number[] }[], until: number): { share: number; longest: [number, number] | null } {
+  let still = 0;
+  let counted = 0;
+  let run: number | null = null;
+  let longest: [number, number] | null = null;
+  for (let i = 1; i < samples.length && samples[i].frame <= until; i++) {
+    const a = samples[i - 1].luma;
+    const b = samples[i].luma;
+    let changed = 0;
+    for (let k = 0; k < a.length; k++) if (Math.abs(a[k] - b[k]) > STILL_STEP) changed++;
+    counted++;
+    if (changed / (a.length || 1) < STILL_SHARE) {
+      still++;
+      run ??= samples[i - 1].frame;
+      if (!longest || samples[i].frame - run > longest[1] - longest[0]) longest = [run, samples[i].frame];
+    } else run = null;
+  }
+  return { share: counted ? still / counted : 0, longest };
+}
+
+/** What a kinetic film's stillness breaks of the style's gates, as warnings for the designer. */
+export function parked(s: { share: number; longest: [number, number] | null }, fps: number): string[] {
+  const out: string[] = [];
+  if (s.longest && s.longest[1] - s.longest[0] > PARK_SECONDS * fps)
+    out.push(`frames ${s.longest[0]} to ${s.longest[1]} stand still for ${((s.longest[1] - s.longest[0]) / fps).toFixed(1)} s (a kinetic film never parks over ${PARK_SECONDS} s before its logo card): give that stretch the next shot, a camera drift, sliding ghost rows or a word that keeps scaling`);
+  if (s.share > STILL_MAX) out.push(`${Math.round(s.share * 100)} % of the film stands still (at most ${STILL_MAX * 100} % for a kinetic film): cut on more beats and keep every hold moving`);
+  return out;
 }
 
 /** Two holds of one beat at least this many frames apart that print the same: the beat stood still. */
@@ -250,8 +305,11 @@ function scan(root: HTMLElement, width: number, frame: number) {
     seen.add(msg);
     qaWarnings.push(`frame ${frame}: ${msg}`);
   };
+  // A second copy of a layer drawn for an effect (data-qa="echo": the other half of a cut, a trail) is not read twice.
+  const echo = (el: Element) => el.closest('[data-qa="echo"]') !== null;
   // Text under an opaque layer painted later (a cover, a card over it) is not seen: it is left out.
   const covers = [...root.querySelectorAll("*")].filter((el) => {
+    if (echo(el)) return false;
     const bg = /rgba?\(([^)]+)\)/.exec(getComputedStyle(el).backgroundColor)?.[1].split(",").map(Number);
     return bg && (bg.length < 4 || bg[3] >= 0.95) && opacityOf(el, root) >= 0.95;
   });
@@ -270,6 +328,7 @@ function scan(root: HTMLElement, width: number, frame: number) {
   const spilled = new Set<Element>();
   for (const el of root.querySelectorAll("*")) {
     if (++n > MAX_ELEMENTS) break;
+    if (echo(el)) continue;
     const text = ownText(el);
     const fit = el instanceof HTMLElement && el.dataset.fit === "1";
     if (!text && !fit) continue;
@@ -297,8 +356,10 @@ function scan(root: HTMLElement, width: number, frame: number) {
     }
     if (text && r.height / scale < minTextPx(box.height > box.width)) warn(`text ${label} renders ${Math.round(r.height / scale)} px tall: too small to read`);
     if (text) {
-      texts.push({ el, r, block: blockOf(el, root) });
-      qaSeen.push(text);
+      const block = blockOf(el, root);
+      texts.push({ el, r, block });
+      // A line set letter by letter (a span per character) is read whole, as its line: "S W E L L" is "SWELL".
+      qaSeen.push(block !== el && block !== root ? (block.textContent ?? text).trim() : text);
     }
   }
   collisions(texts, root, warn);
@@ -361,7 +422,21 @@ function layoutOf(root: HTMLElement, box: DOMRect, texts: TextBox[], scale: numb
   }
   let type: TextBox | null = null;
   for (const t of texts) if (!type || t.r.height > type.r.height) type = t;
-  return { hero: hero ? share(hero) : null, type: type ? { ...share(type.block.getBoundingClientRect()), px: type.r.height / scale } : null };
+  return { hero: hero ? share(hero) : null, type: type ? { ...share(type.block.getBoundingClientRect()), px: type.r.height / scale } : null, sheet: type ? sheeted(type.el, root, box) : false };
+}
+
+/** Whether a line of type sits on an edged sheet (a border or a shadow) covering most of the frame. */
+function sheeted(el: Element, root: Element, box: DOMRect): boolean {
+  for (let x = el.parentElement; x && x !== root; x = x.parentElement) {
+    const cs = getComputedStyle(x);
+    const edged = parseFloat(cs.borderTopWidth) > 0 || parseFloat(cs.borderLeftWidth) > 0 || (cs.boxShadow && cs.boxShadow !== "none");
+    if (!edged) continue;
+    const r = x.getBoundingClientRect();
+    const w = Math.min(r.right, box.right) - Math.max(r.left, box.left);
+    const h = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top);
+    if (w > 0 && h > 0 && (w * h) / (box.width * box.height) >= SHEET_SHARE) return true;
+  }
+  return false;
 }
 
 /** A box most of the frame wide and tall: the stage, a backdrop or the world, not a panel. */

@@ -82,7 +82,14 @@ export default function BespokeLab() {
     try {
       const r = await host.stills(film, frames);
       setStills(r.images.map((b, i) => ({ frame: frames[i], url: URL.createObjectURL(b) })));
-      setErrors(r.warnings.map((w) => `qa: ${w}`));
+      // What the QA read on the stills: the text the storyboard check looks for.
+      const out = [...r.warnings.map((w) => `qa: ${w}`), `seen: ${r.seen || "(none)"}`];
+      // ?scan=1 also scans the whole film for flashing and standing still (the gates a kinetic film is held to).
+      if (new URLSearchParams(window.location.search).get("scan") === "1") {
+        const m = await host.motionScan(film);
+        out.push(`motion: ${Math.round(m.still.share * 100)} % still, longest still ${m.still.longest ? `frames ${m.still.longest[0]} to ${m.still.longest[1]}` : "none"}${m.flashing.length ? `; flashing: ${m.flashing.join("; ")}` : ""}`);
+      }
+      setErrors(out);
       setStatus(`${frames.length} stills in ${((performance.now() - t0) / 1000).toFixed(1)} s.`);
     } catch (e) {
       setErrors((x) => [...x, `stills: ${e instanceof Error ? e.message : String(e)}`]);

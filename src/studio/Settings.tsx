@@ -8,7 +8,8 @@ import { LIBRARY } from "@/music/library";
 import { tokenLeft } from "@/music/stable";
 import { PronunciationEditor } from "./Pronunciations";
 import { PROFILES } from "./renderTarget";
-import { backupOf, changeFolder, storageInfo, studioLexicon, type CustomEndpoint, type Settings } from "./store";
+import { backupOf, changeFolder, IMAGE_DEFAULTS, storageInfo, studioLexicon, type CustomEndpoint, type ImageSettings, type Settings } from "./store";
+import { MAX_PICTURES } from "@/bespoke/agent/imageTool";
 
 
 
@@ -331,7 +332,83 @@ function AiSection({ settings, models, set }: { settings: Settings; models: Cata
         </label>
         <p className="hint">Off (recommended): one designer builds the whole film, looks at it and fixes it. On: a lead and one agent per scene work at the same time; faster, but less of one piece, and it costs more.</p>
       </section>
+      <ImagesSection settings={settings} set={set} />
     </>
+  );
+}
+
+/** Illustrations: the person's image endpoint, its key and model, and a test image to see that it works. */
+function ImagesSection({ settings, set }: { settings: Settings; set: (p: Partial<Settings>) => void }) {
+  const im = settings.images ?? IMAGE_DEFAULTS;
+  const setImages = (patch: Partial<ImageSettings>) => set({ images: { ...im, ...patch } });
+  const aiKey = settings.provider === "custom" ? (settings.custom?.key ?? "") : settings.key;
+  const [test, setTest] = useState<{ busy: boolean; error: string | null; image: string | null }>({ busy: false, error: null, image: null });
+  async function tryIt() {
+    setTest({ busy: true, error: null, image: null });
+    try {
+      const res = await fetch("/api/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Image-Key": im.key },
+        body: JSON.stringify({ base: im.base, model: im.model, quality: "low", size: "1024x1024", prompt: "A red panda asleep on a mossy branch, flat paper cut-out illustration, cream background. No text." }),
+      });
+      const body = (await res.json().catch(() => null)) as { data?: string; error?: string } | null;
+      if (!res.ok || !body?.data) throw new Error(body?.error ?? `The endpoint answered ${res.status}.`);
+      setTest({ busy: false, error: null, image: body.data });
+    } catch (err) {
+      setTest({ busy: false, error: err instanceof Error ? err.message : String(err), image: null });
+    }
+  }
+  return (
+    <section className="settings-card">
+      <h3>Illustrations</h3>
+      <label className="switch">
+        <input type="checkbox" role="switch" checked={im.on} onChange={(e) => setImages({ on: e.target.checked })} />
+        <span>Let the designer make illustrations with an image model</span>
+      </label>
+      <p className="hint">For what code cannot draw well: places, animals, objects, moments in history. At most {MAX_PICTURES} per film, all in one art style; numbers, diagrams and words stay in code. Each image is billed on the image endpoint.</p>
+      {im.on ? (
+        <>
+          <label className="field">
+            <span>Base URL</span>
+            <input type="url" spellCheck={false} value={im.base} onChange={(e) => setImages({ base: e.target.value.trim() })} placeholder="https://api-images.bynara.id/v1" />
+            <small className="hint">The address before /images/generations and /images/edits.</small>
+          </label>
+          <label className="field">
+            <span>API key</span>
+            <input type="password" autoComplete="off" spellCheck={false} value={im.key} onChange={(e) => setImages({ key: e.target.value.trim() })} placeholder="Your key for this endpoint" />
+            {aiKey && im.key !== aiKey ? (
+              <button type="button" className="link" onClick={() => setImages({ key: aiKey })}>
+                Use the same key as my AI endpoint
+              </button>
+            ) : null}
+          </label>
+          <div className="pair">
+            <label className="field">
+              <span>Model</span>
+              <input type="text" spellCheck={false} value={im.model} onChange={(e) => setImages({ model: e.target.value.trim() })} placeholder="gpt-image-2" />
+            </label>
+            <div className="field">
+              <span>Quality</span>
+              <div className="seg" role="radiogroup" aria-label="Image quality">
+                {(["low", "medium", "high"] as const).map((q) => (
+                  <button key={q} type="button" role="radio" aria-checked={im.quality === q} onClick={() => setImages({ quality: q })}>
+                    {q[0].toUpperCase() + q.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="assist">
+            <button type="button" className="btn" onClick={() => void tryIt()} disabled={test.busy || !im.base || !im.key || !im.model}>
+              {test.busy ? "Making a test image…" : "Make a test image"}
+            </button>
+            <small className={test.error ? "error" : "hint"}>{test.error ?? "One small, low-quality image on this key, to check the endpoint works."}</small>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {test.image ? <img className="image-test" src={test.image} alt="Test illustration from the image endpoint" /> : null}
+        </>
+      ) : null}
+    </section>
   );
 }
 

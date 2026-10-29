@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { baselineFiles, closeLine, gutted, kindOf, lines, priceChange, worldOf } from "./baseline";
+import { baselineFiles, closeLine, gutted, kindOf, lines, priceChange, shotWords, worldOf } from "./baseline";
+import { handTyped } from "./story";
 import { codeSize, thinness } from "./floor";
 import { normalizeConcept } from "./concept";
 import { beatFile } from "./parallel";
@@ -53,6 +54,26 @@ describe("the baseline film", () => {
     for (const b of beats) expect(files[beatFile(b.id)]).not.toMatch(/len\s*-|1 - out/);
     // The World runs the opening station ahead, so the beats keep their plain clocks.
     expect(files[beatFile("b1")]).toContain("const t = useCurrentFrame();");
+  });
+
+  it("cuts a kinetic film's headlines into KineticType runs on hard-cut stations, and still passes the check", () => {
+    const kinetic = normalizeConcept({ ...concept, look: { ...concept.look, direction: "Kinetic type", concept: "Kinetic launch on the beat" } });
+    const files = baselineFiles(kinetic, beats, brand);
+    expect(files["scene/index.tsx"]).toContain('move="cut"');
+    expect(files[beatFile("b3")]).toContain("<KineticType");
+    expect(files[beatFile("b3")]).toContain('"CREDITS HIT"');
+    // Prices and code included: every beat but the close is type on the beat.
+    expect(handTyped(files, beats.map((b) => b.id))).toEqual([]);
+    expect(files[beatFile("b1")]).toContain('"$10 →"');
+    const r = checkScene(files);
+    expect(r.errors).toEqual([]);
+    expect(r.ok).toBe(true);
+  }, TYPECHECK_MS);
+
+  it("cuts a line into short CAPS shots", () => {
+    expect(shotWords("Gerak itu bahasa.")).toEqual(["GERAK ITU", "BAHASA."]);
+    expect(shotWords("Semua bergerak dengan alasan.")).toEqual(["SEMUA", "BERGERAK", "DENGAN", "ALASAN."]);
+    expect(shotWords("Waktu. Bentuk.")).toEqual(["WAKTU.", "BENTUK."]);
   });
 
   it("shapes the world from the concept's camera words, in English or Indonesian", () => {

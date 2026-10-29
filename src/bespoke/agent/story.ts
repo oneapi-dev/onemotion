@@ -102,3 +102,37 @@ export function slideIssues(files: Record<string, string>): string[] {
   if (fading.length) out.push(`${fading.join(", ")} fade${fading.length === 1 ? "s" : ""} out as ${fading.length === 1 ? "it ends" : "they end"}, like a slide: in one world nothing leaves when its beat ends (the camera moves on and may come back), so remove the exit and let the station stay`);
   return out;
 }
+
+/** A kinetic film: its concept took the "Kinetic type" direction or the "Kinetic launch on the beat" concept. */
+export const isKinetic = (c: { look?: { direction?: string; concept?: string } }) => /kinetic/i.test(`${c.look?.direction ?? ""} ${c.look?.concept ?? ""}`);
+
+/** The kit's kinetic engine: type cut on the music's beat, and the scene blocks built on it. */
+const KINETIC_ENGINE = /<(KineticType|PictureShot|Graph|PromptBox|FlyWords|Chain|Notes|Hero|Counters|Progress|Stretch|Rewind|Denial)\b/;
+
+/**
+ * The beats of a kinetic film that place their words by hand: neither the beat nor a shared component it
+ * imports (from scene/) uses the kinetic engine. The last beat, the logo card and the film's only rest, is free.
+ */
+export function handTyped(files: Record<string, string>, ids: string[]): string[] {
+  const engine = (path: string) => [".tsx", ".ts", "/index.tsx", "/index.ts"].some((ext) => KINETIC_ENGINE.test(files[`${path}${ext}`] ?? ""));
+  return ids.slice(0, -1).filter((id) => {
+    const src = files[`scene/beats/${id}.tsx`];
+    if (src === undefined || KINETIC_ENGINE.test(src)) return false;
+    const shared = [...src.matchAll(/from\s+["']\.\.\/([^"']+)["']/g)].map((m) => `scene/${m[1]}`);
+    return !shared.some(engine);
+  });
+}
+
+/**
+ * The write gate of a kinetic film: a write (to a beat or to a shared component it uses) that leaves more
+ * beats placing their words by hand than before is refused, so the engine is never quietly dropped.
+ */
+export function kineticGuard(files: () => Record<string, string>, ids: string[]): (path: string, next: string) => string | null {
+  return (path, next) => {
+    const now = files();
+    const before = new Set(handTyped(now, ids));
+    const after = handTyped({ ...now, [path]: next }, ids).filter((id) => !before.has(id));
+    if (!after.length) return null;
+    return `this is a kinetic film, and that change takes the kinetic engine out of ${after.join(", ")}. Keep each beat's words in a <KineticType> run (or a kinetic scene block): change its shots (words, styles, grounds, whips, fx), and put the concept's objects between or behind the runs, not in place of them.`;
+  };
+}

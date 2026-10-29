@@ -5,13 +5,14 @@ import type { CatalogModel, SiteInfo } from "@/director/input";
 import type { FilmFormat, FilmSpec } from "../film";
 import type { FilmHost } from "../host";
 import { filmMusic, musicPrompt, recordFilmVoice, type FilmVoice, type MusicSource } from "../voice";
-import { filmTiming } from "../timing";
+import { parked } from "../runtime/qa";
+import { FILM_FPS, filmTiming } from "../timing";
 import { missingEdits, type ColorEdit, type TextEdit } from "../textEdit";
 import type { Pronunciation } from "@/voice/spoken";
 import { filmSpecOf, languageName, normalizeConcept, partnerOf, voiceLanguageOf, type Concept, type FilmPartner } from "./concept";
 import type { Partner } from "../kit/film";
 import { jsonStep, seesImages, sumUsage, type Msg, type Part } from "./llm";
-import { CLOSE_FIX, crowdedClose, isSlides, silentBeats, slideIssues, SLIDES_FIX } from "./story";
+import { CLOSE_FIX, crowdedClose, handTyped, isKinetic, isSlides, kineticGuard, silentBeats, slideIssues, SLIDES_FIX } from "./story";
 import { addUsage, runAgent, type AgentEvent, type Price, type Spend } from "./loop";
 import { reviewFilm, type Review } from "./review";
 import { BEATS_INDEX, beatFile, beatOf, beatView, ownsBeat, pool, snapshotBeat } from "./parallel";
@@ -19,6 +20,7 @@ import { baselineFiles, gutted } from "./baseline";
 import { LEAD_INTEGRATE, NO_FOUNDATION, REVISE_NOTE_STEPS, SOLO_STEPS, beatTask, leadFoundationTask, repairTask, reviseTask, soloTask } from "./roles";
 import { applyRevision, brokenCues, normalizeRevision, reviseMessage, revisePrompt, type Locks, type RevisionPlan } from "./revise";
 import { assetNames, compile, sceneTools, webSearchTool, type AgentTool, type Workspace } from "./tools";
+import { IMAGE_NOTE, ILLUSTRATION_NOTE, imageTool, isGenerated, MAX_PICTURES, type ImageBudget, type ImageConfig } from "./imageTool";
 import { missingFigures, unshownBeats } from "./coverage";
 import { holdSameness, probeFrames, reviewTiles, settledWarnings } from "./review";
 import { EXTRA_REVIEWS, MIN_SCORE, SHORT_FIX, thinness, tooShort } from "./floor";
@@ -50,7 +52,7 @@ export type FilmState = {
 
 /** The automated QA's warnings worth a fix round: defects measured on the frames, not taste. */
 export function qaIssues(warnings: string[]): string[] {
-  return warnings.filter((w) => /cut by the|clipped by its own box|too small to read|overlap|runs over text|nearly empty|does not say|look nearly the same|covered by another element|empty card|freezes like slides|cut off by its container|spills out of its panel|places in one frame|nothing on this frame is big|share one layout|are the same slide/.test(w)).slice(0, 16);
+  return warnings.filter((w) => /cut by the|clipped by its own box|too small to read|overlap|runs over text|nearly empty|does not say|look nearly the same|covered by another element|empty card|freezes like slides|cut off by its container|spills out of its panel|places in one frame|nothing on this frame is big|share one layout|are the same slide|one bordered sheet/.test(w)).slice(0, 16);
 }
 
 /** A figure the QA saw in three places that the brief itself writes three times or more ("/ 1M TOKENS" on every price row): the person's own layout, not a defect. */
@@ -105,6 +107,8 @@ const REVISE_STEPS = 8;
 const REPAIR_QA = 5;
 /** Steps the lead gets to fix check errors that would stop the film from playing. */
 const REPAIR_STEPS = 4;
+/** What the designer of a kinetic film is told up front: the baseline's runs are the engine to keep. */
+const KINETIC_NOTE = `THIS IS A KINETIC FILM (the concept's look is Kinetic type): the baseline's headline beats are already <KineticType> runs, one shot a music beat, and the stations hard-cut. Keep that engine and make it this film's: rewrite the shots (words, styles, grounds, whips, fx, the drop's punch), and where a beat shows a thing, use the kinetic scene blocks (Graph, Counters, PromptBox, Chain, Hero, FlyWords, PictureShot...). The concept's own hero objects play between or behind the runs, never instead of them: a beat that places its words by hand is a defect the review measures.`;
 /** How long a film waits for its preview to mount before giving up. */
 const HOST_WAIT_MS = 30_000;
 const MAX_LOG = 200;
@@ -191,7 +195,7 @@ const refParts = (refs: string[]): Part[] =>
     { type: "image_url", image_url: { url } },
   ]);
 
-async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; pages?: SiteInfo[]; partner?: Partner | null; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; web?: boolean; voiceLanguage?: string; signal?: AbortSignal; onActivity?: (text: string) => void }) {
+async function makeConcept(o: { key: string; model: string; brief: string; site: SiteInfo | null; pages?: SiteInfo[]; partner?: Partner | null; models: CatalogModel[]; recent: RecentFilm[]; refs?: string[]; web?: boolean; images?: ImageConfig; voiceLanguage?: string; signal?: AbortSignal; onActivity?: (text: string) => void }) {
   const { concept: system } = await loadPrompts();
   const user = [
     `BRIEF:\n${o.brief || "(none: make a launch film for the website)"}`,
@@ -203,6 +207,7 @@ async function makeConcept(o: { key: string; model: string; brief: string; site:
     pagesOf(o.site, o.pages).length ? `IMAGES ON THOSE PAGES (real logos and icons the film can use):\n${imagesOf(o.site, o.pages)}` : "",
     `RECENT FILMS (differ from them in skin and structure: direction, concept, palette, display font, background motion, signature, metaphor, world, music):\n${o.recent.length ? o.recent.map((r) => `- ${describeRecent(r)}`).join("\n") : "(none)"}`,
     o.refs?.length ? `The person gave ${o.refs.length} screenshot(s) of the real product (REF images below): build at least one beat around remaking it.` : "",
+    o.images ? ILLUSTRATION_NOTE : "",
     // Said last because it is read last: a cheaper model otherwise answers in a shape of its own (a production document), led by the brief's "output" section.
     'Return the concept JSON in exactly the schema above: one object with the top-level keys title, language, angle, style, metaphor, world, camera, components, typography, palette, look, brand, beats, score, music, music_alternates, voiceover, facts; every beat { "id", "says", "voice", "shows", "seconds", "moments" }. No other structure (no "project", "storyboard" or "deliverables" objects), whatever format the brief describes for the video itself.',
   ]
@@ -266,6 +271,8 @@ export async function makeFilm(o: {
   partner?: FilmPartner | null;
   /** Let the creative director and the lead search and read the web (OneAPI web search). */
   web?: boolean;
+  /** The person's image endpoint: the designers may make illustrations with it. */
+  images?: ImageConfig;
   /** Build with a team (a lead and one agent per beat, in parallel) instead of one designer: faster, less coherent. */
   team?: boolean;
   host: () => FilmHost | null;
@@ -406,9 +413,15 @@ export async function makeFilm(o: {
   }
   const sightNote = blind ? "\n\nYOU CANNOT SEE IMAGES on this connection: renders come back as QA lines and the words on screen, without pictures. Never conclude a frame is blank or the scene crashed because you see no picture; trust the QA and the TEXT ON SCREEN lines." : "";
 
+  // Illustrations: one budget for the whole run, less the images a resumed build already made.
+  const pictures: ImageBudget = { left: MAX_PICTURES - Object.keys(spec.assets ?? {}).filter((k) => isGenerated(spec.assetSources, k)).length };
+  const imageNote = o.images ? `\n\n${IMAGE_NOTE}` : "";
+  const kinetic = isKinetic(concept);
+  const kineticNote = kinetic ? `\n\n${KINETIC_NOTE}` : "";
+  const imageTools = (ws: Workspace, changed: () => void): AgentTool[] => (o.images ? [imageTool(ws, o.images, pictures, changed, o.signal, blind)] : []);
   // One designer builds the whole film (the default), or a team: a lead lays the foundation and one agent per beat builds on it.
   const lead: Workspace = { spec, facts, files, modules: null, dirty: true };
-  const leadMessages: Msg[] = [{ role: "system", content: system }, task((o.team ? leadFoundationTask({ context, beats: timed }) : soloTask({ context, beats: timed })) + sightNote)];
+  const leadMessages: Msg[] = [{ role: "system", content: system }, task((o.team ? leadFoundationTask({ context, beats: timed }) : soloTask({ context, beats: timed })) + sightNote + imageNote + kineticNote)];
   const leadTools = (all: boolean) =>
     sceneTools(
       lead,
@@ -426,6 +439,7 @@ export async function makeFilm(o: {
         onPassed: () => {
           lastGood = { ...files };
         },
+        guard: kinetic ? kineticGuard(() => files, ids) : undefined,
       },
     );
   /** The last version of the whole film that passed the check, files and all. */
@@ -468,14 +482,18 @@ export async function makeFilm(o: {
   // Web search is the lead's own tool (OneAPI MCP), not the gateway's :online loop: that loop
   // does not carry a request that brings its own tools, and a failed search must not fail the step.
   const webTools = o.web ? [webSearchTool(o.key, o.signal)] : [];
+  const leadImages = imageTools(lead, () => {
+    if (lead.modules) shown = lead.modules;
+    push();
+  });
 
   let r: { done: boolean; summary: string };
   if (!o.team) {
-    r = await agent("lead", leadMessages, [...leadTools(true), ...webTools], SOLO_STEPS);
+    r = await agent("lead", leadMessages, [...leadTools(true), ...webTools, ...leadImages], SOLO_STEPS);
     o.onActivity?.("lead", null);
     if (o.signal?.aborted) return finish(r);
   } else {
-    const foundation = await agent("lead", leadMessages, [...leadTools(false), ...webTools], FOUNDATION_STEPS);
+    const foundation = await agent("lead", leadMessages, [...leadTools(false), ...webTools, ...leadImages], FOUNDATION_STEPS);
     o.onActivity?.("lead", null);
     let notes = foundation.summary;
     let base = await checkFilm();
@@ -522,7 +540,13 @@ export async function makeFilm(o: {
         );
         o.onActivity?.(b.id, "starting");
         try {
-          return await agent(b.id, [{ role: "system", content: system }, task(beatTask({ context, beat: b, index: i, beats: timed, notes, shared, assets }))], tools, BEAT_STEPS);
+          return await agent(b.id, [{ role: "system", content: system }, task(beatTask({ context, beat: b, index: i, beats: timed, notes, shared, assets }) + imageNote)], [
+            ...tools,
+            ...imageTools(ws, () => {
+              if (ws.modules) shown = ws.modules;
+              push();
+            }),
+          ], BEAT_STEPS);
         } finally {
           o.onActivity?.(b.id, null);
         }
@@ -567,11 +591,15 @@ export async function makeFilm(o: {
       .filter((m) => !unshown.includes(m.id))
       .map((m) => `${m.id} never shows ${m.figures.join(", ")} on screen (its words: "${spec.beats.find((b) => b.id === m.id)?.says.slice(0, 80)}"): every number a beat promises is on screen at its hold, large enough to read`);
     const silent = silentBeats(spec.beats.length, files);
+    const typed = kinetic ? handTyped(files, ids) : [];
     const thin = thinness(files, spec.beats.length);
     // Dashes the brief does not write itself: the tell of generated copy.
     const dashed = /[—–]/.test(o.brief) ? [] : [...new Set(seen.match(/[^\n—–]{0,24}[—–][^\n—–]{0,24}/g) ?? [])].slice(0, 3);
     return [
-      ...qaIssues(warnings).filter((w) => !briefRepeats(w, o.brief)),
+      // First: a round's repair takes only the first few measured defects.
+      ...(typed.length ? [`${typed.join(", ")} place${typed.length === 1 ? "s its" : " their"} words by hand, though this is a kinetic film: cut each beat's type as a <KineticType> run of shots on the music's beat (at: onBeat(0, k, pulse)), or use a kinetic scene block (Graph, Counters, PromptBox, Chain, Hero, FlyWords...); the concept's own objects stay, between or behind the runs`] : []),
+      // Kinetic type is centred and full frame on purpose: its beats differ by ground and shot, not by layout.
+      ...qaIssues(warnings).filter((w) => !briefRepeats(w, o.brief) && !(kinetic && / share one layout /.test(w))),
       ...missing,
       ...(dashed.length ? [`the on-screen words use dashes (${dashed.map((d) => `"${d.trim()}"`).join(", ")}): rewrite them with a full stop, a comma or a colon`] : []),
       ...slideIssues(files),
@@ -676,7 +704,22 @@ ${agentFacts}${concept.voiceLanguage ? `\nNARRATION: the person narrates this fi
   // Flashing: the version that ships is scanned for light and dark flips faster than three a second (a seizure risk); one fix when found.
   if (!o.signal?.aborted) {
     const c = await checkFilm().catch(() => null);
-    const flashing = c?.ok ? await host.flashScan({ spec, modules: c.modules }, o.signal).catch(() => []) : [];
+    const scan = c?.ok ? await host.motionScan({ spec, modules: c.modules }, o.signal).catch(() => null) : null;
+    const flashing = scan?.flashing ?? [];
+    // A kinetic film is held to the style's measured gates (the scenario-kinetic-film skill): it never parks.
+    const parks = kinetic && scan && !flashing.length ? parked(scan.still, FILM_FPS) : [];
+    if (parks.length && !o.signal?.aborted) {
+      say("review", { kind: "error", text: `the film parks: ${parks[0]}` });
+      const kept = { ...files };
+      leadMessages.push({ role: "user", content: `The film stands still where a kinetic film keeps moving: ${parks.join("; ")}. Fix only that: put the next shot on the beat, or keep the hold alive (the KineticType camera drift, ghost rows, a slow scale). Change nothing else, check, then call finish.` });
+      lead.dirty = true;
+      r = await agent("lead", leadMessages, leadTools(true), REPAIR_STEPS);
+      if (!(await checkFilm().catch(() => null))?.ok) {
+        for (const p of Object.keys(files)) delete files[p];
+        Object.assign(files, kept);
+        lead.dirty = true;
+      }
+    }
     if (flashing.length && !o.signal?.aborted) {
       say("review", { kind: "error", text: `the film flashes: ${flashing[0]}` });
       const kept = { ...files };

@@ -2,10 +2,11 @@
 // one-frame step reads as a glitch. Adapted from remotion-opus-skill's kit
 // (MIT, (c) 2026 direkturcrypto), drawn on canvas for the browser exporter.
 import { useMemo } from "react";
-import { Easing, Img } from "remotion";
+import { Easing } from "remotion";
 import { Draw } from "./draw";
 import { useFilm } from "./film";
 import { hitEnv, lin, prog, seeded } from "./motion";
+import { Picture } from "./ui";
 
 export type Hit = { at: number; kind: "shake" | "punch" | "flash"; amp?: number };
 
@@ -45,10 +46,13 @@ export const Grain = ({ opacity = 0.06, dark = false }: { opacity?: number; dark
     return c.toDataURL("image/png");
   }, []);
   if (!src) return null;
+  // Tiled with Picture, not remotion's <Img>: <Img> calls image.decode() and logs the rejection
+  // ("EncodingError: The source image cannot be decoded.") even though the image loads: once per
+  // tile, 40 times a frame. Picture waits for the same load and swallows the same rejection.
   return (
     <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, overflow: "hidden", opacity: dark ? opacity * 0.7 : opacity, pointerEvents: "none" }}>
       {Array.from({ length: Math.ceil(H / 256) }, (_, r) =>
-        Array.from({ length: Math.ceil(W / 256) }, (_, c) => <Img key={`${r}-${c}`} src={src} style={{ position: "absolute", left: c * 256, top: r * 256, width: 256, height: 256 }} />),
+        Array.from({ length: Math.ceil(W / 256) }, (_, c) => <Picture key={`${r}-${c}`} src={src} style={{ position: "absolute", left: c * 256, top: r * 256, width: 256, height: 256 }} />),
       )}
     </div>
   );
